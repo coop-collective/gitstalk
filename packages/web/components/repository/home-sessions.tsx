@@ -3,65 +3,59 @@
 /**
  * Home's live half (`docs/claude-opus/16` item 1.6): the person's connected agent sessions,
  * asked for every 3 s until one connects (so a session signed in from a terminal shows up
- * within seconds), and the first-visit checklist, which ticks "connect" from the same list.
+ * within seconds) and every 30 s after, only while the tab is visible; and the first-visit
+ * checklist, which ticks "connect" from the same query. The server renders both with the
+ * sessions it read (`initial`), so the first paint needs no request.
  */
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { z } from 'zod';
-
-import { AgentSession } from '@gitstalk/shared-identity/agent-sessions';
 
 import type { FirstStepId } from '../../src/home/first-steps';
 import { firstSteps, isStarted, sessionsPollMs } from '../../src/home/first-steps';
+import type { ConnectedSession } from '../../src/home/sessions-answer';
+import { isSessionsAnswer } from '../../src/home/sessions-answer';
+import { fetchJson } from '../../src/query/fetch-json';
+import { qk } from '../../src/query/keys';
 import { timeAgo } from '../../src/repositories/when';
 import styles from './repository.module.css';
 
-const SessionsAnswer = z.object({ sessions: AgentSession.array() });
+/** The sessions the server rendered with, and when it read them. */
+export type SessionsSeed = {
+  readonly userId: string;
+  /** Null: the list could not be read; the query retries. */
+  readonly sessions: readonly ConnectedSession[] | null;
+  readonly readAtMs: number;
+};
 
-type Live = { readonly sessions: readonly AgentSession[] | null; readonly nowMs: number };
+type SessionsPolling = 'poll' | 'read-only';
 
-const LiveContext = createContext<Live>({ sessions: null, nowMs: 0 });
-
-/** Keeps the session list fresh while the page is visible. */
-export function LiveSessions({
-  initial,
-  nowMs,
-  children,
-}: {
-  readonly initial: readonly AgentSession[] | null;
-  readonly nowMs: number;
-  readonly children: ReactNode;
-}) {
-  const [live, setLive] = useState<Live>({ sessions: initial, nowMs });
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let stopped = false;
-    const schedule = (sessions: readonly AgentSession[]) => {
-      if (!stopped) timer = setTimeout(() => void refresh(), sessionsPollMs(sessions));
-    };
-    const refresh = async () => {
-      if (document.visibilityState !== 'visible') return schedule([]);
-      const sessions = await fetchSessions();
-      if (sessions !== null) setLive({ sessions, nowMs: Date.now() });
-      schedule(sessions ?? []);
-    };
-    schedule(initial ?? []);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [initial]);
-  return <LiveContext value={live}>{children}</LiveContext>;
+function useSessions(seed: SessionsSeed, polling: SessionsPolling) {
+  return useQuery<readonly ConnectedSession[] | null>({
+    queryKey: qk.viewer(seed.userId).sessions(),
+    queryFn: async ({ signal }) =>
+      (await fetchJson('/api/sessions', isSessionsAnswer, { signal })).sessions,
+    initialData: seed.sessions,
+    initialDataUpdatedAt: seed.readAtMs,
+    // Background tabs do not poll (refetchIntervalInBackground stays false). One observer
+    // polls; the other only reads what it fetched.
+    refetchInterval: polling === 'poll' ? (query) => sessionsPollMs(query.state.data ?? []) : false,
+    enabled: polling === 'poll',
+  });
 }
 
 /** The three first steps, until all are done. */
 export function FirstSteps(props: {
+  readonly seed: SessionsSeed;
   readonly repositories: number;
   readonly repositoriesWithBeans: number;
 }) {
-  const { sessions } = useContext(LiveContext);
-  const steps = firstSteps({ sessions: sessions?.length ?? 0, ...props });
+  const { data: sessions } = useSessions(props.seed, 'read-only');
+  const steps = firstSteps({
+    sessions: sessions?.length ?? 0,
+    repositories: props.repositories,
+    repositoriesWithBeans: props.repositoriesWithBeans,
+  });
   if (isStarted(steps)) return null;
   const done = steps.filter((step) => step.done).length;
   return (
@@ -109,8 +103,8 @@ const STEP_TEXT: Readonly<Record<FirstStepId, ReactNode>> = {
 };
 
 /** "Your sessions": each connected agent, newest first. */
-export function SessionsPanel() {
-  const { sessions, nowMs } = useContext(LiveContext);
+export function SessionsPanel({ seed }: { readonly seed: SessionsSeed }) {
+  const { data: sessions, dataUpdatedAt } = useSessions(seed, 'poll');
   return (
     <section className={styles.panel} aria-labelledby="sessions-title">
       <div className={styles.panelHead}>
@@ -119,7 +113,7 @@ export function SessionsPanel() {
           Connect another
         </Link>
       </div>
-      <SessionList sessions={sessions} nowMs={nowMs} />
+      <SessionList sessions={sessions ?? null} nowMs={dataUpdatedAt} />
     </section>
   );
 }
@@ -128,7 +122,7 @@ function SessionList({
   sessions,
   nowMs,
 }: {
-  readonly sessions: readonly AgentSession[] | null;
+  readonly sessions: readonly ConnectedSession[] | null;
   readonly nowMs: number;
 }) {
   if (sessions === null)
@@ -159,19 +153,4 @@ function SessionList({
       ))}
     </ul>
   );
-}
-
-async function fetchSessions(): Promise<readonly AgentSession[] | null> {
-  try {
-    const response = await fetch('/api/sessions', {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return null;
-    const parsed = SessionsAnswer.safeParse(await response.json());
-    return parsed.success ? parsed.data.sessions : null;
-  } catch {
-    // Offline or slow: the next tick tries again.
-    return null;
-  }
 }

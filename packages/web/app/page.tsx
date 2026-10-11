@@ -1,7 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { redirect } from 'next/navigation';
 
-import type { DashboardRepository } from '../components/repository/home-dashboard';
 import { HomeDashboard } from '../components/repository/home-dashboard';
 import { Invitations } from '../components/repository/invitations';
 import { OrgInvitations } from '../components/orgs/org-people';
@@ -11,18 +10,12 @@ import { orgInvitationsFor } from '@gitstalk/shared-identity/org-members';
 import { orgsOf } from '@gitstalk/shared-identity/orgs';
 
 import { currentSession } from '../src/auth/user';
+import { loadHomeGrowth } from '../src/home/home-growth';
 import { collaboratorsClient } from '../src/repositories/collaborators-client';
-import type { Growth } from '../src/repositories/engine-summary';
-import { growthFromCounts, growthFromIndex, growthOf } from '../src/repositories/engine-summary';
-import type { ActivityLine, Feed } from '../src/repositories/home-activity';
-import { activityLines, indexLines, readEngineFeeds } from '../src/repositories/home-activity';
-import type { RepositoryGrowth } from '../src/repositories/index-client';
+import { growthOf } from '../src/repositories/engine-summary';
+import { readEngineFeeds } from '../src/repositories/home-activity';
 import { indexClient } from '../src/repositories/index-client';
-import type { RepositoryActivity, RepositoryRecord } from '../src/repositories/registry-client';
 import { registryClient } from '../src/repositories/registry-client';
-
-/** Lines in Home's activity. */
-const HOME_LINES = 14;
 
 type PageProps = {
   readonly searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
@@ -31,6 +24,10 @@ type PageProps = {
 /**
  * Signed in: Home (first steps, your repositories, your sessions, recent activity). Signed out,
  * where the site is not served on this origin (it answers `/` itself otherwise): sign in.
+ *
+ * Everything that needs only the person is read at once. The repository list renders from that;
+ * growth, activity and the sessions (an MCP call) are promises the page does not await, so
+ * their panels stream in behind `<Suspense>` (see `HomeDashboard`).
  */
 export default async function Home({ searchParams }: PageProps) {
   const session = await currentSession();
@@ -38,42 +35,32 @@ export default async function Home({ searchParams }: PageProps) {
   const { user } = session;
   const registry = registryClient(env.GATEWAY);
   const collaborators = collaboratorsClient(env.GATEWAY);
-  const [orgs, orgInvitations] = await Promise.all([
-    orgsOf(env, user.id),
-    orgInvitationsFor(env, user.id, Date.now()),
-  ]);
-  const [listed, archived, activity, invitations, shared, sessions, query] = await Promise.all([
-    registry.list(user.id, user.id),
-    registry.list(user.id, user.id, 'archived'),
-    registry.activity(user.id, 40),
-    collaborators.invitations(user.id),
-    collaborators.shared(user.id),
-    connectedSessions(user.id),
-    searchParams,
-  ]);
+  const sessions = connectedSessions(user.id);
+  const [orgs, orgInvitations, listed, archived, activity, invitations, shared, query] =
+    await Promise.all([
+      orgsOf(env, user.id),
+      orgInvitationsFor(env, user.id, Date.now()),
+      registry.list(user.id, user.id),
+      registry.list(user.id, user.id, 'archived'),
+      registry.activity(user.id, 40),
+      collaborators.invitations(user.id),
+      collaborators.shared(user.id),
+      searchParams,
+    ]);
   // Archived repositories leave the default lists (the owner finds them on their page).
   const own = listed.ok ? listed.value : [];
   const others = (shared.ok ? shared.value : []).filter((record) => record.archived_at === null);
-  // One D1 read for every repository's counts (repo-events); only repositories the index has
-  // not heard from yet are asked through the engines' feeds.
-  const indexed = await indexClient(env.GATEWAY).growth(
-    [...own, ...others].map((record) => record.id),
-    user.id,
+  const growth = loadHomeGrowth(
+    { records: [...own, ...others], registryActivity: activity.ok ? activity.value : [] },
+    {
+      indexGrowth: async (repoIds) => {
+        const indexed = await indexClient(env.GATEWAY).growth(repoIds, user.id);
+        return indexed.ok ? indexed.value : [];
+      },
+      engineFeeds: (engineIds) => readEngineFeeds(env.GATEWAY, engineIds),
+      engineView: (engineId) => growthOf(env.GATEWAY, engineId),
+    },
   );
-  const growthByRepo = new Map(
-    (indexed.ok ? indexed.value : [])
-      .filter((line) => line.indexed)
-      .map((line) => [line.repo_id, line]),
-  );
-  const unindexed = [...own, ...others].filter((record) => !growthByRepo.has(record.id));
-  const feeds = await readEngineFeeds(
-    env.GATEWAY,
-    unindexed.map((record) => record.engine_id),
-  );
-  const [repositories, sharedRepositories] = await Promise.all([
-    withGrowth(own, { growthByRepo, feeds }),
-    withGrowth(others, { growthByRepo, feeds }),
-  ]);
   const notice = noticeOf(listed.ok ? null : listed.error.message, {
     deleted: stringParam(query['deleted']),
     left: stringParam(query['left']),
@@ -81,8 +68,8 @@ export default async function Home({ searchParams }: PageProps) {
   return (
     <HomeDashboard
       user={user}
-      repositories={repositories}
-      shared={sharedRepositories}
+      repositories={own}
+      shared={others}
       invitations={
         <>
           <OrgInvitations invitations={orgInvitations} csrf={session.csrfToken} />
@@ -93,15 +80,11 @@ export default async function Home({ searchParams }: PageProps) {
           <YourOrgs memberships={orgs} />
         </>
       }
-      activity={homeActivity({
-        unindexed,
-        registry: activity.ok ? activity.value : [],
-        feeds,
-      })}
+      growth={growth}
+      sessions={sessions}
       archivedCount={archived.ok ? archived.value.length : 0}
       nowMs={Date.now()}
       notice={notice}
-      sessions={sessions}
     />
   );
 }
@@ -118,45 +101,4 @@ function noticeOf(
 
 function stringParam(value: string | string[] | undefined): string | null {
   return typeof value === 'string' ? value : null;
-}
-
-/**
- * Each repository with what it has grown: from the index, else its engine's feed, else (an
- * older gateway) its engine's view.
- */
-function withGrowth(
-  records: readonly RepositoryRecord[],
-  known: {
-    readonly growthByRepo: ReadonlyMap<string, RepositoryGrowth>;
-    readonly feeds: ReadonlyMap<string, Feed>;
-  },
-): Promise<DashboardRepository[]> {
-  return Promise.all(
-    records.map(async (record) => {
-      const line = known.growthByRepo.get(record.id);
-      const feed = known.feeds.get(record.engine_id);
-      let growth: Growth;
-      if (line !== undefined) growth = growthFromIndex(line);
-      else if (feed !== undefined) growth = growthFromCounts(feed.tasks);
-      else growth = await growthOf(env.GATEWAY, record.engine_id);
-      return { record, growth };
-    }),
-  );
-}
-
-/** The index's lines (registry and engines), plus feed lines for repositories not indexed yet. */
-function homeActivity(input: {
-  readonly unindexed: readonly RepositoryRecord[];
-  readonly registry: readonly RepositoryActivity[];
-  readonly feeds: ReadonlyMap<string, Feed>;
-}): readonly ActivityLine[] {
-  const fromFeeds = activityLines({
-    records: input.unindexed,
-    registry: [],
-    feeds: input.feeds,
-    limit: HOME_LINES,
-  });
-  return [...indexLines(input.registry), ...fromFeeds]
-    .toSorted((a, b) => Date.parse(b.at) - Date.parse(a.at))
-    .slice(0, HOME_LINES);
 }
