@@ -22,7 +22,7 @@ import { auditStatement } from './audit';
 import type { IdentityEnv } from './identity-env';
 import { base64UrlDecode, base64UrlEncode, hashSecret, randomId, randomSecret } from './secrets';
 import type { NewSession } from './sessions';
-import { SESSION_SECONDS, sessionInsert } from './sessions';
+import { openSessionStatements } from './sessions';
 import type { SessionUser } from './users';
 import { findUserById, insertUser, isHandleTaken, isUniqueViolation } from './users';
 
@@ -110,7 +110,14 @@ export async function finishPasskeySignup(
   const credential = await verifyNewPasskey(input.response, challenge.challenge, context.rp);
   if (credential === null) return { ok: false, reason: 'not_verified' };
   const user = { id: challenge.user_id, handle: challenge.handle, email: null };
-  const session = { secret: randomSecret(), expiresAt: context.now + SESSION_SECONDS * 1000 };
+  const { session, statements } = await openSessionStatements(env, {
+    user,
+    kind: 'signup',
+    method: 'passkey',
+    userAgent: context.userAgent,
+    ip: context.ip,
+    now: context.now,
+  });
   try {
     await env.IDENTITY_DB.batch([
       insertUser(env, user, context.now),
@@ -120,22 +127,7 @@ export async function finishPasskeySignup(
         name: passkeyName(context.userAgent),
         now: context.now,
       }),
-      await sessionInsert(
-        env,
-        { userId: user.id, userAgent: context.userAgent, ...session },
-        context.now,
-      ),
-      await auditStatement(
-        env,
-        {
-          action: 'user.signup',
-          actorUserId: user.id,
-          target: user.handle,
-          ip: context.ip,
-          detail: { method: 'passkey' },
-        },
-        context.now,
-      ),
+      ...statements,
     ]);
   } catch (error: unknown) {
     if (isUniqueViolation(error)) return { ok: false, reason: 'handle_taken' };
@@ -185,26 +177,19 @@ export async function finishPasskeySignin(
     stored,
   });
   if (verified === null) return { ok: false, reason: 'not_verified' };
-  const session = { secret: randomSecret(), expiresAt: context.now + SESSION_SECONDS * 1000 };
+  const { session, statements } = await openSessionStatements(env, {
+    user,
+    kind: 'signin',
+    method: 'passkey',
+    userAgent: context.userAgent,
+    ip: context.ip,
+    now: context.now,
+  });
   await env.IDENTITY_DB.batch([
     env.IDENTITY_DB.prepare(
       'UPDATE passkeys SET counter = ?, last_used_at = ? WHERE credential_id = ?',
     ).bind(verified.newCounter, context.now, stored.credential_id),
-    await sessionInsert(
-      env,
-      { userId: user.id, userAgent: context.userAgent, ...session },
-      context.now,
-    ),
-    await auditStatement(
-      env,
-      {
-        action: 'session.signin',
-        actorUserId: user.id,
-        ip: context.ip,
-        detail: { method: 'passkey' },
-      },
-      context.now,
-    ),
+    ...statements,
   ]);
   return { ok: true, user: { id: user.id, handle: user.handle, email: user.email }, session };
 }

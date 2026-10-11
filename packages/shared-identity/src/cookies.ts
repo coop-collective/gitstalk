@@ -4,9 +4,12 @@
  */
 
 export const SESSION_COOKIE = '__Host-bs_session';
-/** Ceremony handles: a passkey options request, and the browser a magic link was asked from. */
+/** A passkey ceremony's handle (options request to verify). */
 export const CHALLENGE_COOKIE = '__Host-bs_challenge';
-export const PREAUTH_COOKIE = '__Host-bs_preauth';
+/** The ticket of the email code this browser asked for (`email-codes.ts`). */
+export const EMAIL_TICKET_COOKIE = '__Host-bs_email';
+/** A verified address waiting for its handle (`email-sign-in.ts`). */
+export const PENDING_SIGNUP_COOKIE = '__Host-bs_signup';
 
 /** The value of one cookie in a request's Cookie header. */
 export function readCookie(header: string | null | undefined, name: string): string | null {

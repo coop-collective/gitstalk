@@ -1,6 +1,6 @@
 /**
  * Random secrets, their at-rest hashes and constant-time comparison. Every credential
- * Gitstalk issues (session ids, tokens, magic links, challenge handles) is 32 random bytes,
+ * Gitstalk issues (session ids, tokens, email-code tickets, challenge handles) is 32 random bytes,
  * shown once, and stored only as its SHA-256.
  */
 
@@ -24,6 +24,33 @@ export function randomId(prefix: string): string {
 export async function hashSecret(secret: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * HMAC-SHA-256 of `message` under a server secret, hex. For short secrets (six-digit codes)
+ * a plain hash could be reversed by trying every value; without the key it cannot.
+ */
+export async function hmacHex(key: string, message: string): Promise<string> {
+  const imported = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(key),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const mac = await crypto.subtle.sign('HMAC', imported, encoder.encode(message));
+  return [...new Uint8Array(mac)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** `length` uniformly random decimal digits (rejection sampling, so no digit is likelier). */
+export function randomDigits(length: number): string {
+  const limit = Math.floor(0x1_0000_0000 / 10) * 10;
+  let digits = '';
+  while (digits.length < length) {
+    const [value = limit] = crypto.getRandomValues(new Uint32Array(1));
+    if (value < limit) digits += String(value % 10);
+  }
+  return digits;
 }
 
 /**

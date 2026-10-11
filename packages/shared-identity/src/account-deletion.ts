@@ -67,7 +67,7 @@ export async function deleteUser(
       input.now,
     ),
     db.prepare('DELETE FROM auth_challenges WHERE user_id = ?').bind(input.userId),
-    db.prepare('DELETE FROM magic_links WHERE email = ?').bind(user.email ?? ''),
+    db.prepare('DELETE FROM email_codes WHERE email = ?').bind(user.email ?? ''),
     // Passkeys, sessions, tokens, SSH keys and requests, retired handles: ON DELETE CASCADE.
     db.prepare('DELETE FROM users WHERE id = ?').bind(input.userId),
   ]);

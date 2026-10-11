@@ -1,7 +1,7 @@
 /**
  * The bindings the identity library reads. Each Worker that uses it binds the same D1
  * database as IDENTITY_DB (`beanstalk-identity`, schema in ../migrations); the web app also
- * binds the sign-in rate limiter and, once a sender domain is onboarded, the email sender.
+ * binds the sign-in rate limiter and the email sender (`email.ts`).
  */
 export type IdentityEnv = {
   readonly IDENTITY_DB: D1Database;
