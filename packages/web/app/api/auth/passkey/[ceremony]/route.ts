@@ -169,9 +169,10 @@ async function add(request: Request, body: Body): Promise<Response> {
     context: ceremonyContext(request, now),
   });
   if (!finished.ok) return problem(400, finished.reason, MESSAGES[finished.reason]);
-  return noStore(Response.json({ redirect: '/settings/passkeys?passkey=added' }), [
-    clearChallengeCookie(),
-  ]);
+  // From Settings: back to the list. From the offer after an email sign-up: on to `next`.
+  const redirect =
+    body.next === undefined ? '/settings/passkeys?passkey=added' : NextPath.parse(body.next);
+  return noStore(Response.json({ redirect }), [clearChallengeCookie()]);
 }
 
 /**
