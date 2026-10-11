@@ -6,10 +6,14 @@
  * - `requireUser(request)`: route handlers; throws `SignInRequired` (its `response()` is a 401).
  * - `getUser(request)`: route handlers; null when signed out.
  * - `currentUser()` / `currentSession()`: server components and actions (reads the request's
- *   cookies through next/headers).
+ *   cookies through next/headers). Memoised per request with vinext's `cacheForRequest`, so a
+ *   page whose layout, header and body each ask costs one D1 read. A server action that
+ *   changes who is signed in and then reads the session again in the same request uses
+ *   `freshSession()`.
  */
 import { env } from 'cloudflare:workers';
 import { headers } from 'next/headers';
+import { cacheForRequest } from 'vinext/cache';
 
 import type { WebSession } from '@gitstalk/shared-identity/sessions';
 import { getSessionUser, getWebSession } from '@gitstalk/shared-identity/sessions';
@@ -42,11 +46,15 @@ export function getUser(request: Request): Promise<User | null> {
   return getSessionUser(request, env);
 }
 
-export async function currentSession(): Promise<WebSession | null> {
-  const requestHeaders = await headers();
-  return getWebSession(requestHeaders.get('cookie'), env);
-}
+/** The session behind this request's cookie, read once per request. */
+export const currentSession: () => Promise<WebSession | null> = cacheForRequest(freshSession);
 
 export async function currentUser(): Promise<User | null> {
   return (await currentSession())?.user ?? null;
+}
+
+/** The session read now, bypassing the per-request memo. */
+export async function freshSession(): Promise<WebSession | null> {
+  const requestHeaders = await headers();
+  return getWebSession(requestHeaders.get('cookie'), env);
 }

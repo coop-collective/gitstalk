@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import styles from '../../components/account/account.module.css';
+import { ForgetClientCache } from '../../components/account/forget-client-cache';
 import { TurnstileField } from '../../components/account/turnstile';
 import { PasskeySignin } from '../../components/account/passkey-buttons';
 import { NextPath } from '../../src/auth/http';
@@ -59,6 +60,7 @@ function SignedOutNotice({ query }: { readonly query: Query }) {
   const text = signedOutText(query);
   return text === null ? null : (
     <p className={styles.success} role="status">
+      <ForgetClientCache />
       {text}
     </p>
   );
