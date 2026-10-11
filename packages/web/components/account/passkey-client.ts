@@ -1,18 +1,30 @@
 /**
  * The browser half of a passkey ceremony: ask the server for options, run WebAuthn through
  * @simplewebauthn/browser, post the result back. Answers where to go next, or a message.
+ * Sign-in can also run as conditional UI (`autofill`): the browser offers saved passkeys in
+ * the email field's autofill list and the ceremony finishes when one is picked.
  */
 import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
-import { WebAuthnError, startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import {
+  WebAuthnError,
+  browserSupportsWebAuthnAutofill,
+  startAuthentication,
+  startRegistration,
+} from '@simplewebauthn/browser';
 
 export type Ceremony = 'signup' | 'signin' | 'add';
 
 export type CeremonyOutcome =
   | { readonly kind: 'done'; readonly redirect: string }
   | { readonly kind: 'failed'; readonly message: string };
+
+/** Whether this browser can offer passkeys in autofill (conditional mediation). */
+export function canAutofillPasskeys(): Promise<boolean> {
+  return browserSupportsWebAuthnAutofill();
+}
 
 export async function runPasskeyCeremony(
   ceremony: Ceremony,
@@ -22,6 +34,8 @@ export async function runPasskeyCeremony(
     readonly csrf?: string;
     /** A Turnstile token for the first step (sign-up and sign-in, when Turnstile is on). */
     readonly turnstile?: string;
+    /** Sign-in only: wait for a passkey picked from autofill instead of opening a dialog. */
+    readonly mediation?: 'modal' | 'autofill';
   },
 ): Promise<CeremonyOutcome> {
   const started = await post(
@@ -39,7 +53,10 @@ export async function runPasskeyCeremony(
   try {
     if (ceremony === 'signin') {
       if (!isRequestOptions(options)) return failed('The server sent no sign-in options.');
-      response = await startAuthentication({ optionsJSON: options });
+      response = await startAuthentication({
+        optionsJSON: options,
+        useBrowserAutofill: input.mediation === 'autofill',
+      });
     } else {
       if (!isCreationOptions(options)) return failed('The server sent no passkey options.');
       response = await startRegistration({ optionsJSON: options });
