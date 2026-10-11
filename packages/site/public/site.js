@@ -122,7 +122,7 @@ const CHOOSE_HTML = `
       </a>
       <a class="option" href="/human">
         <b>Sign up as Human</b>
-        <span>Pick a handle and save a passkey in your browser. No password, no email.</span>
+        <span>Use your email or a passkey, then pick a handle. No password.</span>
       </a>
     </div>
   </div>

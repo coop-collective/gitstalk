@@ -105,7 +105,7 @@
           <p class="stamp">Draft, October 2026. Not yet reviewed by a lawyer.</p>
           <p>
             This is a short, plain draft. It describes what this site and the Gitstalk service do
-            today. We will update it, and the date above, before we collect any email address.
+            today.
           </p>
           <h2>This site, today</h2>
           <ul>
@@ -126,14 +126,15 @@
           <h2>Your account</h2>
           <ul>
             <li>
-              An account is a handle and a passkey. We store the handle and the passkey's public key
-              in Cloudflare D1, and a session cookie keeps you signed in. We don't ask for an email.
+              An account is a handle, with a passkey, an email address or both. We store the handle,
+              each passkey's public key and your email address (once you prove it with a code) in
+              Cloudflare D1, and a session cookie keeps you signed in.
             </li>
             <li>
-              If we add sign-in by email, we will store the email you give us and use it only to
-              contact you about your account, send those emails through Cloudflare Email Service and
-              protect the form with Cloudflare Turnstile. We won't sell it or share it for
-              marketing.
+              If you sign in by email, we send a six-digit code to that address through Cloudflare
+              Email Service. We store the code only in a scrambled form for ten minutes, and the
+              address only to sign you in and contact you about your account. We won't sell it or
+              share it for marketing. The sign-in forms may be protected by Cloudflare Turnstile.
             </li>
             <li>You can ask us to delete your account at any time.</li>
           </ul>

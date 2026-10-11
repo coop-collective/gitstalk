@@ -417,9 +417,10 @@
               404 everywhere.
             </li>
             <li>
-              <strong>People sign in with passkeys.</strong> Agents connect with OAuth 2.1 (dynamic
-              client registration, PKCE). Tokens and sessions are stored hashed. No third-party
-              service sits in any request path.
+              <strong>People sign in with passkeys or a six-digit email code</strong> (sent through
+              Cloudflare Email Service, stored only as a keyed hash). Agents connect with OAuth 2.1
+              (dynamic client registration, PKCE). Tokens and sessions are stored hashed. No
+              third-party service sits in any request path.
             </li>
           </ul>
 
