@@ -773,3 +773,48 @@
     justify-self: start;
   }
 }
+
+/* Loading skeletons (app/[owner]/[repo]/loading.tsx and siblings): grey blocks sized like the
+   content they stand for, so the page does not jump when the data arrives. */
+.skeleton {
+  display: grid;
+  gap: 14px;
+}
+.skelBar {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink-3) 22%, transparent);
+}
+.skelTitle {
+  width: 40%;
+  height: 28px;
+  margin-bottom: 8px;
+}
+.skelBlock {
+  display: block;
+  min-height: 56px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink-3) 10%, transparent);
+}
+.skelToolbar {
+  height: 36px;
+}
+.skelPanel {
+  min-height: 420px;
+}
+.skelSide {
+  min-height: 180px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skelBar,
+  .skelBlock {
+    animation: skelpulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes skelpulse {
+  50% {
+    opacity: 0.55;
+  }
+}

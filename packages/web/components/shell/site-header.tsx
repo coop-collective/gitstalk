@@ -1,15 +1,14 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
-
-import { getProfile } from '@gitstalk/shared-identity/profiles';
 
 import { Avatar } from '../account/avatar';
 
 import { currentSession } from '../../src/auth/user';
 import { configuredPlatformAdmins } from '../../src/admin/admin-gate';
 import { isPlatformAdmin } from '../../src/admin/platform-admins';
+import { cachedProfile } from '../../src/server/header-data';
 import { viewerTheme } from '../../src/server/viewer';
 import { NEW_MENU, primaryLinks, userMenu } from '../../src/shell/header-entries';
+import { IntentLink as Link } from './intent-link';
 import { HeaderMenu } from './header-menu';
 import styles from './header.module.css';
 import { ThemeToggle } from './theme-toggle';
@@ -21,10 +20,16 @@ import { VineMark } from './vine-mark';
  * area for platform admins, connect an agent, docs, day or night, sign out). Signed out: the theme pair, Sign in and Sign up.
  */
 export async function SiteHeader() {
-  const [theme, session] = await Promise.all([viewerTheme(), currentSession()]);
+  const theme = viewerTheme();
+  const session = await currentSession();
   const user = session?.user ?? null;
   const links = primaryLinks(user?.handle ?? null);
-  const profile = user === null ? null : await getProfile(env, user.id);
+  // The profile needs the session's user id, so it starts the moment the session is known and
+  // runs beside the theme cookie read.
+  const [resolvedTheme, profile] = await Promise.all([
+    theme,
+    user === null ? null : cachedProfile(user.id),
+  ]);
   return (
     <header className={styles.header}>
       <Link href="/" className={styles.brand} aria-label="gitstalk home">
@@ -47,7 +52,7 @@ export async function SiteHeader() {
       <div className={styles.tools}>
         {session === null || user === null ? (
           <>
-            <ThemeToggle initial={theme} />
+            <ThemeToggle initial={resolvedTheme} />
             <Link href="/login" className={styles.signIn}>
               Sign in
             </Link>
@@ -91,7 +96,7 @@ export async function SiteHeader() {
               entries={userMenu({
                 handle: user.handle,
                 csrf: session.csrfToken,
-                theme,
+                theme: resolvedTheme,
                 docsUrl: env.DOCS_URL,
                 isPlatformAdmin: isPlatformAdmin(user, configuredPlatformAdmins()),
               })}

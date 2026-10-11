@@ -1,5 +1,4 @@
-import Link from 'next/link';
-
+import { IntentLink as Link } from '../shell/intent-link';
 import type { Repository } from '../../src/people/repository';
 import styles from './home.module.css';
 
@@ -60,7 +59,8 @@ export type RepoKind = 'race' | 'repository';
 export function RepoHead(props: {
   readonly base: string;
   readonly repository: Repository;
-  readonly current: RepoTab;
+  /** The open tab; `null` for the loading skeleton, which does not know it yet. */
+  readonly current: RepoTab | null;
   readonly kind?: RepoKind;
   /** A persistent repository's visibility, shown beside its name. */
   readonly visibility?: 'public' | 'private' | 'internal';
@@ -105,7 +105,8 @@ export function RepoHead(props: {
 function RepositoryHead(props: {
   readonly base: string;
   readonly repository: Repository;
-  readonly current: RepoTab;
+  /** The open tab; `null` for the loading skeleton, which does not know it yet. */
+  readonly current: RepoTab | null;
   readonly visibility?: 'public' | 'private' | 'internal';
   readonly ownerHref?: string;
   readonly openChanges?: number;
