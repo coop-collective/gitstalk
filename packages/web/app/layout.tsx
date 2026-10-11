@@ -9,8 +9,10 @@ import { env } from 'cloudflare:workers';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
+import { QueryProvider } from '../components/query/query-provider';
 import { ChunkReloadGuard } from '../components/shell/chunk-reload-guard';
 import { SiteHeader } from '../components/shell/site-header';
+import { currentSession } from '../src/auth/user';
 import { viewerTheme } from '../src/server/viewer';
 import { PRODUCT_NAME, SOCIAL_CARD } from '../src/site/page-metadata';
 
@@ -40,7 +42,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { readonly children: ReactNode }) {
-  const theme = await viewerTheme();
+  const [theme, session] = await Promise.all([viewerTheme(), currentSession()]);
   return (
     <html lang="en" data-theme={theme === 'system' ? undefined : theme}>
       <body>
@@ -48,8 +50,10 @@ export default async function RootLayout({ children }: { readonly children: Reac
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <SiteHeader />
-        <div id="main">{children}</div>
+        <QueryProvider uid={session?.user.id ?? null}>
+          <SiteHeader />
+          <div id="main">{children}</div>
+        </QueryProvider>
       </body>
     </html>
   );
