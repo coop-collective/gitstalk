@@ -7,6 +7,8 @@ import { z } from 'zod';
 
 export type Growth =
   | { readonly kind: 'none' }
+  /** Not read: the account has more repositories than Home asks engines about one by one. */
+  | { readonly kind: 'unknown' }
   | { readonly kind: 'grown'; readonly onStalk: number; readonly growing: number };
 
 const View = z.object({ tasks: z.record(z.string(), z.number()) });
@@ -58,6 +60,7 @@ export function growthFromIndex(line: {
 }
 
 export function growthText(growth: Growth): string {
+  if (growth.kind === 'unknown') return '—';
   if (growth.kind === 'none') return 'Nothing grown yet';
   const landed = `${growth.onStalk} ${growth.onStalk === 1 ? 'bean' : 'beans'} landed`;
   return growth.growing === 0 ? landed : `${landed}, ${growth.growing} growing`;
