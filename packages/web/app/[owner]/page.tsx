@@ -41,9 +41,11 @@ export default async function OwnerPage({ params }: PageProps) {
   }
   const viewer = user?.id ?? null;
   const registry = registryClient(env.GATEWAY);
-  const [listed, archivedList] = await Promise.all([
+  // The profile is a person's only; an org's page never reads it.
+  const [listed, archivedList, profile] = await Promise.all([
     registry.list(owner.id, viewer),
     registry.list(owner.id, viewer, 'archived'),
+    owner.kind === 'org' ? null : getProfile(env, owner.id),
   ]);
   const records = listed.ok ? listed.value : [];
   const archived = archivedList.ok ? archivedList.value : [];
@@ -53,7 +55,6 @@ export default async function OwnerPage({ params }: PageProps) {
     return <OrgView page={page} records={records} archived={archived} />;
   }
   const isSelf = user !== null && user.id === owner.id;
-  const profile = await getProfile(env, owner.id);
   const name = profile === null || profile.displayName === '' ? owner.handle : profile.displayName;
   return (
     <main className={`${styles.page} ${styles.narrow}`}>
