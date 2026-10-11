@@ -4,7 +4,7 @@ import { PLUGIN_MCP_URL, agentInstalls } from './agent-installs';
 
 describe("the plugin's MCP server", () => {
   it('is the hosted address, literally, so the plugin repository can name it in .mcp.json', () => {
-    // disturbing/gitstalk-plugin's .mcp.json holds this URL with no auth header (clients use
+    // coop-collective/gitstalk-plugin's .mcp.json holds this URL with no auth header (clients use
     // OAuth); Codex does not expand ${VAR:-default} in a plugin's URL, so it is a literal.
     expect(PLUGIN_MCP_URL).toBe('https://mcp.gitstalk.io/mcp');
     expect(PLUGIN_MCP_URL).not.toContain('$');
@@ -15,10 +15,10 @@ describe('the commands /signup/agent prints', () => {
   it('installs the plugin and signs in, for the hosted deployment', () => {
     const [claude, codex] = agentInstalls(PLUGIN_MCP_URL);
     expect(claude?.code).toBe(
-      'claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude mcp login plugin:gitstalk:gitstalk',
+      'claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude mcp login plugin:gitstalk:gitstalk',
     );
     expect(codex?.code).toBe(
-      'codex plugin marketplace add disturbing/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk',
+      'codex plugin marketplace add coop-collective/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk',
     );
   });
 

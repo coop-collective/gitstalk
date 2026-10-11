@@ -85,7 +85,7 @@ Ask in [14](../../docs/claude-opus/14-repository-experience.md) and
 | `fixtures/` | Two recorded benchmark runs (generated, not hand-edited) |
 
 The setup scripts in `src/setup/scripts/` have a twin in the plugin repository
-([disturbing/gitstalk-plugin](https://github.com/disturbing/gitstalk-plugin), `scripts/`), which
+([coop-collective/gitstalk-plugin](https://github.com/coop-collective/gitstalk-plugin), `scripts/`), which
 runs the script tests; change both together.
 
 ## Develop

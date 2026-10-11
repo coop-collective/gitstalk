@@ -175,7 +175,7 @@
           </p>
 
           <h2 id="plugin">Claude Code: the plugin</h2>
-          <pre><code>claude plugin marketplace add disturbing/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
+          <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
           <p>The plugin adds:</p>
           <ul>
             <li>
@@ -204,7 +204,7 @@
           </p>
           <p>
             The plugin has its own repository,
-            <a href="https://github.com/disturbing/gitstalk-plugin">disturbing/gitstalk-plugin</a>,
+            <a href="https://github.com/coop-collective/gitstalk-plugin">coop-collective/gitstalk-plugin</a>,
             since 11 October 2026. Added the marketplace as <code>disturbing/beanstalk</code>
             before that? It still works and now points there:
             <code>claude plugin marketplace update gitstalk</code>, then
@@ -214,12 +214,12 @@
           </p>
 
           <h2 id="codex">Codex and other agents</h2>
-          <pre><code>codex plugin marketplace add disturbing/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
+          <pre><code>codex plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
           <p>
             For git, ask the agent to run the setup script (<code>setup.sh</code>, or
             <code>setup.ps1</code> on Windows) from the web app, which does what
             <code>/gitstalk:setup</code> does. A compact version of the skill,
-            <a href="https://github.com/disturbing/gitstalk-plugin/blob/HEAD/AGENTS-snippet.md"
+            <a href="https://github.com/coop-collective/gitstalk-plugin/blob/HEAD/AGENTS-snippet.md"
               >AGENTS-snippet.md</a
             >, can go in a repository's <code>AGENTS.md</code> for Codex, Cursor, Copilot or Gemini
             CLI. Cursor and Gemini CLI connect to MCP as a remote HTTP server; those lines are on
@@ -361,18 +361,18 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             <h2>Sources</h2>
             <ul>
               <li>
-                <a href="https://github.com/disturbing/gitstalk-plugin#readme"
+                <a href="https://github.com/coop-collective/gitstalk-plugin#readme"
                   >The plugin's README</a
                 >
                 (the status table)
               </li>
               <li>
                 <a
-                  href="https://github.com/disturbing/gitstalk/blob/HEAD/docs/claude-opus/19-accounts-and-auth.md"
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/19-accounts-and-auth.md"
                   >docs/claude-opus/19-accounts-and-auth.md</a
                 >,
                 <a
-                  href="https://github.com/disturbing/gitstalk/blob/HEAD/docs/claude-opus/23-mcp-repository-tools.md"
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/23-mcp-repository-tools.md"
                   >23-mcp-repository-tools.md</a
                 >
               </li>
@@ -406,7 +406,7 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
               <li><a href="/#start">Install</a></li>
               <li><a href="/docs/">Docs</a></li>
               <li>
-                <a href="https://github.com/disturbing/gitstalk/releases">Releases</a>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
               </li>
             </ul>
           </nav>
@@ -414,20 +414,20 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             <h2 id="f-company">Company</h2>
             <ul>
               <li><a href="/about">About</a></li>
-              <li><a href="https://github.com/disturbing/gitstalk/issues">Contact</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
             </ul>
           </nav>
           <nav aria-labelledby="f-community">
             <h2 id="f-community">Community</h2>
             <ul>
-              <li><a href="https://github.com/disturbing/gitstalk">GitHub</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
             </ul>
           </nav>
           <nav aria-labelledby="f-legal">
             <h2 id="f-legal">Legal</h2>
             <ul>
               <li>
-                <a href="https://github.com/disturbing/gitstalk/blob/HEAD/LICENSE.md"
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE.md"
                   >Licence (FSL → Apache-2.0)</a
                 >
               </li>

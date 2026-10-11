@@ -107,10 +107,10 @@ current state. Pushing to `sprout`, `stalk` or `main` is refused.
 # the shared session sentence). plugin-v2 = plugin 0.6.0 (never sleep-poll: one blocking ``refs/wait/any`` push woken
 # by the verdict when out of work; the lead ends its turn and acts on worker notifications).
 PLUGIN_GUIDANCE_VERSION = "plugin-v2"
-# The plugin lives in its own repository (disturbing/gitstalk-plugin) since 2026-10-11. GITSTALK_PLUGIN_DIR names a
+# The plugin lives in its own repository (coop-collective/gitstalk-plugin) since 2026-10-11. GITSTALK_PLUGIN_DIR names a
 # checkout; otherwise a sibling clone next to this repository (../gitstalk-plugin), else research/race/.plugin, which
 # ensure_plugin() clones on demand (git-ignored).
-PLUGIN_REPO_URL = "https://github.com/disturbing/gitstalk-plugin.git"
+PLUGIN_REPO_URL = "https://github.com/coop-collective/gitstalk-plugin.git"
 _RACE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SIBLING = os.path.normpath(os.path.join(_RACE, "..", "..", "..", "gitstalk-plugin"))
 _LOCAL = os.path.join(_RACE, ".plugin")

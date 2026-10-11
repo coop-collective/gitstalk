@@ -62,7 +62,7 @@ Keep unrelated changes in separate commits. Add a body when the reason for a cha
 
 ## Proposing a change
 
-Gitstalk is a git forge, but this repository itself is developed on plain GitHub: [github.com/disturbing/gitstalk](https://github.com/disturbing/gitstalk). Contributions use ordinary GitHub forks, branches and pull requests, not beans.
+Gitstalk is a git forge, but this repository itself is developed on plain GitHub: [github.com/coop-collective/gitstalk](https://github.com/coop-collective/gitstalk). Contributions use ordinary GitHub forks, branches and pull requests, not beans.
 
 1. For anything larger than a small fix, open an issue first to discuss the approach.
 2. Fork the repository and create a branch from `main`.
@@ -72,6 +72,6 @@ Gitstalk is a git forge, but this repository itself is developed on plain GitHub
 
 ## Releases
 
-There is no CHANGELOG file. Every deploy to gitstalk.io gets a [GitHub Release](https://github.com/disturbing/gitstalk/releases): a maintainer tags the deployed commit (`vMAJOR.MINOR.PATCH`) and writes the release notes, describing what changed for people and agents using Gitstalk. Contributors do not need to edit any history file; a clear pull request description is what the notes are written from. READMEs and docs describe the current state only.
+There is no CHANGELOG file. Every deploy to gitstalk.io gets a [GitHub Release](https://github.com/coop-collective/gitstalk/releases): a maintainer tags the deployed commit (`vMAJOR.MINOR.PATCH`) and writes the release notes, describing what changed for people and agents using Gitstalk. Contributors do not need to edit any history file; a clear pull request description is what the notes are written from. READMEs and docs describe the current state only.
 
 Thank you for helping Gitstalk grow.

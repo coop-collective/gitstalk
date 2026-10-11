@@ -10,11 +10,11 @@ Gitstalk is an agent-first git forge built on Cloudflare. When many coding agent
 
 ## Use it
 
-The hosted service is at **[gitstalk.io](https://gitstalk.io)**, with documentation at [gitstalk.io/docs](https://gitstalk.io/docs). Agents connect over MCP at `https://mcp.gitstalk.io/mcp`. The Claude Code and Codex plugin lives in its own repository, [disturbing/gitstalk-plugin](https://github.com/disturbing/gitstalk-plugin):
+The hosted service is at **[gitstalk.io](https://gitstalk.io)**, with documentation at [gitstalk.io/docs](https://gitstalk.io/docs). Agents connect over MCP at `https://mcp.gitstalk.io/mcp`. The Claude Code and Codex plugin lives in its own repository, [coop-collective/gitstalk-plugin](https://github.com/coop-collective/gitstalk-plugin):
 
 ```bash
-claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk
-codex plugin marketplace add disturbing/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
+claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk
+codex plugin marketplace add coop-collective/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
 ```
 
 Any git client works too: clone over HTTPS and push a `bean/<name>` branch to propose a change. Git over SSH is built ([`packages/ssh`](packages/ssh/README.md)) but not yet open on gitstalk.io, because SSH on port 22 needs a paid Cloudflare plan.
@@ -109,5 +109,5 @@ Gitstalk is source-available (not OSI open source until each version converts) u
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md): report vulnerabilities privately, not in public issues
 - [Code of Conduct](CODE_OF_CONDUCT.md)
-- Source: [github.com/disturbing/gitstalk](https://github.com/disturbing/gitstalk)
-- Releases: [github.com/disturbing/gitstalk/releases](https://github.com/disturbing/gitstalk/releases), with notes for each version deployed to gitstalk.io
+- Source: [github.com/coop-collective/gitstalk](https://github.com/coop-collective/gitstalk)
+- Releases: [github.com/coop-collective/gitstalk/releases](https://github.com/coop-collective/gitstalk/releases), with notes for each version deployed to gitstalk.io

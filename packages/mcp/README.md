@@ -23,12 +23,12 @@ guide: [Agents](../site/public/docs/agents.html). Design:
 ## Install in an agent
 
 The plugin for Claude Code and Codex lives in its own repository,
-[disturbing/gitstalk-plugin](https://github.com/disturbing/gitstalk-plugin). It adds this server,
+[coop-collective/gitstalk-plugin](https://github.com/coop-collective/gitstalk-plugin). It adds this server,
 a `gitstalk` skill and `/gitstalk:setup`:
 
 ```bash
-claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk
-codex plugin marketplace add disturbing/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
+claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk
+codex plugin marketplace add coop-collective/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
 ```
 
 Without the plugin, add the server directly and sign in:

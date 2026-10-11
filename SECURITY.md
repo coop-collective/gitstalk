@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities privately through GitHub's private vulnerability reporting:
 
-1. Go to [github.com/disturbing/gitstalk/security/advisories/new](https://github.com/disturbing/gitstalk/security/advisories/new) (the repository's **Security** tab, then **Report a vulnerability**).
+1. Go to [github.com/coop-collective/gitstalk/security/advisories/new](https://github.com/coop-collective/gitstalk/security/advisories/new) (the repository's **Security** tab, then **Report a vulnerability**).
 2. Describe the issue, the affected component (for example the gateway, the MCP server, git over SSH, Actions or the web app), steps to reproduce, and the impact you expect.
 
 **Do not open a public issue, pull request or discussion for a security problem**, and do not share details publicly until a fix is released.

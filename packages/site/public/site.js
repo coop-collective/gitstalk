@@ -9,7 +9,7 @@
 // When the plugin moves to another organisation, change PLUGIN_REPO here and in
 // packages/shared-race/src/plugin.ts (PLUGIN_MARKETPLACE).
 // ---------------------------------------------------------------------------
-const PLUGIN_REPO = 'disturbing/gitstalk-plugin';
+const PLUGIN_REPO = 'coop-collective/gitstalk-plugin';
 const PLUGIN = 'gitstalk';
 const MARKETPLACE = 'gitstalk';
 const MCP_URL = 'https://mcp.gitstalk.io/mcp';

@@ -139,10 +139,10 @@ Added 2026-10-07 on the worktree branch after `068fd97`. **The problem (Coop, li
 ### What a person runs
 
 ```bash
-claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude "/gitstalk:setup <owner>/<repo>"
+claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude "/gitstalk:setup <owner>/<repo>"
 ```
 
-`claude "/gitstalk:setup …"` runs the plugin command as the session's first prompt (checked with Claude Code 2.1.x; a folder Claude Code has not seen first asks to trust it). The command (`commands/setup.md` in the plugin repository, disturbing/gitstalk-plugin) drives the bundled script `scripts/gitstalk-setup.sh` (POSIX sh: macOS, Linux, WSL, Git Bash; `gitstalk-setup.ps1` for PowerShell):
+`claude "/gitstalk:setup …"` runs the plugin command as the session's first prompt (checked with Claude Code 2.1.x; a folder Claude Code has not seen first asks to trust it). The command (`commands/setup.md` in the plugin repository, coop-collective/gitstalk-plugin) drives the bundled script `scripts/gitstalk-setup.sh` (POSIX sh: macOS, Linux, WSL, Git Bash; `gitstalk-setup.ps1` for PowerShell):
 
 1. `detect`: platform, `ssh-keygen` (OpenSSH), browser opener, whether headless, the deployment's git origin and SSH host (`GET <web>/api/setup`), the git credential helper already set for that host, and one `option` line per key: the **1Password SSH agent** (`~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock`, `~/.1password/agent.sock`, Windows' `\\.\pipe\openssh-ssh-agent`), the running **ssh-agent** (`ssh-add -L`), **`~/.ssh/*.pub`**, and **generate**.
 2. Claude asks one question (AskUserQuestion) listing them, 1Password first; "Other" lets the person say what they want. With nothing found it generates `~/.ssh/gitstalk_ed25519` (no passphrase, since a script cannot type one; `ssh-keygen -p` adds one).
@@ -183,7 +183,7 @@ Measured with git 2.53: for a **401**, git first prompts `Username for 'https://
 ```
 remote: Gitstalk: this git is not connected to your account yet. Pick one:
 remote:   1. Claude Code (easiest): /gitstalk:setup
-remote:      not installed? claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk
+remote:      not installed? claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk
 remote:   2. HTTPS: make a token at <web>/settings/tokens and paste it at git's password prompt
 remote:   3. CI and scripts: a deploy token in GITSTALK_TOKEN (the repository page, tab "Env vars")
 ```
@@ -224,13 +224,13 @@ Built 2026-10-07 on a worktree branch from `prototype` at `b58cf65`: backlog `16
 - **`/signup/agent`** (web) prints one block per harness: Claude Code, Codex, Cursor, Gemini CLI, any MCP client, each with Copy. On the hosted deployment (its `MCP_URL` equals the plugin's) Claude Code and Codex get the plugin line; any other deployment gets `mcp add` lines for its own address (the plugin would connect to the hosted server). Signed out it is the sign-up page; signed in it says "Connect another agent". Commands live in `web/src/setup/agent-installs.ts`; the marketing site's picker (`site/public/site.js`) carries the same text.
 
 ```bash
-claude plugin marketplace add disturbing/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude mcp login plugin:gitstalk:gitstalk
-codex plugin marketplace add disturbing/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
+claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin install gitstalk@gitstalk && claude mcp login plugin:gitstalk:gitstalk
+codex plugin marketplace add coop-collective/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
 ```
 
 - **`.mcp.json` fix:** the plugin's URL was `${BEANSTALK_MCP_URL:-https://…/mcp}`. Claude Code expands that; **Codex 0.160 does not** (`codex mcp login gitstalk` failed with "invalid MCP server URL `${BEANSTALK_MCP_URL:-…}`", reproduced against the public marketplace). The URL is now literal, with no auth header; `web/src/setup/agent-installs.test.ts` reads the file and keeps it equal to the web's constant. Another deployment adds its own server (`claude mcp add --transport http gitstalk <url>`).
 - **Cursor and Gemini CLI** lines follow those clients' documented MCP OAuth (`cursor-agent mcp login`, Gemini's `/mcp auth`); they were not run here and are marked so on the page and the site ("untested").
-- **Marketplace:** since 2026-10-11 the plugin and its marketplace are their own public repository, `disturbing/gitstalk-plugin` (default branch `main`, `.claude-plugin/marketplace.json` lists the plugin at the root, `source: "./"`); both CLIs install from it (plugin 0.9.0). This repository keeps a `.claude-plugin/marketplace.json` whose one entry points there (`source: {source: "url", url: "https://github.com/disturbing/gitstalk-plugin.git"}`; the `github` source type clones over SSH and fails without a GitHub key, the HTTPS `url` type does not), so installs made from `disturbing/beanstalk` update to the new home: Claude Code with `claude plugin marketplace update gitstalk` and `claude plugin update gitstalk@gitstalk` (verified 0.8.0 to 0.9.0, Claude Code 2.1.296), Codex with `codex plugin marketplace upgrade gitstalk` and `codex plugin add gitstalk@gitstalk` (verified, Codex 0.162.0). It may move to a `gitstalk` organisation later (§10.5).
+- **Marketplace:** since 2026-10-11 the plugin and its marketplace are their own public repository, `coop-collective/gitstalk-plugin` (default branch `main`, `.claude-plugin/marketplace.json` lists the plugin at the root, `source: "./"`); both CLIs install from it (plugin 0.9.0). This repository keeps a `.claude-plugin/marketplace.json` whose one entry points there (`source: {source: "url", url: "https://github.com/coop-collective/gitstalk-plugin.git"}`; the `github` source type clones over SSH and fails without a GitHub key, the HTTPS `url` type does not), so installs made from `disturbing/beanstalk` update to the new home: Claude Code with `claude plugin marketplace update gitstalk` and `claude plugin update gitstalk@gitstalk` (verified 0.8.0 to 0.9.0, Claude Code 2.1.296), Codex with `codex plugin marketplace upgrade gitstalk` and `codex plugin add gitstalk@gitstalk` (verified, Codex 0.162.0). It may move to a `gitstalk` organisation later (§10.5).
 
 ### 10.3 Home (1.6)
 
@@ -252,7 +252,7 @@ FROM product_events WHERE timestamp > NOW() - INTERVAL '30' DAY GROUP BY event
 ### 10.5 What Coop decides or does
 
 1. **Turnstile on live:** create a managed widget for `beanstalk-web.devaccounts-1password.workers.dev` (and later the product domain) in the dashboard or with `wrangler turnstile widget create`, put its site key in `packages/web/wrangler.jsonc` `TURNSTILE_SITE_KEY`, and `wrangler secret put TURNSTILE_SECRET_KEY` on `beanstalk-web` (from the widget, never in the repo). Leave `TURNSTILE_TEST_KEYS` empty on live. Put the secret first: until both are set, Turnstile stays off (a site key alone does not lock anyone out).
-2. **The plugin's home** (decided 2026-10-11: `disturbing/gitstalk-plugin`, plugin at its root; the rest of this item is the earlier analysis): keep `disturbing/beanstalk` or create an organisation repository (the backlog's `beanstalkdev/beanstalk-plugin`). For a separate repository: copy `packages/claude-plugin` to the new repository's root as `plugins/gitstalk/` (or its root) with a `.claude-plugin/marketplace.json` whose `plugins[0].source` points at it (`name: gitstalk` for both marketplace and plugin keeps every command unchanged); then change `PLUGIN_MARKETPLACE` in `shared-race/src/plugin.ts` and `PLUGIN_REPO` in `site/public/site.js`. No repository was created here.
+2. **The plugin's home** (decided 2026-10-11: `coop-collective/gitstalk-plugin`, plugin at its root; the rest of this item is the earlier analysis): keep `disturbing/beanstalk` or create an organisation repository (the backlog's `beanstalkdev/beanstalk-plugin`). For a separate repository: copy `packages/claude-plugin` to the new repository's root as `plugins/gitstalk/` (or its root) with a `.claude-plugin/marketplace.json` whose `plugins[0].source` points at it (`name: gitstalk` for both marketplace and plugin keeps every command unchanged); then change `PLUGIN_MARKETPLACE` in `shared-race/src/plugin.ts` and `PLUGIN_REPO` in `site/public/site.js`. No repository was created here.
 3. **Merge and push this branch** to `prototype` (the public default branch): until then the public marketplace still serves the `${BEANSTALK_MCP_URL:-…}` URL, so the Codex line fails at `codex mcp login` (Claude Code's works already).
 4. **Deploy live** web (vars and the `PRODUCT_EVENTS` binding), gateway (`PRODUCT_EVENTS`) and MCP (log fields). No D1 migration is needed.
 

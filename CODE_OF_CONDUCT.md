@@ -61,7 +61,7 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement privately, either
 through a private report on the repository
-([github.com/disturbing/gitstalk/security/advisories/new](https://github.com/disturbing/gitstalk/security/advisories/new);
+([github.com/coop-collective/gitstalk/security/advisories/new](https://github.com/coop-collective/gitstalk/security/advisories/new);
 say in the title that it is a Code of Conduct report) or by contacting the
 maintainer through their GitHub profile,
 [github.com/disturbing](https://github.com/disturbing).
