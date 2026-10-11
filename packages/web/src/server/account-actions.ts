@@ -7,6 +7,7 @@
  * (`app/settings/profile/avatar`), because they carry a file.
  */
 import { env } from 'cloudflare:workers';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { renamePasskey } from '@gitstalk/shared-identity/passkeys';
@@ -40,6 +41,8 @@ export async function saveProfile(
     },
   });
   if (!saved.ok) return { saved: null, error: saved.message, field: saved.field };
+  // Pages the client router kept (staleTimes) would otherwise show the old profile.
+  revalidatePath('/', 'layout');
   return { saved: 'Profile saved.', error: null, field: null };
 }
 
@@ -86,6 +89,7 @@ export async function renamePasskeyAction(
   });
   switch (outcome) {
     case 'renamed':
+      revalidatePath('/settings', 'layout');
       return { saved: 'Renamed.', error: null };
     case 'invalid_name':
       return { saved: null, error: 'Give it a name of up to 60 characters.' };

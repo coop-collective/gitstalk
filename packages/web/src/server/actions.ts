@@ -7,6 +7,7 @@
  */
 import { env } from 'cloudflare:workers';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 
@@ -89,6 +90,8 @@ export async function decideCard(
     return { kind: 'refused', message: outcome.message };
   }
   log.info('decision made', { run, card, winner });
+  // Pages the client router kept (staleTimes) would otherwise show the card still open.
+  revalidatePath('/', 'layout');
   return { kind: 'decided', winner };
 }
 
