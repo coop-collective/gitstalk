@@ -10,7 +10,8 @@ import { notFound, redirect } from 'next/navigation';
 
 import type { RepositoryOwnerRef } from '@gitstalk/shared-identity/orgs';
 import { ownerByHandle } from '@gitstalk/shared-identity/orgs';
-import { resolveRetiredHandle } from '@gitstalk/shared-identity/profiles';
+import type { Profile } from '@gitstalk/shared-identity/profiles';
+import { getProfile, resolveRetiredHandle } from '@gitstalk/shared-identity/profiles';
 
 import { isReservedOwner } from '../repositories/paths';
 import { keyedForRequest } from './request-memo';
@@ -18,11 +19,17 @@ import { keyedForRequest } from './request-memo';
 export type OwnerParams = Promise<{ readonly owner: string }>;
 
 const owners = keyedForRequest<RepositoryOwnerRef>();
+const profiles = keyedForRequest<Profile | null>();
 
 /** The person or org at `params`, read once per request; throws Next's not-found or redirect. */
 export async function pageOwner(params: OwnerParams): Promise<RepositoryOwnerRef> {
   const handle = decodeURIComponent((await params).owner);
   return owners(handle, () => resolveOwner(handle));
+}
+
+/** A person's profile for their page, read once per request. */
+export function ownerProfile(userId: string): Promise<Profile | null> {
+  return profiles(userId, () => getProfile(env, userId));
 }
 
 async function resolveOwner(handle: string): Promise<RepositoryOwnerRef> {

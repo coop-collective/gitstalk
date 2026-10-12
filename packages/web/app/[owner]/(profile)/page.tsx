@@ -17,9 +17,8 @@ import { orgPage } from '../../../src/orgs/org-page';
 import { repositoryPath } from '../../../src/repositories/paths';
 import type { RepositoryRecord } from '../../../src/repositories/registry-client';
 import { registryClient } from '../../../src/repositories/registry-client';
-import { cachedProfile } from '../../../src/server/header-data';
 import type { OwnerParams } from '../../../src/server/owner-page';
-import { pageOwner } from '../../../src/server/owner-page';
+import { ownerProfile, pageOwner } from '../../../src/server/owner-page';
 
 type PageProps = { readonly params: OwnerParams };
 
@@ -92,8 +91,7 @@ type About =
 
 async function aboutOwner(owner: RepositoryOwnerRef, viewer: string | null): Promise<About> {
   if (owner.kind === 'org') return { kind: 'org', page: await orgPage(owner.handle, viewer) };
-  // Shared with the header when people look at their own page.
-  return { kind: 'user', profile: await cachedProfile(owner.id) };
+  return { kind: 'user', profile: await ownerProfile(owner.id) };
 }
 
 function OrgView(props: {

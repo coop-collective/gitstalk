@@ -88,6 +88,27 @@ describe('profile', () => {
     });
     expect((await getProfile(env, user.id))?.avatarKey).toBeNull();
   });
+
+  it('comes with the session, for the header', async () => {
+    const { user } = await signUp('prof-session');
+    const { secret } = await createSession(env, { userId: user.id, userAgent: null }, T0);
+    const cookie = `__Host-bs_session=${secret}`;
+    expect((await getWebSession(cookie, env, () => T0))?.profile).toEqual({
+      displayName: '',
+      avatarKey: null,
+    });
+    const key = `users/${user.id}/avatar/${'c'.repeat(32)}`;
+    await setAvatarKey(env, { userId: user.id, key, ...at(T0) });
+    await updateProfile(env, {
+      userId: user.id,
+      ...at(T0),
+      profile: { displayName: 'Ada', bio: '', website: '' },
+    });
+    expect((await getWebSession(cookie, env, () => T0))?.profile).toEqual({
+      displayName: 'Ada',
+      avatarKey: key,
+    });
+  });
 });
 
 describe('handle changes', () => {

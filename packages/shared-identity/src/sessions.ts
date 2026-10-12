@@ -14,8 +14,17 @@ export const SESSION_SECONDS = 30 * 24 * 3600;
 const SLIDE_AFTER_MS = 24 * 3600 * 1000;
 const MAX_COOKIE_LENGTH = 128;
 
+/** What a page's header shows of the signed-in person, read with the session (same row). */
+export type SessionProfile = {
+  /** '' when unset: show the handle. */
+  readonly displayName: string;
+  /** R2 key of the uploaded picture, or null: the fallback. */
+  readonly avatarKey: string | null;
+};
+
 export type WebSession = {
   readonly user: SessionUser;
+  readonly profile: SessionProfile;
   /** The session's at-rest id, for revoking this one session. */
   readonly sessionHash: string;
   /** A CSRF token for this session's forms (see `csrfTokenFor`). */
@@ -129,7 +138,7 @@ export async function getWebSession(
   const sessionHash = await hashSecret(secret);
   const now = clock();
   const row = await env.IDENTITY_DB.prepare(
-    `SELECT s.expires_at, s.last_seen_at, u.id, u.handle, u.email
+    `SELECT s.expires_at, s.last_seen_at, u.id, u.handle, u.email, u.display_name, u.avatar_key
        FROM web_sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND u.disabled_at IS NULL`,
   )
@@ -140,11 +149,14 @@ export async function getWebSession(
       id: string;
       handle: string;
       email: string | null;
+      display_name: string;
+      avatar_key: string | null;
     }>();
   if (row === null) return null;
   if (now - row.last_seen_at > SLIDE_AFTER_MS) await slide(env, sessionHash, now);
   return {
     user: { id: row.id, handle: row.handle, email: row.email },
+    profile: { displayName: row.display_name, avatarKey: row.avatar_key },
     sessionHash,
     csrfToken: await csrfTokenFor(secret),
   };

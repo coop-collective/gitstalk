@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { viewerProfile } from '../../../src/server/header-data';
+import { currentSession } from '../../../src/auth/user';
 import type { OwnerParams } from '../../../src/server/owner-page';
 import { pageOwner } from '../../../src/server/owner-page';
 
@@ -17,7 +17,7 @@ export default async function ProfileLayout({
   readonly children: ReactNode;
   readonly params: OwnerParams;
 }) {
-  // The header's profile is read beside the owner, not after it (see `viewerProfile`).
-  await Promise.all([pageOwner(params), viewerProfile()]);
+  // The header's session (with its name and picture) is read beside the owner, not after it.
+  await Promise.all([pageOwner(params), currentSession()]);
   return children;
 }

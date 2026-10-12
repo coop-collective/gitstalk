@@ -7,6 +7,7 @@ import type { SignOutPorts } from './sign-out';
 
 const SESSION: WebSession = {
   user: { id: 'usr_1', handle: 'ada', email: null },
+  profile: { displayName: '', avatarKey: null },
   sessionHash: 'hash-1',
   csrfToken: 'csrf-1',
 };

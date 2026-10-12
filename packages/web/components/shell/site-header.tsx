@@ -5,7 +5,6 @@ import { Avatar } from '../account/avatar';
 import { currentSession } from '../../src/auth/user';
 import { configuredPlatformAdmins } from '../../src/admin/admin-gate';
 import { isPlatformAdmin } from '../../src/admin/platform-admins';
-import { viewerProfile } from '../../src/server/header-data';
 import { viewerTheme } from '../../src/server/viewer';
 import { NEW_MENU, primaryLinks, userMenu } from '../../src/shell/header-entries';
 import { IntentLink as Link } from './intent-link';
@@ -20,11 +19,8 @@ import { VineMark } from './vine-mark';
  * area for platform admins, connect an agent, docs, day or night, sign out). Signed out: the theme pair, Sign in and Sign up.
  */
 export async function SiteHeader() {
-  const [resolvedTheme, session, profile] = await Promise.all([
-    viewerTheme(),
-    currentSession(),
-    viewerProfile(),
-  ]);
+  // The header's name and picture come with the session (one D1 read for both).
+  const [resolvedTheme, session] = await Promise.all([viewerTheme(), currentSession()]);
   const user = session?.user ?? null;
   const links = primaryLinks(user?.handle ?? null);
   return (
@@ -80,11 +76,9 @@ export async function SiteHeader() {
                   <Avatar
                     seed={user.id}
                     label={
-                      profile === null || profile.displayName === ''
-                        ? user.handle
-                        : profile.displayName
+                      session.profile.displayName === '' ? user.handle : session.profile.displayName
                     }
-                    imageKey={profile?.avatarKey ?? null}
+                    imageKey={session.profile.avatarKey}
                     size={26}
                   />
                   <span aria-hidden="true" className={styles.caret} />

@@ -98,7 +98,8 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   or out clears the cache and the stored copy.
 - **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request;
   `keyedForRequest` (`src/server/request-memo.ts`) does the same per key (the access check,
-  a tab's engine reads, Ask's data, the header's profile). Prefer it to React's `cache()` for anything a layout reads: vinext
+  a tab's engine reads, Ask's data). The session (`currentSession`) carries the header's name
+  and picture from the same `users` row, so a signed-in page reads D1 once for both. Prefer it to React's `cache()` for anything a layout reads: vinext
   probes layouts outside React's render, so `cache()` reads twice. `"use cache"` with
   `cacheLife` and `cacheTag` works, but the default cache handler is in memory, per isolate.
 - **Status before streaming**: vinext runs the layouts above a route's first `loading.tsx`
