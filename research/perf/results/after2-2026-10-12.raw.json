@@ -1,0 +1,1687 @@
+{
+  "base": "https://gitstalk.dev",
+  "takenAt": "2026-10-12T06:53:16.076Z",
+  "runs": 5,
+  "node": "v25.8.1",
+  "repo": "perf-repo",
+  "browser": "151.0.7922.34",
+  "discovered": {
+    "bean": true,
+    "run": true
+  },
+  "routes": {
+    "home": {
+      "path": "/",
+      "cold": {
+        "median": {
+          "ttfb": 718.5,
+          "responseEnd": 842.5999999642372,
+          "dcl": 1045.699999988079,
+          "load": 1095,
+          "lcp": 1000,
+          "cls": 0.047,
+          "htmlBytes": 9827,
+          "requests": 41,
+          "jsFiles": 27,
+          "jsTransfer": 232204,
+          "jsEncoded": 224404,
+          "jsDecoded": 737567,
+          "totalTransfer": 325482,
+          "totalEncoded": 313482
+        },
+        "runs": [
+          {
+            "ttfb": 848,
+            "responseEnd": 853.3999999761581,
+            "dcl": 1081.8999999761581,
+            "load": 1121.699999988079,
+            "lcp": 1096,
+            "cls": 0.002,
+            "htmlBytes": 9827,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 232134,
+            "jsEncoded": 224334,
+            "jsDecoded": 737567,
+            "totalTransfer": 325469,
+            "totalEncoded": 313469
+          },
+          {
+            "ttfb": 311.9000000357628,
+            "responseEnd": 620.5,
+            "dcl": 802.5,
+            "load": 802.6999999880791,
+            "lcp": 580,
+            "cls": 0.047,
+            "htmlBytes": 9962,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 232510,
+            "jsEncoded": 224710,
+            "jsDecoded": 737567,
+            "totalTransfer": 325980,
+            "totalEncoded": 313980
+          },
+          {
+            "ttfb": 509,
+            "responseEnd": 514.5,
+            "dcl": 708.5,
+            "load": 815.1000000238419,
+            "lcp": 740,
+            "cls": 0.094,
+            "htmlBytes": 9824,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 232204,
+            "jsEncoded": 224404,
+            "jsDecoded": 737567,
+            "totalTransfer": 325536,
+            "totalEncoded": 313536
+          },
+          {
+            "ttfb": 718.5,
+            "responseEnd": 842.5999999642372,
+            "dcl": 1045.699999988079,
+            "load": 1095,
+            "lcp": 1000,
+            "cls": 0.095,
+            "htmlBytes": 9996,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 232045,
+            "jsEncoded": 224245,
+            "jsDecoded": 737567,
+            "totalTransfer": 325482,
+            "totalEncoded": 313482
+          },
+          {
+            "ttfb": 1127.4000000357628,
+            "responseEnd": 1206,
+            "dcl": 1398.9000000357628,
+            "load": 1399,
+            "lcp": 1300,
+            "cls": 0.002,
+            "htmlBytes": 9784,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 232207,
+            "jsEncoded": 224407,
+            "jsDecoded": 737567,
+            "totalTransfer": 325448,
+            "totalEncoded": 313448
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 386,
+          "responseEnd": 506.80000001192093,
+          "dcl": 508.80000001192093,
+          "load": 509.10000002384186,
+          "lcp": 492,
+          "cls": 0.024,
+          "htmlBytes": 9864,
+          "requests": 41,
+          "jsFiles": 27,
+          "jsTransfer": 0,
+          "jsEncoded": 224443,
+          "jsDecoded": 737567,
+          "totalTransfer": 10764,
+          "totalEncoded": 313615
+        },
+        "runs": [
+          {
+            "ttfb": 391.7999999523163,
+            "responseEnd": 473.19999998807907,
+            "dcl": 475.7999999523163,
+            "load": 476.19999998807907,
+            "lcp": 492,
+            "cls": 0.024,
+            "htmlBytes": 9821,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 224443,
+            "jsDecoded": 737567,
+            "totalTransfer": 10721,
+            "totalEncoded": 313572
+          },
+          {
+            "ttfb": 552.7999999523163,
+            "responseEnd": 637.6999999880791,
+            "dcl": 639.5999999642372,
+            "load": 640,
+            "lcp": 712,
+            "cls": 0.024,
+            "htmlBytes": 9864,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 224443,
+            "jsDecoded": 737567,
+            "totalTransfer": 10764,
+            "totalEncoded": 313615
+          },
+          {
+            "ttfb": 386,
+            "responseEnd": 491.39999997615814,
+            "dcl": 493.39999997615814,
+            "load": 493.69999998807907,
+            "lcp": 480,
+            "cls": 0.024,
+            "htmlBytes": 9821,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 224443,
+            "jsDecoded": 737567,
+            "totalTransfer": 10721,
+            "totalEncoded": 313572
+          },
+          {
+            "ttfb": 378.60000002384186,
+            "responseEnd": 517.3000000119209,
+            "dcl": 518.8999999761581,
+            "load": 519,
+            "lcp": 504,
+            "cls": 0.047,
+            "htmlBytes": 9996,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 224443,
+            "jsDecoded": 737567,
+            "totalTransfer": 10896,
+            "totalEncoded": 313747
+          },
+          {
+            "ttfb": 379.80000001192093,
+            "responseEnd": 506.80000001192093,
+            "dcl": 508.80000001192093,
+            "load": 509.10000002384186,
+            "lcp": 480,
+            "cls": 0.024,
+            "htmlBytes": 9864,
+            "requests": 41,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 224443,
+            "jsDecoded": 737567,
+            "totalTransfer": 10764,
+            "totalEncoded": 313615
+          }
+        ]
+      }
+    },
+    "repo": {
+      "path": "/<handle>/perf-repo",
+      "cold": {
+        "median": {
+          "ttfb": 791.6999999880791,
+          "responseEnd": 1094,
+          "dcl": 1273.699999988079,
+          "load": 1274.300000011921,
+          "lcp": 1248,
+          "cls": 0.002,
+          "htmlBytes": 13205,
+          "requests": 39,
+          "jsFiles": 25,
+          "jsTransfer": 224715,
+          "jsEncoded": 217515,
+          "jsDecoded": 717329,
+          "totalTransfer": 336870,
+          "totalEncoded": 330403
+        },
+        "runs": [
+          {
+            "ttfb": 791.6999999880791,
+            "responseEnd": 1094,
+            "dcl": 1273.699999988079,
+            "load": 1274.300000011921,
+            "lcp": 1216,
+            "cls": 0,
+            "htmlBytes": 13266,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 224715,
+            "jsEncoded": 217515,
+            "jsDecoded": 717329,
+            "totalTransfer": 336987,
+            "totalEncoded": 330587
+          },
+          {
+            "ttfb": 548.1999999880791,
+            "responseEnd": 890.0999999642372,
+            "dcl": 1070.5,
+            "load": 1070.699999988079,
+            "lcp": 1248,
+            "cls": 0.002,
+            "htmlBytes": 13180,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 224869,
+            "jsEncoded": 217669,
+            "jsDecoded": 717329,
+            "totalTransfer": 337039,
+            "totalEncoded": 330572
+          },
+          {
+            "ttfb": 1731.699999988079,
+            "responseEnd": 2579.699999988079,
+            "dcl": 2756.900000035763,
+            "load": 2757.5,
+            "lcp": 2688,
+            "cls": 0.002,
+            "htmlBytes": 13205,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 224708,
+            "jsEncoded": 217508,
+            "jsDecoded": 717329,
+            "totalTransfer": 336852,
+            "totalEncoded": 330385
+          },
+          {
+            "ttfb": 1823,
+            "responseEnd": 2384,
+            "dcl": 2562.100000023842,
+            "load": 2987,
+            "lcp": 2488,
+            "cls": 0.026,
+            "htmlBytes": 13209,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 224718,
+            "jsEncoded": 217518,
+            "jsDecoded": 717329,
+            "totalTransfer": 336866,
+            "totalEncoded": 330399
+          },
+          {
+            "ttfb": 756.8000000119209,
+            "responseEnd": 915.5,
+            "dcl": 1233.1000000238419,
+            "load": 1233.6000000238419,
+            "lcp": 1072,
+            "cls": 0,
+            "htmlBytes": 13180,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 224700,
+            "jsEncoded": 217500,
+            "jsDecoded": 717329,
+            "totalTransfer": 336870,
+            "totalEncoded": 330403
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 149.80000001192093,
+          "responseEnd": 211.39999997615814,
+          "dcl": 214.5999999642372,
+          "load": 215.0999999642372,
+          "lcp": 340,
+          "cls": 0,
+          "htmlBytes": 13180,
+          "requests": 39,
+          "jsFiles": 25,
+          "jsTransfer": 0,
+          "jsEncoded": 217544,
+          "jsDecoded": 717329,
+          "totalTransfer": 14080,
+          "totalEncoded": 330697
+        },
+        "runs": [
+          {
+            "ttfb": 123.19999998807907,
+            "responseEnd": 359.0999999642372,
+            "dcl": 361.69999998807907,
+            "load": 361.89999997615814,
+            "lcp": 388,
+            "cls": 0,
+            "htmlBytes": 13152,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 0,
+            "jsEncoded": 217544,
+            "jsDecoded": 717329,
+            "totalTransfer": 14052,
+            "totalEncoded": 330669
+          },
+          {
+            "ttfb": 151.0999999642372,
+            "responseEnd": 211.39999997615814,
+            "dcl": 214.5999999642372,
+            "load": 215.0999999642372,
+            "lcp": 376,
+            "cls": 0,
+            "htmlBytes": 13241,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 0,
+            "jsEncoded": 217544,
+            "jsDecoded": 717329,
+            "totalTransfer": 14141,
+            "totalEncoded": 330758
+          },
+          {
+            "ttfb": 149.80000001192093,
+            "responseEnd": 232,
+            "dcl": 236.10000002384186,
+            "load": 236.5,
+            "lcp": 332,
+            "cls": 0,
+            "htmlBytes": 13180,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 0,
+            "jsEncoded": 217544,
+            "jsDecoded": 717329,
+            "totalTransfer": 14080,
+            "totalEncoded": 330697
+          },
+          {
+            "ttfb": 125.90000003576279,
+            "responseEnd": 191.4000000357628,
+            "dcl": 195.4000000357628,
+            "load": 195.9000000357628,
+            "lcp": 336,
+            "cls": 0,
+            "htmlBytes": 13180,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 0,
+            "jsEncoded": 217544,
+            "jsDecoded": 717329,
+            "totalTransfer": 14080,
+            "totalEncoded": 330697
+          },
+          {
+            "ttfb": 154.9000000357628,
+            "responseEnd": 211.30000001192093,
+            "dcl": 213.9000000357628,
+            "load": 214.4000000357628,
+            "lcp": 340,
+            "cls": 0,
+            "htmlBytes": 13193,
+            "requests": 39,
+            "jsFiles": 25,
+            "jsTransfer": 0,
+            "jsEncoded": 217544,
+            "jsDecoded": 717329,
+            "totalTransfer": 14093,
+            "totalEncoded": 330710
+          }
+        ]
+      }
+    },
+    "changes": {
+      "path": "/<handle>/perf-repo/changes",
+      "cold": {
+        "median": {
+          "ttfb": 335.0999999642372,
+          "responseEnd": 537.7000000476837,
+          "dcl": 742.5,
+          "load": 742.5,
+          "lcp": 648,
+          "cls": 0.001,
+          "htmlBytes": 10872,
+          "requests": 39,
+          "jsFiles": 27,
+          "jsTransfer": 235849,
+          "jsEncoded": 228049,
+          "jsDecoded": 744289,
+          "totalTransfer": 340866,
+          "totalEncoded": 329466
+        },
+        "runs": [
+          {
+            "ttfb": 330.60000002384186,
+            "responseEnd": 537.7000000476837,
+            "dcl": 742.5,
+            "load": 742.5,
+            "lcp": 648,
+            "cls": 0.002,
+            "htmlBytes": 10906,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 235849,
+            "jsEncoded": 228049,
+            "jsDecoded": 744289,
+            "totalTransfer": 340871,
+            "totalEncoded": 329471
+          },
+          {
+            "ttfb": 596.6000000238419,
+            "responseEnd": 683.6000000238419,
+            "dcl": 860.8000000119209,
+            "load": 923.6999999880791,
+            "lcp": 1128,
+            "cls": 0.003,
+            "htmlBytes": 10897,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 235872,
+            "jsEncoded": 228072,
+            "jsDecoded": 744289,
+            "totalTransfer": 340880,
+            "totalEncoded": 329480
+          },
+          {
+            "ttfb": 294.89999997615814,
+            "responseEnd": 315.89999997615814,
+            "dcl": 521.1999999880791,
+            "load": 581.0999999642372,
+            "lcp": 540,
+            "cls": 0.001,
+            "htmlBytes": 10869,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 235768,
+            "jsEncoded": 227968,
+            "jsDecoded": 744289,
+            "totalTransfer": 340695,
+            "totalEncoded": 329295
+          },
+          {
+            "ttfb": 785.1999999880791,
+            "responseEnd": 831.5,
+            "dcl": 1038.3999999761581,
+            "load": 1061.3999999761581,
+            "lcp": 1004,
+            "cls": 0.001,
+            "htmlBytes": 10859,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 235837,
+            "jsEncoded": 228037,
+            "jsDecoded": 744289,
+            "totalTransfer": 340812,
+            "totalEncoded": 329412
+          },
+          {
+            "ttfb": 335.0999999642372,
+            "responseEnd": 357,
+            "dcl": 559.6999999880791,
+            "load": 621.5999999642372,
+            "lcp": 584,
+            "cls": 0.001,
+            "htmlBytes": 10872,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 235988,
+            "jsEncoded": 228188,
+            "jsDecoded": 744289,
+            "totalTransfer": 340866,
+            "totalEncoded": 329466
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 340.5999999642372,
+          "responseEnd": 437.5999999642372,
+          "dcl": 440.2999999523163,
+          "load": 440.39999997615814,
+          "lcp": 468,
+          "cls": 0,
+          "htmlBytes": 10859,
+          "requests": 39,
+          "jsFiles": 27,
+          "jsTransfer": 0,
+          "jsEncoded": 227903,
+          "jsDecoded": 744289,
+          "totalTransfer": 11759,
+          "totalEncoded": 329278
+        },
+        "runs": [
+          {
+            "ttfb": 340.5999999642372,
+            "responseEnd": 437.5999999642372,
+            "dcl": 440.2999999523163,
+            "load": 440.39999997615814,
+            "lcp": 468,
+            "cls": 0,
+            "htmlBytes": 10850,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227903,
+            "jsDecoded": 744289,
+            "totalTransfer": 11750,
+            "totalEncoded": 329269
+          },
+          {
+            "ttfb": 353.10000002384186,
+            "responseEnd": 447.9000000357628,
+            "dcl": 450.10000002384186,
+            "load": 450.4000000357628,
+            "lcp": 480,
+            "cls": 0,
+            "htmlBytes": 10871,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227903,
+            "jsDecoded": 744289,
+            "totalTransfer": 11771,
+            "totalEncoded": 329290
+          },
+          {
+            "ttfb": 336.80000001192093,
+            "responseEnd": 435.4000000357628,
+            "dcl": 438.2000000476837,
+            "load": 438.2000000476837,
+            "lcp": 468,
+            "cls": 0,
+            "htmlBytes": 10859,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227903,
+            "jsDecoded": 744289,
+            "totalTransfer": 11759,
+            "totalEncoded": 329278
+          },
+          {
+            "ttfb": 329,
+            "responseEnd": 424.5999999642372,
+            "dcl": 426.89999997615814,
+            "load": 427.30000001192093,
+            "lcp": 428,
+            "cls": 0,
+            "htmlBytes": 10859,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227903,
+            "jsDecoded": 744289,
+            "totalTransfer": 11759,
+            "totalEncoded": 329278
+          },
+          {
+            "ttfb": 361.2999999523163,
+            "responseEnd": 487.39999997615814,
+            "dcl": 490,
+            "load": 490.39999997615814,
+            "lcp": 424,
+            "cls": 0,
+            "htmlBytes": 10859,
+            "requests": 39,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227903,
+            "jsDecoded": 744289,
+            "totalTransfer": 11759,
+            "totalEncoded": 329278
+          }
+        ]
+      }
+    },
+    "bean": {
+      "path": "/<handle>/perf-repo/changes/add-count-words",
+      "cold": {
+        "median": {
+          "ttfb": 591.9000000357628,
+          "responseEnd": 844.7000000476837,
+          "dcl": 1183.7000000476837,
+          "load": 1183.800000011921,
+          "lcp": 1016,
+          "cls": 0.002,
+          "htmlBytes": 11998,
+          "requests": 42,
+          "jsFiles": 28,
+          "jsTransfer": 238684,
+          "jsEncoded": 230584,
+          "jsDecoded": 750958,
+          "totalTransfer": 348769,
+          "totalEncoded": 340551
+        },
+        "runs": [
+          {
+            "ttfb": 602.8999999761581,
+            "responseEnd": 865.1999999880791,
+            "dcl": 1197.0999999642372,
+            "load": 1338.0999999642372,
+            "lcp": 1376,
+            "cls": 0.002,
+            "htmlBytes": 12037,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 238724,
+            "jsEncoded": 230624,
+            "jsDecoded": 750958,
+            "totalTransfer": 349013,
+            "totalEncoded": 340795
+          },
+          {
+            "ttfb": 591.9000000357628,
+            "responseEnd": 844.7000000476837,
+            "dcl": 1183.7000000476837,
+            "load": 1183.800000011921,
+            "lcp": 1016,
+            "cls": 0.003,
+            "htmlBytes": 11997,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 238684,
+            "jsEncoded": 230584,
+            "jsDecoded": 750958,
+            "totalTransfer": 348769,
+            "totalEncoded": 340551
+          },
+          {
+            "ttfb": 1904.2000000476837,
+            "responseEnd": 2375.2000000476837,
+            "dcl": 2566.400000035763,
+            "load": 2566.600000023842,
+            "lcp": 2720,
+            "cls": 0.002,
+            "htmlBytes": 11998,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 238710,
+            "jsEncoded": 230610,
+            "jsDecoded": 750958,
+            "totalTransfer": 348858,
+            "totalEncoded": 340589
+          },
+          {
+            "ttfb": 285.19999998807907,
+            "responseEnd": 335.0999999642372,
+            "dcl": 511.5,
+            "load": 511.5999999642372,
+            "lcp": 680,
+            "cls": 0,
+            "htmlBytes": 11997,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 238662,
+            "jsEncoded": 230562,
+            "jsDecoded": 750958,
+            "totalTransfer": 348750,
+            "totalEncoded": 340481
+          },
+          {
+            "ttfb": 407.2999999523163,
+            "responseEnd": 467.39999997615814,
+            "dcl": 651.6999999880791,
+            "load": 666.6999999880791,
+            "lcp": 696,
+            "cls": 0.01,
+            "htmlBytes": 12038,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 238522,
+            "jsEncoded": 230422,
+            "jsDecoded": 750958,
+            "totalTransfer": 348656,
+            "totalEncoded": 340387
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 210.80000001192093,
+          "responseEnd": 315.19999998807907,
+          "dcl": 317.80000001192093,
+          "load": 318.30000001192093,
+          "lcp": 388,
+          "cls": 0,
+          "htmlBytes": 12037,
+          "requests": 42,
+          "jsFiles": 28,
+          "jsTransfer": 0,
+          "jsEncoded": 230554,
+          "jsDecoded": 750958,
+          "totalTransfer": 12937,
+          "totalEncoded": 340561
+        },
+        "runs": [
+          {
+            "ttfb": 210.80000001192093,
+            "responseEnd": 335.0999999642372,
+            "dcl": 338.0999999642372,
+            "load": 338.19999998807907,
+            "lcp": 368,
+            "cls": 0,
+            "htmlBytes": 12038,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 0,
+            "jsEncoded": 230554,
+            "jsDecoded": 750958,
+            "totalTransfer": 12938,
+            "totalEncoded": 340562
+          },
+          {
+            "ttfb": 283.0999999642372,
+            "responseEnd": 358.7999999523163,
+            "dcl": 361.5999999642372,
+            "load": 362.0999999642372,
+            "lcp": 388,
+            "cls": 0,
+            "htmlBytes": 12037,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 0,
+            "jsEncoded": 230554,
+            "jsDecoded": 750958,
+            "totalTransfer": 12937,
+            "totalEncoded": 340561
+          },
+          {
+            "ttfb": 240.5,
+            "responseEnd": 315.19999998807907,
+            "dcl": 317.80000001192093,
+            "load": 318.30000001192093,
+            "lcp": 476,
+            "cls": 0,
+            "htmlBytes": 12040,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 0,
+            "jsEncoded": 230554,
+            "jsDecoded": 750958,
+            "totalTransfer": 12940,
+            "totalEncoded": 340564
+          },
+          {
+            "ttfb": 200.69999998807907,
+            "responseEnd": 273.5,
+            "dcl": 276.10000002384186,
+            "load": 276.60000002384186,
+            "lcp": 428,
+            "cls": 0,
+            "htmlBytes": 11997,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 0,
+            "jsEncoded": 230554,
+            "jsDecoded": 750958,
+            "totalTransfer": 12897,
+            "totalEncoded": 340521
+          },
+          {
+            "ttfb": 189.89999997615814,
+            "responseEnd": 244.29999995231628,
+            "dcl": 247.0999999642372,
+            "load": 247.5999999642372,
+            "lcp": 328,
+            "cls": 0,
+            "htmlBytes": 11997,
+            "requests": 42,
+            "jsFiles": 28,
+            "jsTransfer": 0,
+            "jsEncoded": 230554,
+            "jsDecoded": 750958,
+            "totalTransfer": 12897,
+            "totalEncoded": 340521
+          }
+        ]
+      }
+    },
+    "history": {
+      "path": "/<handle>/perf-repo/history",
+      "cold": {
+        "median": {
+          "ttfb": 331.7999999523163,
+          "responseEnd": 541.5999999642372,
+          "dcl": 834.5999999642372,
+          "load": 844.2999999523163,
+          "lcp": 868,
+          "cls": 0.002,
+          "htmlBytes": 10522,
+          "requests": 33,
+          "jsFiles": 20,
+          "jsTransfer": 218962,
+          "jsEncoded": 213262,
+          "jsDecoded": 707286,
+          "totalTransfer": 324778,
+          "totalEncoded": 315178
+        },
+        "runs": [
+          {
+            "ttfb": 331.7999999523163,
+            "responseEnd": 541.5999999642372,
+            "dcl": 834.5999999642372,
+            "load": 844.2999999523163,
+            "lcp": 868,
+            "cls": 0.002,
+            "htmlBytes": 10522,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 218962,
+            "jsEncoded": 213262,
+            "jsDecoded": 707286,
+            "totalTransfer": 324778,
+            "totalEncoded": 315178
+          },
+          {
+            "ttfb": 871.9000000357628,
+            "responseEnd": 1261.6000000238419,
+            "dcl": 1441,
+            "load": 1441.199999988079,
+            "lcp": 1360,
+            "cls": 0.002,
+            "htmlBytes": 10522,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 218875,
+            "jsEncoded": 213175,
+            "jsDecoded": 707286,
+            "totalTransfer": 324640,
+            "totalEncoded": 315040
+          },
+          {
+            "ttfb": 284,
+            "responseEnd": 316.69999998807907,
+            "dcl": 503.80000001192093,
+            "load": 526.5999999642372,
+            "lcp": 552,
+            "cls": 0.003,
+            "htmlBytes": 10551,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 218961,
+            "jsEncoded": 213261,
+            "jsDecoded": 707286,
+            "totalTransfer": 324755,
+            "totalEncoded": 315155
+          },
+          {
+            "ttfb": 261.9000000357628,
+            "responseEnd": 300,
+            "dcl": 555,
+            "load": 555.2000000476837,
+            "lcp": 512,
+            "cls": 0.002,
+            "htmlBytes": 10551,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 219040,
+            "jsEncoded": 213340,
+            "jsDecoded": 707286,
+            "totalTransfer": 324998,
+            "totalEncoded": 315398
+          },
+          {
+            "ttfb": 1253.699999988079,
+            "responseEnd": 1625.5,
+            "dcl": 1841.800000011921,
+            "load": 1841.8999999761581,
+            "lcp": 1760,
+            "cls": 0.002,
+            "htmlBytes": 10522,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 219157,
+            "jsEncoded": 213457,
+            "jsDecoded": 707286,
+            "totalTransfer": 325086,
+            "totalEncoded": 315486
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 280.5999999642372,
+          "responseEnd": 318.69999998807907,
+          "dcl": 319.69999998807907,
+          "load": 320.0999999642372,
+          "lcp": 352,
+          "cls": 0,
+          "htmlBytes": 10560,
+          "requests": 33,
+          "jsFiles": 20,
+          "jsTransfer": 0,
+          "jsEncoded": 213186,
+          "jsDecoded": 707286,
+          "totalTransfer": 11460,
+          "totalEncoded": 315203
+        },
+        "runs": [
+          {
+            "ttfb": 277.5,
+            "responseEnd": 295.39999997615814,
+            "dcl": 302.7999999523163,
+            "load": 302.7999999523163,
+            "lcp": 344,
+            "cls": 0,
+            "htmlBytes": 10539,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 0,
+            "jsEncoded": 213186,
+            "jsDecoded": 707286,
+            "totalTransfer": 11439,
+            "totalEncoded": 315182
+          },
+          {
+            "ttfb": 241.30000001192093,
+            "responseEnd": 296.10000002384186,
+            "dcl": 297.19999998807907,
+            "load": 297.60000002384186,
+            "lcp": 348,
+            "cls": 0,
+            "htmlBytes": 10560,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 0,
+            "jsEncoded": 213186,
+            "jsDecoded": 707286,
+            "totalTransfer": 11460,
+            "totalEncoded": 315203
+          },
+          {
+            "ttfb": 396.5,
+            "responseEnd": 397.7999999523163,
+            "dcl": 407.89999997615814,
+            "load": 416.19999998807907,
+            "lcp": 436,
+            "cls": 0,
+            "htmlBytes": 10561,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 0,
+            "jsEncoded": 213186,
+            "jsDecoded": 707286,
+            "totalTransfer": 11461,
+            "totalEncoded": 315204
+          },
+          {
+            "ttfb": 343.10000002384186,
+            "responseEnd": 356.30000001192093,
+            "dcl": 361.5,
+            "load": 361.5,
+            "lcp": 400,
+            "cls": 0,
+            "htmlBytes": 10560,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 0,
+            "jsEncoded": 213186,
+            "jsDecoded": 707286,
+            "totalTransfer": 11460,
+            "totalEncoded": 315203
+          },
+          {
+            "ttfb": 280.5999999642372,
+            "responseEnd": 318.69999998807907,
+            "dcl": 319.69999998807907,
+            "load": 320.0999999642372,
+            "lcp": 352,
+            "cls": 0,
+            "htmlBytes": 10523,
+            "requests": 33,
+            "jsFiles": 20,
+            "jsTransfer": 0,
+            "jsEncoded": 213186,
+            "jsDecoded": 707286,
+            "totalTransfer": 11423,
+            "totalEncoded": 315166
+          }
+        ]
+      }
+    },
+    "actionsRun": {
+      "path": "/<handle>/perf-repo/actions/runs/caa57263-6c96-47c4-991f-7c9c63a5dff3",
+      "cold": {
+        "median": {
+          "ttfb": 430.10000002384186,
+          "responseEnd": 1646.300000011921,
+          "dcl": 1829.800000011921,
+          "load": 1830.300000011921,
+          "lcp": 1764,
+          "cls": 0.002,
+          "htmlBytes": 12920,
+          "requests": 42,
+          "jsFiles": 27,
+          "jsTransfer": 235441,
+          "jsEncoded": 227641,
+          "jsDecoded": 742256,
+          "totalTransfer": 353079,
+          "totalEncoded": 346082
+        },
+        "runs": [
+          {
+            "ttfb": 755.0999999642372,
+            "responseEnd": 2535,
+            "dcl": 2738.800000011921,
+            "load": 2739,
+            "lcp": 2960,
+            "cls": 0.002,
+            "htmlBytes": 12921,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 235441,
+            "jsEncoded": 227641,
+            "jsDecoded": 742256,
+            "totalTransfer": 353079,
+            "totalEncoded": 346082
+          },
+          {
+            "ttfb": 274.4000000357628,
+            "responseEnd": 1337.699999988079,
+            "dcl": 1587.9000000357628,
+            "load": 1588.5,
+            "lcp": 1440,
+            "cls": 0.002,
+            "htmlBytes": 12920,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 235406,
+            "jsEncoded": 227606,
+            "jsDecoded": 742256,
+            "totalTransfer": 353109,
+            "totalEncoded": 346112
+          },
+          {
+            "ttfb": 296.19999998807907,
+            "responseEnd": 1434.6000000238419,
+            "dcl": 1618.4000000357628,
+            "load": 1618.9000000357628,
+            "lcp": 1552,
+            "cls": 0.002,
+            "htmlBytes": 12938,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 235464,
+            "jsEncoded": 227664,
+            "jsDecoded": 742256,
+            "totalTransfer": 353074,
+            "totalEncoded": 346077
+          },
+          {
+            "ttfb": 602.6000000238419,
+            "responseEnd": 2786.199999988079,
+            "dcl": 2976,
+            "load": 2976.199999988079,
+            "lcp": 3128,
+            "cls": 0.002,
+            "htmlBytes": 12875,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 235329,
+            "jsEncoded": 227529,
+            "jsDecoded": 742256,
+            "totalTransfer": 352935,
+            "totalEncoded": 345938
+          },
+          {
+            "ttfb": 430.10000002384186,
+            "responseEnd": 1646.300000011921,
+            "dcl": 1829.800000011921,
+            "load": 1830.300000011921,
+            "lcp": 1764,
+            "cls": 0.002,
+            "htmlBytes": 12910,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 235458,
+            "jsEncoded": 227658,
+            "jsDecoded": 742256,
+            "totalTransfer": 353090,
+            "totalEncoded": 346093
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 134.5999999642372,
+          "responseEnd": 1161.8999999761581,
+          "dcl": 1165.300000011921,
+          "load": 1165.8999999761581,
+          "lcp": 1196,
+          "cls": 0,
+          "htmlBytes": 12876,
+          "requests": 42,
+          "jsFiles": 27,
+          "jsTransfer": 0,
+          "jsEncoded": 227572,
+          "jsDecoded": 742256,
+          "totalTransfer": 13776,
+          "totalEncoded": 346148
+        },
+        "runs": [
+          {
+            "ttfb": 127.09999996423721,
+            "responseEnd": 1164.5,
+            "dcl": 1168.5,
+            "load": 1168.5999999642372,
+            "lcp": 1196,
+            "cls": 0,
+            "htmlBytes": 12903,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227572,
+            "jsDecoded": 742256,
+            "totalTransfer": 13803,
+            "totalEncoded": 346175
+          },
+          {
+            "ttfb": 129.19999998807907,
+            "responseEnd": 1161.8999999761581,
+            "dcl": 1165.300000011921,
+            "load": 1165.8999999761581,
+            "lcp": 1196,
+            "cls": 0,
+            "htmlBytes": 12920,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227572,
+            "jsDecoded": 742256,
+            "totalTransfer": 13820,
+            "totalEncoded": 346192
+          },
+          {
+            "ttfb": 147.69999998807907,
+            "responseEnd": 1149.800000011921,
+            "dcl": 1153.1000000238419,
+            "load": 1153.800000011921,
+            "lcp": 1184,
+            "cls": 0,
+            "htmlBytes": 12857,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227572,
+            "jsDecoded": 742256,
+            "totalTransfer": 13757,
+            "totalEncoded": 346129
+          },
+          {
+            "ttfb": 153.5,
+            "responseEnd": 1209.7000000476837,
+            "dcl": 1213.6000000238419,
+            "load": 1213.800000011921,
+            "lcp": 1240,
+            "cls": 0,
+            "htmlBytes": 12856,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227572,
+            "jsDecoded": 742256,
+            "totalTransfer": 13756,
+            "totalEncoded": 346128
+          },
+          {
+            "ttfb": 134.5999999642372,
+            "responseEnd": 1119.699999988079,
+            "dcl": 1123.0999999642372,
+            "load": 1123.5999999642372,
+            "lcp": 1148,
+            "cls": 0,
+            "htmlBytes": 12876,
+            "requests": 42,
+            "jsFiles": 27,
+            "jsTransfer": 0,
+            "jsEncoded": 227572,
+            "jsDecoded": 742256,
+            "totalTransfer": 13776,
+            "totalEncoded": 346148
+          }
+        ]
+      }
+    },
+    "owner": {
+      "path": "/<handle>",
+      "cold": {
+        "median": {
+          "ttfb": 627.1999999880791,
+          "responseEnd": 669.5,
+          "dcl": 899.3999999761581,
+          "load": 1006.3000000119209,
+          "lcp": 880,
+          "cls": 0,
+          "htmlBytes": 7617,
+          "requests": 29,
+          "jsFiles": 17,
+          "jsTransfer": 214551,
+          "jsEncoded": 209751,
+          "jsDecoded": 698040,
+          "totalTransfer": 307046,
+          "totalEncoded": 298646
+        },
+        "runs": [
+          {
+            "ttfb": 627.1999999880791,
+            "responseEnd": 823.6999999880791,
+            "dcl": 1006.1999999880791,
+            "load": 1006.3000000119209,
+            "lcp": 880,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 214515,
+            "jsEncoded": 209715,
+            "jsDecoded": 698040,
+            "totalTransfer": 307046,
+            "totalEncoded": 298646
+          },
+          {
+            "ttfb": 494,
+            "responseEnd": 502,
+            "dcl": 899.3999999761581,
+            "load": 1012,
+            "lcp": 920,
+            "cls": 0,
+            "htmlBytes": 7645,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 214631,
+            "jsEncoded": 209831,
+            "jsDecoded": 698040,
+            "totalTransfer": 307080,
+            "totalEncoded": 298680
+          },
+          {
+            "ttfb": 924.6000000238419,
+            "responseEnd": 1615.8999999761581,
+            "dcl": 1796.800000011921,
+            "load": 1796.8999999761581,
+            "lcp": 1644,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 214401,
+            "jsEncoded": 209601,
+            "jsDecoded": 698040,
+            "totalTransfer": 306865,
+            "totalEncoded": 298465
+          },
+          {
+            "ttfb": 550.1999999880791,
+            "responseEnd": 553.1000000238419,
+            "dcl": 855.1999999880791,
+            "load": 929.5,
+            "lcp": 876,
+            "cls": 0,
+            "htmlBytes": 7587,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 214551,
+            "jsEncoded": 209751,
+            "jsDecoded": 698040,
+            "totalTransfer": 306926,
+            "totalEncoded": 298526
+          },
+          {
+            "ttfb": 628.0999999642372,
+            "responseEnd": 669.5,
+            "dcl": 861.3999999761581,
+            "load": 965.0999999642372,
+            "lcp": 880,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 214717,
+            "jsEncoded": 209917,
+            "jsDecoded": 698040,
+            "totalTransfer": 307197,
+            "totalEncoded": 298797
+          }
+        ]
+      },
+      "warm": {
+        "median": {
+          "ttfb": 126,
+          "responseEnd": 131.5,
+          "dcl": 135.5,
+          "load": 144.5,
+          "lcp": 236,
+          "cls": 0,
+          "htmlBytes": 7617,
+          "requests": 29,
+          "jsFiles": 17,
+          "jsTransfer": 0,
+          "jsEncoded": 209641,
+          "jsDecoded": 698040,
+          "totalTransfer": 8517,
+          "totalEncoded": 298446
+        },
+        "runs": [
+          {
+            "ttfb": 126,
+            "responseEnd": 128.4000000357628,
+            "dcl": 135.5,
+            "load": 144.5,
+            "lcp": 236,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 0,
+            "jsEncoded": 209641,
+            "jsDecoded": 698040,
+            "totalTransfer": 8517,
+            "totalEncoded": 298446
+          },
+          {
+            "ttfb": 121.69999998807907,
+            "responseEnd": 125.10000002384186,
+            "dcl": 131.10000002384186,
+            "load": 137.30000001192093,
+            "lcp": 232,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 0,
+            "jsEncoded": 209641,
+            "jsDecoded": 698040,
+            "totalTransfer": 8517,
+            "totalEncoded": 298446
+          },
+          {
+            "ttfb": 124.89999997615814,
+            "responseEnd": 131.5,
+            "dcl": 134.19999998807907,
+            "load": 140.69999998807907,
+            "lcp": 236,
+            "cls": 0,
+            "htmlBytes": 7617,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 0,
+            "jsEncoded": 209641,
+            "jsDecoded": 698040,
+            "totalTransfer": 8517,
+            "totalEncoded": 298446
+          },
+          {
+            "ttfb": 156,
+            "responseEnd": 156.39999997615814,
+            "dcl": 165.39999997615814,
+            "load": 171.80000001192093,
+            "lcp": 272,
+            "cls": 0,
+            "htmlBytes": 7610,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 0,
+            "jsEncoded": 209641,
+            "jsDecoded": 698040,
+            "totalTransfer": 8510,
+            "totalEncoded": 298439
+          },
+          {
+            "ttfb": 139.20000004768372,
+            "responseEnd": 154.80000001192093,
+            "dcl": 157.20000004768372,
+            "load": 157.30000001192093,
+            "lcp": 200,
+            "cls": 0,
+            "htmlBytes": 7578,
+            "requests": 29,
+            "jsFiles": 17,
+            "jsTransfer": 0,
+            "jsEncoded": 209641,
+            "jsDecoded": 698040,
+            "totalTransfer": 8478,
+            "totalEncoded": 298407
+          }
+        ]
+      }
+    }
+  },
+  "soft": [
+    {
+      "tabs": {
+        "changes": {
+          "urlChangeMs": 268,
+          "paintMs": 335,
+          "rscRequests": 1,
+          "from": "/<handle>/perf-repo"
+        },
+        "history": {
+          "urlChangeMs": 246,
+          "paintMs": 978,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        },
+        "actions": {
+          "urlChangeMs": 275,
+          "paintMs": 425,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        }
+      },
+      "back": [
+        {
+          "from": "changes",
+          "ms": 867,
+          "rscRequests": 0
+        },
+        {
+          "from": "history",
+          "ms": 923,
+          "rscRequests": 0
+        },
+        {
+          "from": "actions",
+          "ms": 908,
+          "rscRequests": 0
+        }
+      ]
+    },
+    {
+      "tabs": {
+        "changes": {
+          "urlChangeMs": 184,
+          "paintMs": 251,
+          "rscRequests": 1,
+          "from": "/<handle>/perf-repo"
+        },
+        "history": {
+          "urlChangeMs": 203,
+          "paintMs": 297,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        },
+        "actions": {
+          "urlChangeMs": 214,
+          "paintMs": 331,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        }
+      },
+      "back": [
+        {
+          "from": "changes",
+          "ms": 863,
+          "rscRequests": 0
+        },
+        {
+          "from": "history",
+          "ms": 864,
+          "rscRequests": 0
+        },
+        {
+          "from": "actions",
+          "ms": 867,
+          "rscRequests": 0
+        }
+      ]
+    },
+    {
+      "tabs": {
+        "changes": {
+          "urlChangeMs": 198,
+          "paintMs": 264,
+          "rscRequests": 1,
+          "from": "/<handle>/perf-repo"
+        },
+        "history": {
+          "urlChangeMs": 129,
+          "paintMs": 196,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        },
+        "actions": {
+          "urlChangeMs": 133,
+          "paintMs": 597,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        }
+      },
+      "back": [
+        {
+          "from": "changes",
+          "ms": 859,
+          "rscRequests": 0
+        },
+        {
+          "from": "history",
+          "ms": 867,
+          "rscRequests": 0
+        },
+        {
+          "from": "actions",
+          "ms": 934,
+          "rscRequests": 0
+        }
+      ]
+    },
+    {
+      "tabs": {
+        "changes": {
+          "urlChangeMs": 131,
+          "paintMs": 313,
+          "rscRequests": 1,
+          "from": "/<handle>/perf-repo"
+        },
+        "history": {
+          "urlChangeMs": 120,
+          "paintMs": 471,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        },
+        "actions": {
+          "urlChangeMs": 367,
+          "paintMs": 497,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        }
+      },
+      "back": [
+        {
+          "from": "changes",
+          "ms": 927,
+          "rscRequests": 0
+        },
+        {
+          "from": "history",
+          "ms": 925,
+          "rscRequests": 0
+        },
+        {
+          "from": "actions",
+          "ms": 931,
+          "rscRequests": 0
+        }
+      ]
+    },
+    {
+      "tabs": {
+        "changes": {
+          "urlChangeMs": 126,
+          "paintMs": 297,
+          "rscRequests": 1,
+          "from": "/<handle>/perf-repo"
+        },
+        "history": {
+          "urlChangeMs": 123,
+          "paintMs": 441,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        },
+        "actions": {
+          "urlChangeMs": 139,
+          "paintMs": 403,
+          "rscRequests": 2,
+          "from": "/<handle>/perf-repo"
+        }
+      },
+      "back": [
+        {
+          "from": "changes",
+          "ms": 933,
+          "rscRequests": 0
+        },
+        {
+          "from": "history",
+          "ms": 924,
+          "rscRequests": 0
+        },
+        {
+          "from": "actions",
+          "ms": 930,
+          "rscRequests": 0
+        }
+      ]
+    }
+  ],
+  "softMedian": {
+    "changes": {
+      "urlChangeMs": 184,
+      "paintMs": 297,
+      "rscRequests": 1
+    },
+    "history": {
+      "urlChangeMs": 129,
+      "paintMs": 441,
+      "rscRequests": 2
+    },
+    "actions": {
+      "urlChangeMs": 214,
+      "paintMs": 425,
+      "rscRequests": 2
+    }
+  },
+  "backMedian": {
+    "ms": 923,
+    "rscRequests": 0
+  },
+  "idle": {
+    "home:visible": {
+      "seconds": 60,
+      "requests": 19,
+      "byPath": {
+        "GET fetch /api/sessions": 19
+      }
+    },
+    "home:hidden": {
+      "seconds": 60,
+      "requests": 0,
+      "byPath": {}
+    },
+    "changes:visible": {
+      "seconds": 60,
+      "requests": 0,
+      "byPath": {}
+    },
+    "changes:hidden": {
+      "seconds": 60,
+      "requests": 0,
+      "byPath": {}
+    },
+    "actionsRun:visible": {
+      "seconds": 60,
+      "requests": 0,
+      "byPath": {}
+    },
+    "actionsRun:hidden": {
+      "seconds": 60,
+      "requests": 0,
+      "byPath": {}
+    }
+  }
+}
