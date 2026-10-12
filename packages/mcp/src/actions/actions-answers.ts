@@ -65,7 +65,7 @@ export async function runList(
     summary:
       runs.length === 0
         ? 'No runs match. A workflow runs when a bean reaches the stalk (push to main), by actions_dispatch, or on its schedule.'
-        : `${runs.length} runs, newest first; ${failed} failed. actions_run_get for jobs and steps.`,
+        : `${count(runs.length, 'run')}, newest first; ${failed} failed. actions_run_get for jobs and steps.`,
   };
 }
 
@@ -161,7 +161,7 @@ export async function entriesList(
       can_manage: entries.can_manage,
       secrets: entries.secrets,
       settings_url: settings,
-      summary: `${entries.secrets.length} secrets (names only; values are never shown). Workflows read them as \${{ secrets.NAME }}. A missing one: ask the person to add it at settings_url, or to give you the value for actions_secret_set.`,
+      summary: `${count(entries.secrets.length, 'secret')} (names only; values are never shown). Workflows read them as \${{ secrets.NAME }}. A missing one: ask the person to add it at settings_url, or to give you the value for actions_secret_set.`,
     };
   return {
     repo: entries.repo,
@@ -169,7 +169,7 @@ export async function entriesList(
     can_manage: entries.can_manage,
     variables: entries.variables,
     settings_url: settings,
-    summary: `${entries.variables.length} variables. Workflows read them as \${{ vars.NAME }}.`,
+    summary: `${count(entries.variables.length, 'variable')}. Workflows read them as \${{ vars.NAME }}.`,
   };
 }
 
@@ -281,6 +281,10 @@ function started(session: Session, repo: string, run: AgentRunSummary, summary: 
   };
 }
 
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 function settingsUrl(session: Session, repo: string): string {
   return new URL(`/${repo}/settings/secrets`, session.webUrl).toString();
 }
@@ -308,9 +312,11 @@ function runNext(run: AgentRun): string {
 function waitNext(waited: AgentRunWaited): string {
   switch (waited.outcome) {
     case 'completed':
+      if (waited.runs.some((run) => run.failures.length > 0))
+        return 'read failures[].log_tail (actions_job_log for more), fix the cause in a new bean, push, and wait again; for a missing secret ask the person (actions_secret_list shows names)';
       return waited.runs.every((run) => run.conclusion === 'success')
         ? 'all runs succeeded'
-        : 'read failures[].log_tail (actions_job_log for more), fix the cause in a new bean, push, and wait again; for a missing secret ask the person (actions_secret_list shows names)';
+        : `ended ${waited.runs.map((run) => run.conclusion ?? run.status).join(', ')}: actions_rerun runs one again`;
     case 'running':
       return 'still running: call actions_wait_for_run again with the run id';
     case 'bean_not_on_stalk':
