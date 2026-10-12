@@ -32,6 +32,8 @@ const STATUS_CALLS: Readonly<Record<string, string | null>> = {
   actionsPage: 'repositoryPage',
   engineTab: 'engineTab',
   askPage: 'askPage',
+  runPage: 'runPage',
+  beanPage: 'beanPage',
   settingsAccess: 'settingsAccess',
   pageOwner: 'pageOwner',
   signedInUser: 'signedInUser',
@@ -45,6 +47,8 @@ const STATUS_MODULES: Readonly<Record<string, readonly string[]>> = {
   'src/server/repository-page.ts': ['repositoryPage'],
   'src/server/repository-tab.ts': ['engineTab'],
   'src/server/ask-page.ts': ['askPage'],
+  'src/server/run-page.ts': ['runPage'],
+  'src/server/bean-page.ts': ['beanPage'],
   'src/server/repository-settings.ts': ['settingsAccess', 'repositorySettings'],
   'src/server/owner-page.ts': ['pageOwner'],
   'src/server/signed-in.ts': ['signedInUser'],
@@ -96,6 +100,9 @@ describe('the app routes', () => {
       ['[owner]/[repo]/changes/layout.tsx', 'engineTab('],
       ['[owner]/[repo]/history/layout.tsx', 'engineTab('],
       ['[owner]/[repo]/ask/layout.tsx', 'askPage('],
+      ['[owner]/[repo]/actions/runs/[run]/layout.tsx', 'runPage('],
+      ['[owner]/[repo]/automations/runs/[run]/layout.tsx', 'runPage('],
+      ['[owner]/[repo]/changes/[bean]/layout.tsx', 'beanPage('],
       ['[owner]/(profile)/layout.tsx', 'pageOwner('],
       ['orgs/(list)/layout.tsx', 'signedInUser('],
     ] as const;
@@ -119,6 +126,25 @@ describe('the app routes', () => {
         page,
       ).toEqual([]);
     }
+  });
+
+  it('check a run or a bean in its layout and stream the rest under Suspense', () => {
+    // No skeleton above them (their 404 is real), so the layout makes the one cheap check and
+    // the page streams what is slow: a finished job's log, a bean's diff.
+    const pages = [
+      ['[owner]/[repo]/actions/runs/[run]', 'runPage('],
+      ['[owner]/[repo]/automations/runs/[run]', 'runPage('],
+      ['[owner]/[repo]/changes/[bean]', 'beanPage('],
+    ] as const;
+    for (const [dir, check] of pages) {
+      const page = tree.get(`${dir}/page.tsx`) ?? '';
+      expect(tree.get(`${dir}/layout.tsx`), dir).toContain(check);
+      expect(page, dir).toContain(check);
+      expect(calls(page, 'notFound'), dir).toBe(false);
+    }
+    const components = readTree(webDir, ['components']);
+    expect(components.get('components/actions/run-view.tsx')).toContain('<Suspense');
+    expect(components.get('components/repo-tabs/streamed-bean-diff.tsx')).toContain('<Suspense');
   });
 });
 

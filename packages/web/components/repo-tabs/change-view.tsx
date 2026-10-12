@@ -9,6 +9,7 @@
  */
 import type { QueryKey } from '@tanstack/react-query';
 import { IntentLink as Link } from '../shell/intent-link';
+import type { ReactNode } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
@@ -24,7 +25,6 @@ import {
 } from '../../src/changes/changes';
 import { qk } from '../../src/query/keys';
 import { timeAgo } from '../../src/repositories/when';
-import { BeanDiff } from './bean-diff';
 import { ChangeGlyph } from './change-glyph';
 import { LiveBadge } from './live-badge';
 import styles from './repo-tabs.module.css';
@@ -34,8 +34,9 @@ const at = (ms: number): string => new Date(ms).toISOString();
 
 export function ChangeView(props: {
   readonly scope: RepoScope;
-  readonly engine: string;
   readonly bean: string;
+  /** Its diff (`StreamedBeanDiff` from the server: `BeanDiff` once read), under the journey. */
+  readonly diff: ReactNode;
   /** Where its files are browsed (computed by the server, which has the ref helpers). */
   readonly filesHref: string;
   /** Whether the bean was settled when the server rendered (its feed then never opens). */
@@ -70,7 +71,7 @@ export function ChangeView(props: {
       <div className={styles.split}>
         <div>
           <Journey change={change} base={scope.base} nowMs={nowMs} />
-          <BeanDiff scope={scope} engine={props.engine} bean={bean} />
+          {props.diff}
         </div>
         <aside className={styles.aside} aria-label="What the push was told">
           <section>

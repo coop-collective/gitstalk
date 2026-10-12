@@ -1,20 +1,14 @@
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { notFound } from 'next/navigation';
 
 import { ChangeDetail } from '../../../../../components/repo-tabs/change-detail';
 import { repoScopeOf, seedChangeQueries } from '../../../../../components/repo-tabs/changes-tab';
-import { changesOf, groupCounts } from '../../../../../src/changes/changes';
-import { qk } from '../../../../../src/query/keys';
+import { StreamedBeanDiff } from '../../../../../components/repo-tabs/streamed-bean-diff';
+import { groupCounts } from '../../../../../src/changes/changes';
 import { getServerQueryClient } from '../../../../../src/query/server';
-import { engineTab } from '../../../../../src/server/repository-tab';
+import type { BeanParams } from '../../../../../src/server/bean-page';
+import { beanPage } from '../../../../../src/server/bean-page';
 
-type PageProps = {
-  readonly params: Promise<{
-    readonly owner: string;
-    readonly repo: string;
-    readonly bean: string;
-  }>;
-};
+type PageProps = { readonly params: BeanParams };
 
 export async function generateMetadata({ params }: PageProps) {
   const { owner, repo, bean } = await params;
@@ -24,33 +18,23 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 /**
- * One bean's page: its journey, its verdict and its diff. The server reads them once and the
- * browser starts from them (dehydrated), then follows the engine's feed.
+ * One bean's page: its journey, its verdict and its diff. The bean (read by its layout, which
+ * answers 404 for an unknown one) renders at once and the browser starts from it (dehydrated),
+ * then follows the engine's feed; the diff streams in after.
  */
 export default async function ChangePage({ params }: PageProps) {
-  const resolved = await params;
-  const tab = await engineTab(Promise.resolve(resolved));
-  const name = decodeURIComponent(resolved.bean);
-  const [events, pushed, diff] = await Promise.all([
-    tab.reads.events(),
-    tab.reads.pushed(),
-    tab.reads.beanDiff(name).catch(() => null),
-  ]);
-  const changes = changesOf(events, pushed);
-  const change = changes.find((candidate) => candidate.bean === name);
-  if (change === undefined) notFound();
+  const { tab, name, change, changes, events, pushed } = await beanPage(params);
   const scope = repoScopeOf(tab);
   const queryClient = getServerQueryClient();
   seedChangeQueries(queryClient, scope, { events, pushed });
-  queryClient.setQueryData(qk.repo(scope.uid, scope.owner, scope.repo).bean(name), diff);
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <ChangeDetail
         tab={tab}
         scope={scope}
-        engine={tab.reads.engine}
         change={change}
         openChanges={groupCounts(changes).open}
+        diff={<StreamedBeanDiff reads={tab.reads} scope={scope} bean={name} />}
         nowMs={Date.now()}
       />
     </HydrationBoundary>

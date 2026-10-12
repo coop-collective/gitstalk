@@ -116,6 +116,12 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   - `[repo]/settings/`: a layout answers 404 to anyone without a role (`settingsAccess`), and
     no skeleton, so a section's redirect is real too. Run pages (`actions/runs/[run]`,
     `automations/runs/[run]`) and `automations/edit/[file]` have no skeleton either.
+  - Run pages and a bean's page keep a fast first byte without a skeleton: their layout makes
+    the one check that proves the thing exists (`runPage`: the run, one Actions read;
+    `beanPage`: the bean in the event log and pushed beans, which its journey needs anyway),
+    memoised for the page, and the page streams what is slow under `<Suspense>` with a
+    placeholder in the final layout: a finished job's stored log and the annotations read from
+    it (`RunView`, `JobLogPending`), a bean's diff (`StreamedBeanDiff`).
   - `app/[owner]/(profile)/` (unknown owner), `app/orgs/(list)/` (`/orgs` signed out).
 
   `src/server/route-tree.test.ts` reads the tree: no layout under a loading file, and no page
