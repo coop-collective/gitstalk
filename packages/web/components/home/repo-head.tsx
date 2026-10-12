@@ -105,7 +105,7 @@ export function RepoHead(props: {
 function RepositoryHead(props: {
   readonly base: string;
   readonly repository: Repository;
-  /** The open tab; `null` for the loading skeleton, which does not know it yet. */
+  /** The open tab; `null` for the loading skeleton, which renders names and tabs as plain text. */
   readonly current: RepoTab | null;
   readonly visibility?: 'public' | 'private' | 'internal';
   readonly ownerHref?: string;
@@ -116,12 +116,23 @@ function RepositoryHead(props: {
   const tabs = REPOSITORY_TABS.filter(
     (item) => item.tab !== 'settings' || props.canAdminister !== false,
   );
+  // The loading skeleton knows neither the tab nor, during a client navigation, the address
+  // (`useParams` is empty in a loading fallback): it shows the header without links.
+  const isSkeleton = props.current === null;
   return (
     <div className={styles.repohead}>
       <h1 className={styles.repotitle}>
-        <Link href={props.ownerHref ?? props.base}>{props.repository.owner}</Link>
+        {isSkeleton ? (
+          <span>{props.repository.owner}</span>
+        ) : (
+          <Link href={props.ownerHref ?? props.base}>{props.repository.owner}</Link>
+        )}
         <span>/</span>
-        <Link href={props.base}>{props.repository.name}</Link>
+        {isSkeleton ? (
+          <span>{props.repository.name}</span>
+        ) : (
+          <Link href={props.base}>{props.repository.name}</Link>
+        )}
         {props.visibility === undefined ? null : (
           <small className={styles.visibility}>{props.visibility}</small>
         )}
@@ -133,21 +144,27 @@ function RepositoryHead(props: {
         </p>
       ) : null}
       <nav className={styles.tabs} aria-label="Repository views">
-        {tabs.map((item) => (
-          <Link
-            key={item.tab}
-            href={repositoryTabHref(props.base, item.tab)}
-            className={styles.tab}
-            aria-current={props.current === item.tab ? 'page' : undefined}
-          >
-            {item.name}
-            {item.tab === 'changes' && (props.openChanges ?? 0) > 0 ? (
-              <span className={styles.tabCount} title="Beans in check, red or waiting">
-                {props.openChanges}
-              </span>
-            ) : null}
-          </Link>
-        ))}
+        {tabs.map((item) =>
+          isSkeleton ? (
+            <span key={item.tab} className={styles.tab} aria-disabled="true">
+              {item.name}
+            </span>
+          ) : (
+            <Link
+              key={item.tab}
+              href={repositoryTabHref(props.base, item.tab)}
+              className={styles.tab}
+              aria-current={props.current === item.tab ? 'page' : undefined}
+            >
+              {item.name}
+              {item.tab === 'changes' && (props.openChanges ?? 0) > 0 ? (
+                <span className={styles.tabCount} title="Beans in check, red or waiting">
+                  {props.openChanges}
+                </span>
+              ) : null}
+            </Link>
+          ),
+        )}
       </nav>
     </div>
   );
