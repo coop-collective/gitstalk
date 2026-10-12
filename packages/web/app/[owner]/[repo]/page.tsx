@@ -5,14 +5,13 @@ import { CodeTab } from '../../../components/repo-tabs/code-tab';
 import type { SearchParams } from '../../../components/home/repository-home';
 import { RepoHead } from '../../../components/home/repo-head';
 import { StartHere } from '../../../components/repository/start-here';
-import { currentSession } from '../../../src/auth/user';
 import { readRef } from '../../../src/code/tree';
-import { hasGrownRepository } from '../../../src/repositories/flows';
 import { startGuide } from '../../../src/repositories/paths';
 import { registryClient } from '../../../src/repositories/registry-client';
+import { hasGrownEngine } from '../../../src/repo-pages/engine-reads';
 import { codePage } from '../../../src/server/code-page';
 import type { RepositoryParams } from '../../../src/server/repository-page';
-import { startConfig } from '../../../src/server/repository-page';
+import { requestSession, startConfig } from '../../../src/server/repository-page';
 import type { RepositoryTab } from '../../../src/server/repository-tab';
 import { repositoryTab } from '../../../src/server/repository-tab';
 
@@ -36,9 +35,7 @@ export default async function RepositoryPage({ params, searchParams }: PageProps
     const ask = await AskTab({ page: tab, searchParams: query });
     if (ask !== null) return ask;
   }
-  const grown =
-    tab.reads !== null &&
-    hasGrownRepository(...(await Promise.all([tab.reads.events(), tab.reads.pushed()])));
+  const grown = tab.reads !== null && (await hasGrownEngine(tab.reads));
   if (!grown) return <StartPage tab={tab} />;
   const ref = readRef(query['ref']);
   const data = await codePage(tab, { ref, path: '', view: 'tree' });
@@ -60,7 +57,7 @@ async function StartPage({ tab }: { readonly tab: RepositoryTab }) {
   const [files, config, session] = await Promise.all([
     registryClient(env.GATEWAY).files(record.id, tab.user?.id ?? null),
     startConfig(),
-    tab.role === 'owner' || tab.role === 'maintain' ? currentSession() : Promise.resolve(null),
+    tab.role === 'owner' || tab.role === 'maintain' ? requestSession() : Promise.resolve(null),
   ]);
   return (
     <main>

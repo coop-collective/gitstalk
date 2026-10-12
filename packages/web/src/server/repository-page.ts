@@ -8,9 +8,11 @@ import { env } from 'cloudflare:workers';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 
+import { cacheForRequest } from 'vinext/cache';
+
 import { resolveRetiredHandle } from '@gitstalk/shared-identity/profiles';
 
-import { currentUser } from '../auth/user';
+import { currentSession } from '../auth/user';
 import type { User as SessionUser } from '../auth/user';
 import { lookupRepository } from '../repositories/flows';
 import type { StartConfig } from '../repositories/paths';
@@ -30,9 +32,15 @@ export type RepositoryPage = {
   readonly base: string;
 };
 
+/**
+ * The viewer's session, read once per request: the access check needs the person, and the
+ * owner's forms on the same page need its CSRF token.
+ */
+export const requestSession = cacheForRequest(currentSession);
+
 export async function repositoryPage(params: RepositoryParams): Promise<RepositoryPage> {
-  const { owner, repo } = await params;
-  const user = await currentUser();
+  const [{ owner, repo }, session] = await Promise.all([params, requestSession()]);
+  const user = session?.user ?? null;
   const found = await lookupRepository(
     decodeURIComponent(owner),
     decodeURIComponent(repo),

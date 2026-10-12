@@ -2,9 +2,13 @@
  * What the Code tab reads for one request: the beans (for the ref switcher, the side column
  * and the Changes count), the tree at the chosen ref, the line's newest commit, and the README
  * or the file. Independent reads start together, and the number of gateway calls is fixed,
- * whatever the folder holds.
+ * whatever the folder holds. The tree and the file are read at a commit sha whenever one is
+ * known (a line's newest commit, a bean's head), which a public repository's reads share
+ * across requests.
  */
-import type { RefName } from '@gitstalk/shared-ask/repo/repo-types';
+import { Sha } from '@gitstalk/shared-race/ids';
+
+import type { RefName, RepoTree } from '@gitstalk/shared-ask/repo/repo-types';
 
 import type { Change } from '../changes/changes';
 import { changesOf } from '../changes/changes';
@@ -46,27 +50,44 @@ export type CodeInput = {
 };
 
 export async function codeData(reads: EngineReads, input: CodeInput): Promise<CodeData> {
-  const refName = await reads.resolve(input.ref);
   const line = input.ref.kind === 'stalk' || input.ref.kind === 'sprout' ? input.ref.kind : null;
-  const [events, pushed, tree, log] = await Promise.all([
+  const [events, pushed, located] = await Promise.all([
     reads.events(),
     reads.pushed(),
-    refName === null ? Promise.resolve(null) : reads.tree(refName),
-    line === null ? Promise.resolve([]) : reads.log(line),
+    locate(reads, input.ref, line),
   ]);
   const changes = changesOf(events, pushed);
-  if (refName === null || tree === null)
+  if (located === null)
     return {
       changes,
       sha: '',
       head: null,
       body: missing(`There is no bean ${refText(input.ref)}.`),
     };
+  const { tree, log } = located;
   const head =
     input.ref.kind === 'bean'
       ? beanHead(changes, input.ref.name)
       : lineHead({ line, newest: log[0], pushed, events });
-  return { changes, sha: tree.sha, head, body: await bodyOf(reads, refName, tree.files, input) };
+  return { changes, sha: tree.sha, head, body: await bodyOf(reads, tree.sha, tree.files, input) };
+}
+
+/**
+ * The tree the ref browses and, for a line, its history. A line's tree is read at its newest
+ * commit (the log names it), so every tree is read by sha once one is known.
+ */
+async function locate(
+  reads: EngineReads,
+  ref: RefChoice,
+  line: 'stalk' | 'sprout' | null,
+): Promise<{ readonly tree: RepoTree; readonly log: readonly LogCommit[] } | null> {
+  if (line === null) {
+    const refName = await reads.resolve(ref);
+    return refName === null ? null : { tree: await reads.tree(refName), log: [] };
+  }
+  const log = await reads.log(line);
+  const newest = Sha.safeParse(log[0]?.sha);
+  return { tree: await reads.tree(newest.success ? newest.data : line), log };
 }
 
 async function bodyOf(

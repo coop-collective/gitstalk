@@ -103,6 +103,37 @@ export async function allEvents(source: ForgeSource, run: RunId): Promise<readon
   }
 }
 
+/** The events of a log after a cursor, and the cursor its last page ended on. */
+export type EventsTail = {
+  readonly events: readonly RaceEvent[];
+  /** The last sequence number the gateway read (pass it as `after` to continue). */
+  readonly last: number;
+};
+
+/**
+ * A run's events after `after`, page by page: what a reader that already holds the start of
+ * the log needs. It stops at a page that spans fewer sequence numbers than a full page holds,
+ * so a live log (never `done`) costs one call, not a trailing empty one.
+ */
+export async function eventsAfter(
+  source: Pick<ForgeSource, 'runEvents'>,
+  run: RunId,
+  after: number,
+): Promise<EventsTail> {
+  const events: RaceEvent[] = [];
+  let cursor = after;
+  for (;;) {
+    // oxlint-disable-next-line no-await-in-loop -- pages follow a cursor, one after another
+    const page = await source.runEvents(run, cursor, EVENTS_PAGE);
+    events.push(...page.events);
+    // A page holds at most one row per sequence number in (cursor, nextAfter], so a span
+    // shorter than the page size means the log ended inside it.
+    if (page.done || page.nextAfter - cursor < EVENTS_PAGE)
+      return { events, last: Math.max(page.nextAfter, cursor) };
+    cursor = page.nextAfter;
+  }
+}
+
 function rangeWindow(input: {
   readonly log: readonly RepoCommit[];
   readonly minutes: number | null;
