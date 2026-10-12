@@ -2,16 +2,23 @@
  * One run (`docs/claude-opus/25` §5.2, §5.3): what started it and on which commit, its facts
  * (status, wall time, minutes billed, inputs, the job graph: `RunStatus`, which keeps them live), annotations, the jobs' summary,
  * then the chosen job's steps and live log. Maintainers get Cancel and Re-run.
+ *
+ * The run itself renders at once; the chosen job's stored log (and the annotations read from
+ * it, when the control plane sends none) streams in under Suspense boundaries, so a finished
+ * job's whole log is never read before the page's first byte.
  */
+import { Suspense } from 'react';
+
 import { IntentLink as Link } from '../shell/intent-link';
 
-import type { Annotation, LogLine, RunDetail } from '../../src/actions/actions-contract';
+import type { Annotation, Job, LogLine, RunDetail } from '../../src/actions/actions-contract';
 import { annotationsFromLog } from '../../src/actions/log-view';
 import { sectionOf } from '../../src/actions/run-view';
 import type { ActionsAccess } from '../../src/server/actions-page';
 import { MarkdownView } from '../repo-tabs/markdown-view';
 import styles from './actions.module.css';
 import { JobLog } from './job-log';
+import { JobLogPending } from './job-log-pending';
 import { RunStatus } from './run-status';
 
 export function RunView(props: {
@@ -22,17 +29,18 @@ export function RunView(props: {
   readonly apiBase: string;
   readonly run: RunDetail;
   readonly jobId: string | null;
-  readonly lines: readonly LogLine[] | null;
+  /** The chosen job's log as the page starts it (`initialLog`), still being read; null: none. */
+  readonly lines: Promise<readonly LogLine[] | null> | null;
   readonly access: ActionsAccess | null;
   readonly nowMs: number;
 }) {
-  const { run, base } = props;
+  const { run, base, lines } = props;
   const section = sectionOf(run.workflowPath);
   const job = run.jobs.find((candidate) => candidate.id === props.jobId) ?? null;
-  const annotations =
-    run.annotations.length > 0 || job === null
-      ? run.annotations
-      : annotationsFromLog(job.id, props.lines ?? []);
+  const logPath =
+    job === null
+      ? ''
+      : `${props.apiBase}/runs/${encodeURIComponent(run.id)}/jobs/${encodeURIComponent(job.id)}/log`;
   return (
     <>
       <Link
@@ -54,8 +62,12 @@ export function RunView(props: {
         access={props.access}
       />
       {section === 'automations' ? <AutomationOutcome run={run} base={base} /> : null}
-      {annotations.length === 0 ? null : (
-        <Annotations annotations={annotations} base={base} run={run} />
+      {run.annotations.length > 0 || job === null || lines === null ? (
+        <Annotations annotations={run.annotations} base={base} run={run} />
+      ) : (
+        <Suspense fallback={null}>
+          <LogAnnotations job={job} lines={lines} base={base} run={run} />
+        </Suspense>
       )}
       {run.summary === null ? null : (
         <section className={styles.box} aria-labelledby="summary-title">
@@ -65,17 +77,39 @@ export function RunView(props: {
           <MarkdownView text={run.summary} resolve={(href) => href} />
         </section>
       )}
-      {job === null || props.lines === null ? null : (
-        <JobLog
+      {job === null || lines === null ? null : (
+        <Suspense
           key={job.id}
-          job={job}
-          lines={props.lines}
-          logPath={`${props.apiBase}/runs/${encodeURIComponent(run.id)}/jobs/${encodeURIComponent(job.id)}/log`}
-          nowMs={props.nowMs}
-        />
+          fallback={<JobLogPending job={job} logPath={logPath} nowMs={props.nowMs} />}
+        >
+          <StreamedJobLog job={job} lines={lines} logPath={logPath} nowMs={props.nowMs} />
+        </Suspense>
       )}
     </>
   );
+}
+
+/** The job's log once read; nothing when it could not be read (as before streaming). */
+async function StreamedJobLog(props: {
+  readonly job: Job;
+  readonly lines: Promise<readonly LogLine[] | null>;
+  readonly logPath: string;
+  readonly nowMs: number;
+}) {
+  const lines = await props.lines;
+  if (lines === null) return null;
+  return <JobLog job={props.job} lines={lines} logPath={props.logPath} nowMs={props.nowMs} />;
+}
+
+/** The `::error` and `::warning` lines of the job's log, when the control plane sent none. */
+async function LogAnnotations(props: {
+  readonly job: Job;
+  readonly lines: Promise<readonly LogLine[] | null>;
+  readonly base: string;
+  readonly run: RunDetail;
+}) {
+  const annotations = annotationsFromLog(props.job.id, (await props.lines) ?? []);
+  return <Annotations annotations={annotations} base={props.base} run={props.run} />;
 }
 
 /**
@@ -165,6 +199,7 @@ function Annotations(props: {
   readonly base: string;
   readonly run: RunDetail;
 }) {
+  if (props.annotations.length === 0) return null;
   const errors = props.annotations.filter((annotation) => annotation.level === 'error').length;
   const warnings = props.annotations.filter((annotation) => annotation.level === 'warning').length;
   return (

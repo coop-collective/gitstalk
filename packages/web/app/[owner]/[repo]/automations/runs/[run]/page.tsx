@@ -1,12 +1,11 @@
-import { notFound } from 'next/navigation';
-
 import { ActionsOff, ActionsShell } from '../../../../../../components/actions/actions-shell';
 import { RunView } from '../../../../../../components/actions/run-view';
 import { focusJob, initialLog } from '../../../../../../src/actions/run-view';
-import { actionsPage } from '../../../../../../src/server/actions-page';
+import type { RunParams } from '../../../../../../src/server/run-page';
+import { runPage } from '../../../../../../src/server/run-page';
 
 type PageProps = {
-  readonly params: Promise<{ readonly owner: string; readonly repo: string; readonly run: string }>;
+  readonly params: RunParams;
   readonly searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
 };
 
@@ -18,34 +17,30 @@ export async function generateMetadata({ params }: PageProps) {
 /**
  * One automation run (doc 25 §7.8): what it did (beans, memory, model spend), its graph and
  * the chosen job's log (`?job=`, else the first failed or running job).
- * The run and the job's log so far are read on the server; the log then streams.
+ * The run is read before anything streams (its layout's 404); the job's log so far streams in
+ * after, then follows live.
  */
 export default async function AutomationRunPage({ params, searchParams }: PageProps) {
-  const page = await actionsPage(params);
-  const { run: runParam } = await params;
-  if (page.actions === null)
+  const [{ page, actions, run }, query] = await Promise.all([runPage(params), searchParams]);
+  if (actions === null)
     return (
       <ActionsShell page={page} view="automations" mode={null}>
         <ActionsOff />
       </ActionsShell>
     );
-  const run = await page.actions.run(decodeURIComponent(runParam));
-  if (!run.ok) notFound();
-  const asked = (await searchParams)['job'];
-  const job =
-    run.value.jobs.find((candidate) => candidate.id === asked) ?? focusJob(run.value.jobs);
-  const lines = job === null ? null : await initialLog(page.actions, run.value.id, job);
+  const asked = query['job'];
+  const job = run.jobs.find((candidate) => candidate.id === asked) ?? focusJob(run.jobs);
   return (
-    <ActionsShell page={page} view="automations" mode={page.actions.mode}>
+    <ActionsShell page={page} view="automations" mode={actions.mode}>
       <RunView
         uid={page.user?.id ?? null}
         owner={page.record.owner.handle}
         repo={page.record.name}
         base={page.base}
         apiBase={`/api/repos/${encodeURIComponent(page.record.owner.handle)}/${encodeURIComponent(page.record.name)}/actions`}
-        run={run.value}
+        run={run}
         jobId={job?.id ?? null}
-        lines={lines}
+        lines={job === null ? null : initialLog(actions, run.id, job)}
         access={page.access}
         nowMs={Date.now()}
       />

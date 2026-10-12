@@ -238,7 +238,8 @@ export function isRunDetail(value: unknown): value is RunDetail {
 /**
  * The job's log as the page starts it. A running job's log is not read here: its stream
  * (`JobLog`) replays from line 1, so reading it first only delayed the page. A finished job's
- * stored log is the page's to read, since nothing streams it. Null when it cannot be read.
+ * stored log is the page's to read, since nothing streams it; the page streams it in under a
+ * Suspense boundary (`RunView`), never before its first byte. Null when it cannot be read.
  */
 export async function initialLog(
   actions: ActionsClient,
