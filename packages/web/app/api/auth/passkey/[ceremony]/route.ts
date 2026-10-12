@@ -30,6 +30,7 @@ import {
   relyingParty,
   sessionCookie,
 } from '../../../../../src/auth/http';
+import { passkeyLimitKeys } from '../../../../../src/auth/passkey-limits';
 import { turnstileProblem, turnstileRefusal } from '../../../../../src/auth/turnstile';
 import { log } from '../../../../../src/log';
 
@@ -62,7 +63,8 @@ const MESSAGES: Readonly<Record<CeremonyFailure['reason'], string>> = {
 /**
  * Passkey ceremonies, two steps each (`options`, then `verify`): sign up (a new person with a
  * handle), sign in (any passkey of this site) and add (another passkey, signed in). JSON only,
- * same origin only, rate limited per IP (and per handle on sign-up).
+ * same origin only, rate limited per IP, options and verification on separate budgets (and
+ * per handle on sign-up; `passkey-limits.ts`).
  */
 export async function POST(request: Request, context: Context): Promise<Response> {
   const refused = crossSiteRefusal(request);
@@ -73,13 +75,11 @@ export async function POST(request: Request, context: Context): Promise<Response
   const body = Body.safeParse(await request.json().catch(() => null));
   if (!ceremony.success || !body.success)
     return problem(400, 'invalid_request', 'not a passkey request');
-  const ip = clientIp(request);
-  const keys = [
-    `ip:${ip ?? 'unknown'}`,
-    ...(body.data.step === 'options' && body.data.handle !== undefined
-      ? [`handle:${body.data.handle.toLowerCase()}`]
-      : []),
-  ];
+  const keys = passkeyLimitKeys({
+    step: body.data.step,
+    ip: clientIp(request),
+    handle: body.data.step === 'options' ? body.data.handle : undefined,
+  });
   if (!(await isWithinLimits(env.SIGNIN_RATE_LIMIT, keys)))
     return problem(429, 'rate_limited', 'Too many attempts. Wait a minute and try again.');
   const challenged = await humanCheck(request, ceremony.data, body.data);
