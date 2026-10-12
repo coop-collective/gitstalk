@@ -1,0 +1,430 @@
+{
+  "takenAt": "2026-10-11T09:02:36.172Z",
+  "dist": {
+    "byType": {
+      "other": {
+        "raw": 161,
+        "gzip": 182,
+        "brotli": 130
+      },
+      "json": {
+        "raw": 26662,
+        "gzip": 3208,
+        "brotli": 2817
+      },
+      "js": {
+        "raw": 1104993,
+        "gzip": 341354,
+        "brotli": 299017
+      },
+      "css": {
+        "raw": 274238,
+        "gzip": 66364,
+        "brotli": 57541
+      },
+      "woff2": {
+        "raw": 132156,
+        "gzip": 132352,
+        "brotli": 132149
+      },
+      "ico": {
+        "raw": 1436,
+        "gzip": 1398,
+        "brotli": 1335
+      },
+      "svg": {
+        "raw": 358,
+        "gzip": 242,
+        "brotli": 218
+      },
+      "png": {
+        "raw": 236146,
+        "gzip": 234101,
+        "brotli": 233642
+      }
+    },
+    "total": {
+      "raw": 1776150,
+      "gzip": 779201,
+      "brotli": 726849
+    },
+    "files": 115,
+    "largest": [
+      {
+        "file": "/og-image.png",
+        "raw": 236146,
+        "gzip": 234101,
+        "brotli": 233642
+      },
+      {
+        "file": "/_next/static/chunks/framework-2k-VFE-j.js",
+        "raw": 219348,
+        "gzip": 67481,
+        "brotli": 58171
+      },
+      {
+        "file": "/_next/static/chunks/index-BvK60cNo.js",
+        "raw": 185021,
+        "gzip": 43665,
+        "brotli": 37152
+      },
+      {
+        "file": "/_next/static/chunks/automation-builder-BjCCFDQR.js",
+        "raw": 140326,
+        "gzip": 43769,
+        "brotli": 39294
+      },
+      {
+        "file": "/_next/static/chunks/vinext-CBhyKjRv.js",
+        "raw": 137663,
+        "gzip": 41166,
+        "brotli": 35831
+      },
+      {
+        "file": "/_next/static/chunks/schemas-DAP2GM09.js",
+        "raw": 92147,
+        "gzip": 25715,
+        "brotli": 22789
+      },
+      {
+        "file": "/_next/static/media/jetbrains-mono-latin-wght-normal.B9CIFXIH.woff2",
+        "raw": 40404,
+        "gzip": 40437,
+        "brotli": 40408
+      },
+      {
+        "file": "/_next/static/css/home.ft7dE48W.css",
+        "raw": 35665,
+        "gzip": 6408,
+        "brotli": 5704
+      },
+      {
+        "file": "/_next/static/css/repo-head.ft7dE48W.css",
+        "raw": 35665,
+        "gzip": 6408,
+        "brotli": 5704
+      },
+      {
+        "file": "/_next/static/chunks/race-canvas-0XJoOYpN.js",
+        "raw": 32917,
+        "gzip": 10618,
+        "brotli": 9505
+      }
+    ],
+    "byTypeCount": {
+      "other": 2,
+      "json": 2,
+      "js": 71,
+      "css": 29,
+      "woff2": 8,
+      "ico": 1,
+      "svg": 1,
+      "png": 1
+    }
+  },
+  "live": {
+    "base": "https://gitstalk.dev",
+    "perPage": {
+      "home": {
+        "path": "/",
+        "htmlBytes": 33012,
+        "htmlBrotli": 6029,
+        "assets": 28,
+        "js": {
+          "raw": 686944,
+          "gzip": 198065,
+          "brotli": 171452
+        },
+        "css": {
+          "raw": 43097,
+          "gzip": 13547,
+          "brotli": 11664
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/repository.CVKWsKdz.css",
+          "/_next/static/css/org-mark.CDIZb9U3.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/css/confirm-submit.B9dd7q4W.css",
+          "/_next/static/css/org-forms.CDIZb9U3.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js",
+          "/_next/static/chunks/home-sessions-CMh-Jjj4.js",
+          "/_next/static/chunks/repository.module-DFrElusg.js",
+          "/_next/static/chunks/when-rR9jYh9e.js",
+          "/_next/static/chunks/org-people-DiQoDjS1.js",
+          "/_next/static/chunks/confirm-submit-DskXIFab.js",
+          "/_next/static/chunks/org-forms-AxUpcsMe.js",
+          "/_next/static/chunks/use-saved-form-jm59QfwO.js",
+          "/_next/static/chunks/invitations-DV93PpBL.js",
+          "/_next/static/chunks/roles-CG48IomX.js"
+        ]
+      },
+      "repo": {
+        "path": "/<handle>/perf-repo",
+        "htmlBytes": 69660,
+        "htmlBrotli": 8990,
+        "assets": 23,
+        "js": {
+          "raw": 666885,
+          "gzip": 191803,
+          "brotli": 165970
+        },
+        "css": {
+          "raw": 86038,
+          "gzip": 20908,
+          "brotli": 18306
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/repo-tabs.CzqRhpUS.css",
+          "/_next/static/css/repo-head.ft7dE48W.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/css/repository.CVKWsKdz.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js",
+          "/_next/static/chunks/copy-button-CMIUAF-f.js",
+          "/_next/static/chunks/repository.module-DFrElusg.js",
+          "/_next/static/chunks/connect-tabs-C358TCPR.js",
+          "/_next/static/chunks/paths-BF3quhpT.js",
+          "/_next/static/chunks/deploy-token-actions-CrXP5sJh.js"
+        ]
+      },
+      "changes": {
+        "path": "/<handle>/perf-repo/changes",
+        "htmlBytes": 31987,
+        "htmlBrotli": 5726,
+        "assets": 19,
+        "js": {
+          "raw": 659477,
+          "gzip": 188894,
+          "brotli": 163478
+        },
+        "css": {
+          "raw": 80515,
+          "gzip": 19814,
+          "brotli": 17360
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/repo-tabs.CzqRhpUS.css",
+          "/_next/static/css/repo-head.ft7dE48W.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/css/live-refresh.CzqRhpUS.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js",
+          "/_next/static/chunks/live-refresh-vjFg-Apm.js"
+        ]
+      },
+      "bean": {
+        "path": "/<handle>/perf-repo/changes/add-count-words",
+        "htmlBytes": 43576,
+        "htmlBrotli": 7387,
+        "assets": 20,
+        "js": {
+          "raw": 659477,
+          "gzip": 188894,
+          "brotli": 163478
+        },
+        "css": {
+          "raw": 94721,
+          "gzip": 23081,
+          "brotli": 20190
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/repo-tabs.CzqRhpUS.css",
+          "/_next/static/css/repo-head.ft7dE48W.css",
+          "/_next/static/css/explorer.C6rFfpqE.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/css/live-refresh.CzqRhpUS.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js",
+          "/_next/static/chunks/live-refresh-vjFg-Apm.js"
+        ]
+      },
+      "history": {
+        "path": "/<handle>/perf-repo/history",
+        "htmlBytes": 42991,
+        "htmlBrotli": 6565,
+        "assets": 18,
+        "js": {
+          "raw": 656842,
+          "gzip": 187729,
+          "brotli": 162470
+        },
+        "css": {
+          "raw": 70794,
+          "gzip": 17631,
+          "brotli": 15435
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/page.DDjNJcSZ.css",
+          "/_next/static/css/repo-tabs.CzqRhpUS.css",
+          "/_next/static/css/repo-head.ft7dE48W.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js"
+        ]
+      },
+      "actionsRun": {
+        "path": "/<handle>/perf-repo/actions/runs/caa57263-6c96-47c4-991f-7c9c63a5dff3",
+        "htmlBytes": 53102,
+        "htmlBrotli": 9192,
+        "assets": 24,
+        "js": {
+          "raw": 677004,
+          "gzip": 195565,
+          "brotli": 169393
+        },
+        "css": {
+          "raw": 107852,
+          "gzip": 25420,
+          "brotli": 22297
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/actions-page.5DFibgwT.css",
+          "/_next/static/css/repo-head.ft7dE48W.css",
+          "/_next/static/css/repo-tabs.CzqRhpUS.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/css/actions.5DFibgwT.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js",
+          "/_next/static/chunks/run-refresher-COLi9nfy.js",
+          "/_next/static/chunks/run-controls-iROUZmmj.js",
+          "/_next/static/chunks/access-fields-C5nUHHM7.js",
+          "/_next/static/chunks/actions.module-D3i0T1lL.js",
+          "/_next/static/chunks/job-log-DQzzbAtW.js"
+        ]
+      },
+      "owner": {
+        "path": "/<handle>",
+        "htmlBytes": 26650,
+        "htmlBrotli": 4884,
+        "assets": 17,
+        "js": {
+          "raw": 656842,
+          "gzip": 187729,
+          "brotli": 162470
+        },
+        "css": {
+          "raw": 39993,
+          "gzip": 12261,
+          "brotli": 10621
+        },
+        "urls": [
+          "/_next/static/css/layout.DXDFGvTA.css",
+          "/_next/static/css/avatar.BgZrnATb.css",
+          "/_next/static/css/repository.CVKWsKdz.css",
+          "/_next/static/css/org-mark.CDIZb9U3.css",
+          "/_next/static/css/header-menu.De5Ru0m5.css",
+          "/_next/static/chunks/index-BW7eKLL8.js",
+          "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+          "/_next/static/chunks/framework-2k-VFE-j.js",
+          "/_next/static/chunks/vinext-BvQ8_JBa.js",
+          "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+          "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+          "/_next/static/chunks/link-B5VAoRQk.js",
+          "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+          "/_next/static/chunks/run-view-BOAvjyUM.js",
+          "/_next/static/chunks/actions-CuW4MA99.js",
+          "/_next/static/chunks/schemas-DAP2GM09.js",
+          "/_next/static/chunks/theme-toggle-DRf0P-5M.js"
+        ]
+      }
+    },
+    "preloadedOnEveryPage": {
+      "files": 15,
+      "urls": [
+        "/_next/static/css/layout.DXDFGvTA.css",
+        "/_next/static/css/avatar.BgZrnATb.css",
+        "/_next/static/css/header-menu.De5Ru0m5.css",
+        "/_next/static/chunks/index-BW7eKLL8.js",
+        "/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+        "/_next/static/chunks/framework-2k-VFE-j.js",
+        "/_next/static/chunks/vinext-BvQ8_JBa.js",
+        "/_next/static/chunks/layout-segment-context-BPKcck6o.js",
+        "/_next/static/chunks/chunk-reload-guard-i-8Z9Uq4.js",
+        "/_next/static/chunks/link-B5VAoRQk.js",
+        "/_next/static/chunks/header-menu-Dmqg3xZg.js",
+        "/_next/static/chunks/run-view-BOAvjyUM.js",
+        "/_next/static/chunks/actions-CuW4MA99.js",
+        "/_next/static/chunks/schemas-DAP2GM09.js",
+        "/_next/static/chunks/theme-toggle-DRf0P-5M.js"
+      ],
+      "js": {
+        "raw": 656842,
+        "gzip": 187729,
+        "brotli": 162470
+      }
+    }
+  }
+}

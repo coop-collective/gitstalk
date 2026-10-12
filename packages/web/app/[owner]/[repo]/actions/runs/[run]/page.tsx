@@ -20,8 +20,11 @@ export async function generateMetadata({ params }: PageProps) {
  * The run and the job's log so far are read on the server; the log then streams.
  */
 export default async function RunPage({ params, searchParams }: PageProps) {
-  const page = await actionsPage(params);
-  const { run: runParam } = await params;
+  const [page, { run: runParam }, query] = await Promise.all([
+    actionsPage(params),
+    params,
+    searchParams,
+  ]);
   if (page.actions === null)
     return (
       <ActionsShell page={page} view="actions" mode={null}>
@@ -30,7 +33,7 @@ export default async function RunPage({ params, searchParams }: PageProps) {
     );
   const run = await page.actions.run(decodeURIComponent(runParam));
   if (!run.ok) notFound();
-  const asked = (await searchParams)['job'];
+  const asked = query['job'];
   const job =
     run.value.jobs.find((candidate) => candidate.id === asked) ?? focusJob(run.value.jobs);
   const lines = job === null ? null : await page.actions.log(run.value.id, job.id, 0);

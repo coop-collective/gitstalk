@@ -67,6 +67,39 @@ Ask in [14](../../docs/claude-opus/14-repository-experience.md) and
 - **Live updates.** vinext cannot hold a WebSocket upgrade, so the `/api/.../live` routes open
   the gateway's WebSocket feed through the binding and stream Server-Sent Events to the browser.
 
+## Client data
+
+Pages render on the server; data a client component reads or keeps live goes through
+TanStack Query (`src/query/`). `QueryProvider` (`components/query/query-provider.tsx`) wraps
+every page in `app/layout.tsx` with one client per tab, given the viewer's id.
+
+- **Keys** come from `qk` in `src/query/keys.ts` only, and every key holding private data
+  carries the viewer (`'anon'` when signed out): `qk.repo(uid, owner, repo).events()`. An
+  area's `all` key is a prefix of its queries, for invalidation.
+- **Defaults** (`make-query-client.ts`): fresh for 30 s, kept 10 minutes, refetched on window
+  focus, no background polling, one retry.
+- **Server prefetch**: a server component fills `getServerQueryClient()` (`server.ts`, one per
+  request) and passes `dehydrate(...)` to a `HydrationBoundary`.
+- **Fetching**: `fetchJson(path, guard, { signal })` (`fetch-json.ts`) reads a same-origin path
+  and checks the JSON with a type guard; failures are `FetchJsonError` with a `failure.reason`.
+  `schemaGuard` turns a `zod/mini` schema into that guard; client code imports `zod/mini`, never
+  `zod`.
+- **Live feeds**: `useLiveFeed` (`use-live-feed.ts`) opens a Server-Sent Events feed once the
+  query has its snapshot and appends batches with `appendBySeq` (by `seq`: repeats dropped,
+  order kept, a gap or a reconnect refetches the snapshot). Its `staleTime` goes to the
+  query: `Infinity` while live, 15 s while disconnected.
+- **Mutations** stay server actions. `useActionWithInvalidation` wraps `useActionState` and
+  invalidates the given keys when the returned state is a success. An action that changes what
+  another page shows calls `revalidatePath` or `revalidateTag` (or redirects): the client
+  router reuses a page it showed in the last 30 s (`experimental.staleTimes` in
+  `next.config.ts`), and only those clear it.
+- **Persistence** is opt-in: `meta: { persist: true }` keeps a successful query in
+  sessionStorage (`gitstalk-query`) for 15 minutes, for this build and viewer only. Signing in
+  or out clears the cache and the stored copy.
+- **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request.
+  `"use cache"` with `cacheLife` and `cacheTag` works, but the default cache handler is in
+  memory, per isolate.
+
 ## Layout
 
 | Path | Contents |

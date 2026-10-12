@@ -7,6 +7,7 @@
  */
 import { env } from 'cloudflare:workers';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 import { logIdentity, recordProductEvent } from '@gitstalk/shared-identity/product-events';
 
@@ -73,5 +74,7 @@ function settle<State>(outcome: FormOutcome<State>, action: string): State {
     log.info('repository action done', { action });
     redirect(outcome.to);
   }
+  // The client router keeps pages for staleTimes.dynamic; drop them so a changed setting shows.
+  revalidatePath('/', 'layout');
   return outcome.state;
 }
