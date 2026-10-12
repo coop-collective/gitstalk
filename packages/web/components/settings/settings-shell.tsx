@@ -4,7 +4,7 @@
  * sheets. Under 760 px the nav becomes a strip that scrolls sideways. `SettingsSection` is one
  * titled sheet; `danger` marks a destructive one.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import { CurrentInView } from './settings-client';

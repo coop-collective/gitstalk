@@ -8,7 +8,7 @@
  * sessions it read (`initial`), so the first paint needs no request.
  */
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import type { FirstStepId } from '../../src/home/first-steps';

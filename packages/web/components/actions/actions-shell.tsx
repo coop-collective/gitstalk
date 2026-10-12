@@ -3,7 +3,7 @@
  * repository's `.github/workflows`) and Automations (`.gitstalk/automations`). On a
  * deployment answering from fixtures, every page says so.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import type { ActionsMode } from '../../src/actions/actions-client';

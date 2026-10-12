@@ -4,7 +4,7 @@
  * marked), a line for people who are not the owner, the archived notice, and the move from an
  * old one-page anchor to its page.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import type { RepositorySettings } from '../../src/server/repository-settings';

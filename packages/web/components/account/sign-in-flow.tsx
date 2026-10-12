@@ -10,7 +10,7 @@
  */
 import { env } from 'cloudflare:workers';
 import { headers } from 'next/headers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import {

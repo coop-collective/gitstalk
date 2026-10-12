@@ -1,5 +1,5 @@
 import { isAutomationPath } from '@gitstalk/shared-race/actions';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../../components/shell/intent-link';
 
 import { ActionsOff, ActionsShell } from '../../../../components/actions/actions-shell';
 import styles from '../../../../components/actions/actions.module.css';

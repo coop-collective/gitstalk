@@ -4,7 +4,7 @@
  * stems are the stalk's green. Each job opens its steps and log below (`?job=`). Wide graphs
  * scroll inside their box, never the page.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { Job } from '../../src/actions/actions-contract';
 import type { RunState } from '../../src/actions/run-view';

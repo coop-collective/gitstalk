@@ -3,7 +3,7 @@
  * whom (agent sessions, personal tokens, SSH keys, deploy tokens: every session belongs to a
  * person). Members see it; a public repository's other readers are told who owns it.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type {
   RepositoryPeople,

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useEffect, useRef, useState } from 'react';
 
 import type { PickReceipt } from '@gitstalk/shared-ask/pick/picker';

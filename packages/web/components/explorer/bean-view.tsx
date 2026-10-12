@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { BeanDetail, BeanRecord } from '@gitstalk/shared-ask/forge/forge-source';
 import type { Pushers } from '@gitstalk/shared-ask/home/sessions';

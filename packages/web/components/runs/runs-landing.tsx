@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import { GreensChart } from '../race/greens-chart';
 import { RunsTable } from './runs-table';

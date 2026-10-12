@@ -3,7 +3,7 @@
  * changed it, its README rendered below, and beside it what the repository is, what is
  * growing, and how to clone or connect.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import { FileIcon } from '../home/marks';

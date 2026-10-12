@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { RaceMoment } from '../../src/race/race-moments';
 import { formatClock } from '../../src/race/race-format';

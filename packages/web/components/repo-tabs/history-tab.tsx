@@ -5,7 +5,7 @@
  * index, when it answers) the lines' heads, each validation's verdict, and the beans taken
  * off: one tab for landed versus validated (it folded the earlier Stalk tab).
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import { groupCounts } from '../../src/changes/changes';
 import type { Change } from '../../src/changes/changes';

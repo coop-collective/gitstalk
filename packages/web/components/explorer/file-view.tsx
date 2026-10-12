@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { BlameLine } from '@gitstalk/shared-ask/ask/answer';
 import { textLines } from '@gitstalk/shared-ask/repo/file-diff';

@@ -107,6 +107,9 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   at or above the loading file (`app/[owner]/[repo]/layout.tsx`, `app/[owner]/(profile)/`,
   `app/orgs/(list)/`); a page under the skeleton can only render a not-found page inside a 200.
   `src/server/repository-access.test.ts` keeps every layout off a loading boundary.
+- **Prefetch**: links are `IntentLink` (`components/shell/intent-link.tsx`): they prefetch on
+  hover, focus or touch, never because they scrolled into view (each prefetch is a server
+  render with its gateway reads).
 
 ## Layout
 

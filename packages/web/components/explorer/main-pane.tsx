@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { MainPane as MainPaneModel } from '@gitstalk/shared-ask/ask/answer';
 import type { Pushers } from '@gitstalk/shared-ask/home/sessions';

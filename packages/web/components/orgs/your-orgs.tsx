@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { Membership } from '@gitstalk/shared-identity/orgs';
 

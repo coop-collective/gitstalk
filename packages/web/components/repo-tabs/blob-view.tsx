@@ -2,7 +2,7 @@
  * One file at a ref: highlighted lines with numbers you can link to (`#L12`), a Markdown file
  * rendered (its source one click away), and a plain word for binary or cut files.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import { highlight, languageOf } from '../../src/code/highlight';
 import type { CodeLocation } from './code-browser';

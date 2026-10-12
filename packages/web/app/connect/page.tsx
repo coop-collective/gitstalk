@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../../components/shell/intent-link';
 import { redirect } from 'next/navigation';
 
 import type { ConsentView as ConsentViewType } from '@gitstalk/shared-identity/agent-sessions';

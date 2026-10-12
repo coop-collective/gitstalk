@@ -4,7 +4,7 @@
  * shell and repository list can reach the browser first. Each is used inside a `<Suspense>`
  * whose fallback has the loaded piece's layout.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { AgentSession } from '@gitstalk/shared-identity/agent-sessions';
 

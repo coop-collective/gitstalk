@@ -3,7 +3,7 @@
  * validating) or any pushed bean's branch. A disclosure of plain links, so it works without
  * script and every choice is a URL.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { CodeView, RefChoice } from '../../src/code/tree';
 import { codeHref, refLabel } from '../../src/code/tree';

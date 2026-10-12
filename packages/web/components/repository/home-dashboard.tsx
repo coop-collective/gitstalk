@@ -7,7 +7,7 @@
  * calls streams in behind `<Suspense>` with placeholders of the final size: growth (lead,
  * per-repository line, checklist, activity) and the connected sessions (an MCP Worker call).
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
 

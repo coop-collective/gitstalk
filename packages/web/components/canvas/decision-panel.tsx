@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useActionState, useId, useState } from 'react';
 
 import type { DecisionState } from '../../src/server/actions';

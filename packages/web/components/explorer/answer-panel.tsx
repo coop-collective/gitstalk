@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { Answer, Chip } from '@gitstalk/shared-ask/ask/answer';
 import { CATALOG, specWithView } from '@gitstalk/shared-ask/ask/view-spec';

@@ -5,7 +5,7 @@
  * "Run", then its runs (or every one's) with filters by workflow, status and line, newest first.
  */
 import { isAutomationPath } from '@gitstalk/shared-race/actions';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type {
   AutomationFacts,

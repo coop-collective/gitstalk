@@ -8,7 +8,7 @@
  * until the bean is settled (validated, parked or fallen off).
  */
 import type { QueryKey } from '@tanstack/react-query';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';

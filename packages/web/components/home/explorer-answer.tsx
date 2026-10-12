@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { Answer, RailBlock } from '@gitstalk/shared-ask/ask/answer';
 import type { BeanDetail, DecisionRecord } from '@gitstalk/shared-ask/forge/forge-source';

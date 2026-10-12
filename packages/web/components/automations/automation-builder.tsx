@@ -8,7 +8,7 @@
  * asks), and the draft is kept in this browser until it is saved.
  */
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { GitstalkEvent } from '@gitstalk/shared-race/actions';

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useRef } from 'react';
 
 import type { BeanStreamSummary } from '@gitstalk/shared-ask/forge/bean-stream';

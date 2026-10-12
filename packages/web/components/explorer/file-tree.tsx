@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { FileBadges, TreeModel } from '@gitstalk/shared-ask/ask/answer';
 import { compareText } from '@gitstalk/shared-ask/repo/paths';

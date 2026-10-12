@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../../components/shell/intent-link';
 import { redirect } from 'next/navigation';
 
 import type { KeyRequestView } from '@gitstalk/shared-identity/ssh-key-requests';

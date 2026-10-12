@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { headers } from 'next/headers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../components/shell/intent-link';
 
 import { EMAIL_TICKET_COOKIE, readCookie } from '@gitstalk/shared-identity/cookies';
 import { emailForTicket } from '@gitstalk/shared-identity/email-codes';

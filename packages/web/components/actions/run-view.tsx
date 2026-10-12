@@ -3,7 +3,7 @@
  * (status, wall time, minutes billed, inputs, the job graph: `RunStatus`, which keeps them live), annotations, the jobs' summary,
  * then the chosen job's steps and live log. Maintainers get Cancel and Re-run.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { Annotation, LogLine, RunDetail } from '../../src/actions/actions-contract';
 import { annotationsFromLog } from '../../src/actions/log-view';

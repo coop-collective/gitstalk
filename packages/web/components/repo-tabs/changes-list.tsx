@@ -5,7 +5,7 @@
  * beans (`useChangesFeed`): the group filters with their counts, the live badge, and the rows
  * of the group shown. A new batch from the engine re-derives the rows; nothing reloads.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useMemo } from 'react';
 
 import type { RepoScope } from '../../src/changes/change-feed';

@@ -1,5 +1,5 @@
 import { AUTOMATIONS_DIR } from '@gitstalk/shared-race/actions';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../../../components/shell/intent-link';
 
 import { ActionsShell } from '../../../../../components/actions/actions-shell';
 import { AutomationBuilder } from '../../../../../components/automations/automation-builder';

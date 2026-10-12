@@ -6,7 +6,7 @@
  * focus to the button, Tab and a click outside close it. Entries are data so the server
  * header can describe them; the theme entry is the day/night pair as radio items.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from './intent-link';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 

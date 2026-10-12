@@ -4,7 +4,7 @@
  * The admin area's strip under the header: what this area is, then one link per page, the
  * current one marked. A strip rather than a side nav, so the race canvas keeps its width.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { usePathname } from 'next/navigation';
 
 import { ADMIN_DEMO_GATE, ADMIN_HOME, ADMIN_RACE, ADMIN_RUNS } from '../../src/admin/admin-paths';

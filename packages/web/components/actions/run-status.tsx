@@ -8,7 +8,7 @@
  * more so what only the server reads (annotations, summary, the job's stored log) catches up.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef } from 'react';
 

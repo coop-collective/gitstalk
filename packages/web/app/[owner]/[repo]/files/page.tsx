@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../../components/shell/intent-link';
 
 import { RunId } from '@gitstalk/shared-race/ids';
 

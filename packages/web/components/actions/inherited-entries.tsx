@@ -2,7 +2,7 @@
  * Org secrets or variables a repository inherits, read-only, each with its source: changed in
  * the org's settings, never here. An org entry the repository overrides is listed and says so.
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { InheritableSecret, InheritableVariable } from '../../src/actions/actions-contract';
 import { timeAgo } from '../../src/repositories/when';

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { BeanStreamSummary } from '@gitstalk/shared-ask/forge/bean-stream';
 import { dirListing } from '@gitstalk/shared-ask/home/file-rows';

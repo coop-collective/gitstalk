@@ -3,7 +3,7 @@
  * two lines' heads, the last week's counts, the validations' verdicts and the beans taken off,
  * read from the repo-events index. The commits themselves stay the engine's (`history-tab.tsx`).
  */
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { IndexedBean, RepoDay, RepositoryStalk } from '../../src/repositories/index-client';
 import { timeAgo } from '../../src/repositories/when';

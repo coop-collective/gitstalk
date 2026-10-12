@@ -6,7 +6,7 @@
  * first bean will grow.
  */
 import { CHECKS_PATH } from '@gitstalk/shared-race/checks-config';
-import Link from 'next/link';
+import { IntentLink as Link } from '../shell/intent-link';
 
 import type { StartGuide } from '../../src/repositories/paths';
 import type { RepositoryFiles, RepositoryRecord } from '../../src/repositories/registry-client';
