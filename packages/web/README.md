@@ -96,9 +96,17 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
 - **Persistence** is opt-in: `meta: { persist: true }` keeps a successful query in
   sessionStorage (`gitstalk-query`) for 15 minutes, for this build and viewer only. Signing in
   or out clears the cache and the stored copy.
-- **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request.
-  `"use cache"` with `cacheLife` and `cacheTag` works, but the default cache handler is in
-  memory, per isolate.
+- **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request;
+  `keyedForRequest` (`src/server/request-memo.ts`) does the same per key (the access check,
+  the header's profile). Prefer it to React's `cache()` for anything a layout reads: vinext
+  probes layouts outside React's render, so `cache()` reads twice. `"use cache"` with
+  `cacheLife` and `cacheTag` works, but the default cache handler is in memory, per isolate.
+- **Status before streaming**: vinext runs the layouts above a route's first `loading.tsx`
+  before it streams, and nothing below it. A 404 or redirect that must be the response's
+  status (the repository access check, an unknown owner, `/orgs` signed out) lives in a layout
+  at or above the loading file (`app/[owner]/[repo]/layout.tsx`, `app/[owner]/(profile)/`,
+  `app/orgs/(list)/`); a page under the skeleton can only render a not-found page inside a 200.
+  `src/server/repository-access.test.ts` keeps every layout off a loading boundary.
 
 ## Layout
 

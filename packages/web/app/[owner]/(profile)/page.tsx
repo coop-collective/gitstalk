@@ -1,24 +1,27 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
-import { ownerByHandle } from '@gitstalk/shared-identity/orgs';
 import { mayCreateRepository, mayInOrg } from '@gitstalk/shared-identity/orgs';
-import { getProfile, resolveRetiredHandle } from '@gitstalk/shared-identity/profiles';
+import type { RepositoryOwnerRef } from '@gitstalk/shared-identity/orgs';
+import type { Profile } from '@gitstalk/shared-identity/profiles';
 
-import { Avatar } from '../../components/account/avatar';
+import { Avatar } from '../../../components/account/avatar';
 
-import { OrgMark } from '../../components/orgs/org-mark';
-import orgStyles from '../../components/orgs/orgs.module.css';
-import styles from '../../components/repository/repository.module.css';
-import { currentUser } from '../../src/auth/user';
-import type { OrgPage } from '../../src/orgs/org-page';
-import { orgPage } from '../../src/orgs/org-page';
-import { isReservedOwner, repositoryPath } from '../../src/repositories/paths';
-import type { RepositoryRecord } from '../../src/repositories/registry-client';
-import { registryClient } from '../../src/repositories/registry-client';
+import { OrgMark } from '../../../components/orgs/org-mark';
+import { IntentLink as Link } from '../../../components/shell/intent-link';
+import orgStyles from '../../../components/orgs/orgs.module.css';
+import styles from '../../../components/repository/repository.module.css';
+import { currentUser } from '../../../src/auth/user';
+import type { OrgPage } from '../../../src/orgs/org-page';
+import { orgPage } from '../../../src/orgs/org-page';
+import { repositoryPath } from '../../../src/repositories/paths';
+import type { RepositoryRecord } from '../../../src/repositories/registry-client';
+import { registryClient } from '../../../src/repositories/registry-client';
+import { cachedProfile } from '../../../src/server/header-data';
+import type { OwnerParams } from '../../../src/server/owner-page';
+import { pageOwner } from '../../../src/server/owner-page';
 
-type PageProps = { readonly params: Promise<{ readonly owner: string }> };
+type PageProps = { readonly params: OwnerParams };
 
 export async function generateMetadata({ params }: PageProps) {
   return { title: decodeURIComponent((await params).owner) };
@@ -30,30 +33,23 @@ export async function generateMetadata({ params }: PageProps) {
  * owners and admins, Settings.
  */
 export default async function OwnerPage({ params }: PageProps) {
-  const handle = decodeURIComponent((await params).owner);
-  if (isReservedOwner(handle)) notFound();
-  const [owner, user] = await Promise.all([ownerByHandle(env, handle), currentUser()]);
-  if (owner === null) {
-    // A handle its person retired keeps pointing at them (docs/claude-opus/29-settings.md).
-    const moved = await resolveRetiredHandle(env, handle);
-    if (moved !== null) redirect(`/${encodeURIComponent(moved)}`);
-    notFound();
-  }
+  // The layout above already answered 404 or redirected for an unknown or retired handle.
+  const [owner, user] = await Promise.all([pageOwner(params), currentUser()]);
   const viewer = user?.id ?? null;
   const registry = registryClient(env.GATEWAY);
-  // The profile is a person's only; an org's page never reads it.
-  const [listed, archivedList, profile] = await Promise.all([
+  // All at once: the listings, and the person's profile or the org's page (never both).
+  const [listed, archivedList, about] = await Promise.all([
     registry.list(owner.id, viewer),
     registry.list(owner.id, viewer, 'archived'),
-    owner.kind === 'org' ? null : getProfile(env, owner.id),
+    aboutOwner(owner, viewer),
   ]);
   const records = listed.ok ? listed.value : [];
   const archived = archivedList.ok ? archivedList.value : [];
-  if (owner.kind === 'org') {
-    const page = await orgPage(owner.handle, viewer);
-    if (page === null) notFound();
-    return <OrgView page={page} records={records} archived={archived} />;
+  if (about.kind === 'org') {
+    if (about.page === null) notFound();
+    return <OrgView page={about.page} records={records} archived={archived} />;
   }
+  const { profile } = about;
   const isSelf = user !== null && user.id === owner.id;
   const name = profile === null || profile.displayName === '' ? owner.handle : profile.displayName;
   return (
@@ -87,6 +83,17 @@ export default async function OwnerPage({ params }: PageProps) {
       {isSelf ? <Archived records={archived} /> : null}
     </main>
   );
+}
+
+/** What the page shows about its owner besides repositories: a person's profile or an org's page. */
+type About =
+  | { readonly kind: 'user'; readonly profile: Profile | null }
+  | { readonly kind: 'org'; readonly page: OrgPage | null };
+
+async function aboutOwner(owner: RepositoryOwnerRef, viewer: string | null): Promise<About> {
+  if (owner.kind === 'org') return { kind: 'org', page: await orgPage(owner.handle, viewer) };
+  // Shared with the header when people look at their own page.
+  return { kind: 'user', profile: await cachedProfile(owner.id) };
 }
 
 function OrgView(props: {

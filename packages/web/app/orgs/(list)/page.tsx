@@ -1,12 +1,12 @@
 import { env } from 'cloudflare:workers';
-import Link from 'next/link';
+import { IntentLink as Link } from '../../../components/shell/intent-link';
 
 import { orgsOf } from '@gitstalk/shared-identity/orgs';
 
-import { OrgMark } from '../../components/orgs/org-mark';
-import orgStyles from '../../components/orgs/orgs.module.css';
-import styles from '../../components/repository/repository.module.css';
-import { signedInUser } from '../../src/server/signed-in';
+import { OrgMark } from '../../../components/orgs/org-mark';
+import orgStyles from '../../../components/orgs/orgs.module.css';
+import styles from '../../../components/repository/repository.module.css';
+import { signedInUser } from '../../../src/server/signed-in';
 
 export const metadata = { title: 'Your organizations' };
 /** Per person and per request: never prerendered or cached. */
