@@ -174,6 +174,8 @@ const RunRecordSchema = z.object({
       }),
     ]),
     automation: z.object({ model: z.string().nullable(), maxCostUsd: z.number() }).optional(),
+    // Runs stored before beans were kept have none.
+    beans: z.array(z.string()).optional(),
     refused: z.string().nullable(),
     createdMs: z.number(),
   }),

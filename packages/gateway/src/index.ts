@@ -89,6 +89,28 @@ import type {
 } from '@gitstalk/shared-race/agent-repos';
 
 import type {
+  AgentActionsEntries,
+  AgentActionsRpc,
+  AgentAutomation,
+  AgentAutomationStarted,
+  AgentDispatchInput,
+  AgentEntryDeleted,
+  AgentEntryRef,
+  AgentEntrySaved,
+  AgentJobLog,
+  AgentJobLogInput,
+  AgentPutSecretInput,
+  AgentPutVariableInput,
+  AgentRun,
+  AgentRunFilter,
+  AgentRunPage,
+  AgentRunSummary,
+  AgentRunWaited,
+  AgentWaitRunInput,
+  AgentWorkflows,
+} from '@gitstalk/shared-race/agent-actions';
+
+import type {
   RepoIndexRpc,
   RepositoryGrowth,
   RepositoryStalk,
@@ -107,6 +129,7 @@ import type {
 import { repositoryStorage } from './adapters/repository-storage';
 import { accountsRpc } from './repos/accounts-rpc';
 import { automationEditorRpc } from './automations/editor-rpc';
+import { agentActionsRpc } from './agent/agent-actions-rpc';
 import { agentReposRpc } from './agent/agent-repos-rpc';
 import { consumeRepoEvents } from './repo-events/consumer';
 import { repoIndexRpc } from './repo-events/index-rpc';
@@ -157,6 +180,7 @@ export default class Gateway
     DeployTokensRpc,
     CollaboratorsRpc,
     AgentReposRpc,
+    AgentActionsRpc,
     EngineFeedRpc,
     RepoIndexRpc,
     AccountsRpc,
@@ -642,6 +666,123 @@ export default class Gateway
 
   agentAutomations(principal: AgentPrincipal, repo: string): Promise<RpcResult<AgentAutomations>> {
     return this.#agents().agentAutomations(principal, repo);
+  }
+
+  // Actions for agent sessions (doc 23 §5): workflows, runs, logs, secrets, automations.
+
+  agentWorkflows(principal: AgentPrincipal, repo: string): Promise<RpcResult<AgentWorkflows>> {
+    return this.#agentActions().agentWorkflows(principal, repo);
+  }
+
+  agentRuns(
+    principal: AgentPrincipal,
+    repo: string,
+    filter: AgentRunFilter,
+  ): Promise<RpcResult<AgentRunPage>> {
+    return this.#agentActions().agentRuns(principal, repo, filter);
+  }
+
+  agentRun(principal: AgentPrincipal, repo: string, run: string): Promise<RpcResult<AgentRun>> {
+    return this.#agentActions().agentRun(principal, repo, run);
+  }
+
+  agentJobLog(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentJobLogInput,
+  ): Promise<RpcResult<AgentJobLog>> {
+    return this.#agentActions().agentJobLog(principal, repo, input);
+  }
+
+  agentDispatch(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentDispatchInput,
+  ): Promise<RpcResult<AgentRunSummary>> {
+    return this.#agentActions().agentDispatch(principal, repo, input);
+  }
+
+  agentRerun(
+    principal: AgentPrincipal,
+    repo: string,
+    run: string,
+  ): Promise<RpcResult<AgentRunSummary>> {
+    return this.#agentActions().agentRerun(principal, repo, run);
+  }
+
+  agentCancel(
+    principal: AgentPrincipal,
+    repo: string,
+    run: string,
+  ): Promise<RpcResult<AgentRunSummary>> {
+    return this.#agentActions().agentCancel(principal, repo, run);
+  }
+
+  agentWaitRun(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentWaitRunInput,
+  ): Promise<RpcResult<AgentRunWaited>> {
+    return this.#agentActions().agentWaitRun(principal, repo, input);
+  }
+
+  agentActionsEntries(
+    principal: AgentPrincipal,
+    repo: string,
+  ): Promise<RpcResult<AgentActionsEntries>> {
+    return this.#agentActions().agentActionsEntries(principal, repo);
+  }
+
+  agentPutSecret(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentPutSecretInput,
+  ): Promise<RpcResult<AgentEntrySaved>> {
+    return this.#agentActions().agentPutSecret(principal, repo, input);
+  }
+
+  agentDeleteSecret(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentEntryRef,
+  ): Promise<RpcResult<AgentEntryDeleted>> {
+    return this.#agentActions().agentDeleteSecret(principal, repo, input);
+  }
+
+  agentPutVariable(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentPutVariableInput,
+  ): Promise<RpcResult<AgentEntrySaved>> {
+    return this.#agentActions().agentPutVariable(principal, repo, input);
+  }
+
+  agentDeleteVariable(
+    principal: AgentPrincipal,
+    repo: string,
+    input: AgentEntryRef,
+  ): Promise<RpcResult<AgentEntryDeleted>> {
+    return this.#agentActions().agentDeleteVariable(principal, repo, input);
+  }
+
+  agentAutomation(
+    principal: AgentPrincipal,
+    repo: string,
+    automation: string,
+  ): Promise<RpcResult<AgentAutomation>> {
+    return this.#agentActions().agentAutomation(principal, repo, automation);
+  }
+
+  agentRunAutomation(
+    principal: AgentPrincipal,
+    repo: string,
+    automation: string,
+  ): Promise<RpcResult<AgentAutomationStarted>> {
+    return this.#agentActions().agentRunAutomation(principal, repo, automation);
+  }
+
+  #agentActions(): AgentActionsRpc {
+    return agentActionsRpc(this.env, createDeps(this.env));
   }
 
   // The automation builder (doc 25 §7.13): open a file, save it as a bean, follow the bean,

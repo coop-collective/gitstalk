@@ -171,7 +171,7 @@ function describe(
   };
 }
 
-function scopeMessage(need: Extract<Need, { kind: 'act' }>): string {
+export function scopeMessage(need: Extract<Need, { kind: 'act' }>): string {
   const scopes = need.scopes.join(' or ');
   return `${need.what} needs the ${scopes} scope; reconnect the agent and tick ${scopes} on the consent page`;
 }

@@ -75,6 +75,9 @@ type AutomationStart = Omit<z.infer<typeof AutomationStart>, 'event'> & {
   readonly event: ActionsEvent;
 };
 
+/** A stored run's event payload, as a re-run reads it back. */
+const Payload = z.record(z.string(), z.unknown());
+
 const PendingRow = z.object({ seq: z.number(), sha: z.string(), beans_json: z.string() });
 const EventRow = z.object({ seq: z.number(), event_json: z.string() });
 const AutomationRunRow = z.object({
@@ -181,6 +184,47 @@ export class ActionsRepoDO extends DurableObject<Env> {
       actor: request.actor,
       inputs: inputs.inputs,
       origin: { kind: 'dispatch' },
+    });
+    return { ok: true, value: run };
+  }
+
+  /**
+   * Runs a finished run again as a new run: the same workflow file (as it was then), commit,
+   * event, payload and inputs, by `actor`. Automations re-run through their own trigger (one at
+   * a time), so they are refused here.
+   */
+  async rerun(request: {
+    readonly repoId: string;
+    readonly runId: string;
+    readonly actor: string;
+  }): Promise<RpcResult<RunSummary>> {
+    this.#remember('repo_id', request.repoId);
+    const previous = await this.env.ACTIONS_RUNS.getByName(request.runId).rerunSeed();
+    const facts = await this.#facts(request.repoId);
+    if (previous === null || facts === null || previous.repoId !== request.repoId)
+      return invalid('not_found', 404, `run ${request.runId} not found`);
+    if (isAutomationPath(previous.workflow.path))
+      return invalid(
+        'invalid_request',
+        400,
+        'an automation re-runs by running it again (automation_run), one run at a time',
+      );
+    if ((await this.minutesLeft()) <= 0)
+      return invalid(
+        'over_limit',
+        429,
+        `this repository's ${this.#config.monthlyMinutes} Actions minutes for the month are used`,
+      );
+    const run = await this.#createRun({
+      facts,
+      workflow: previous.workflow,
+      event: previous.event,
+      payload: Payload.parse(JSON.parse(previous.payloadJson)),
+      sha: previous.sha,
+      actor: request.actor,
+      inputs: previous.inputs,
+      origin: previous.origin,
+      beans: previous.beans,
     });
     return { ok: true, value: run };
   }
@@ -323,6 +367,7 @@ export class ActionsRepoDO extends DurableObject<Env> {
         actor,
         inputs: {},
         origin: { kind: 'stalk' },
+        beans,
       });
     }
     this.#remember('stalk_sha', sha);
@@ -660,6 +705,7 @@ export class ActionsRepoDO extends DurableObject<Env> {
     readonly inputs: Readonly<Record<string, string>>;
     readonly origin: RunOrigin;
     readonly automation?: RunRequest['automation'];
+    readonly beans?: readonly string[] | undefined;
   }): Promise<RunSummary> {
     const number = this.#nextNumber(input.workflow.path);
     const left = await this.minutesLeft();
@@ -675,6 +721,7 @@ export class ActionsRepoDO extends DurableObject<Env> {
       inputs: input.inputs,
       origin: input.origin,
       ...(input.automation === undefined ? {} : { automation: input.automation }),
+      ...(input.beans === undefined ? {} : { beans: input.beans }),
       refused:
         left > 0
           ? null

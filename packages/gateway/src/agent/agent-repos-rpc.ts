@@ -191,7 +191,7 @@ function journeyOf(bean: PushBean): AgentBean['journey'] {
  * `bean_wait`: holds on the engine until the bean changes (its save wakes the watch, as it wakes
  * `git push -o wait`), then reads it again, until it settles or the time is up.
  */
-async function waitForBean(
+export async function waitForBean(
   opened: Opened,
   bean: string,
   wait: { readonly until: unknown; readonly seconds: unknown },

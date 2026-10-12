@@ -41,7 +41,7 @@ import { JOB_TOKEN_GRACE_MS, mintJobToken, revokeJobTokens, tokenHash } from './
 import type { LogLocation } from './log-chunks';
 import { writeLogChunk } from './log-chunks';
 import { maskTermsOf, maskText } from './mask';
-import type { RunRequest } from './run-request';
+import type { RerunSeed, RunRequest } from './run-request';
 import type { JobPatch, JobRow, ModelCalls, RunRecord } from './run-store';
 import { NO_MODEL_CALLS, RunStore, jobViewOf, summaryOf } from './run-store';
 import type { EntryRepo, EntryStores } from './repo-entries';
@@ -120,6 +120,28 @@ export class ActionsRunDO extends DurableObject<Env> {
     await this.#writeIndex();
     if (refusal === null) await this.#kick();
     return this.#summary();
+  }
+
+  /** The beans the stalk move behind this run carried (push runs); empty otherwise. */
+  async beans(): Promise<readonly string[]> {
+    return this.#store.run()?.request.beans ?? [];
+  }
+
+  /** What started the run, for a re-run of it (`ActionsRepoDO.rerun`). */
+  async rerunSeed(): Promise<RerunSeed | null> {
+    const request = this.#store.run()?.request;
+    if (request === undefined) return null;
+    const { workflow, event, sha, inputs, origin, beans } = request;
+    return {
+      repoId: request.repo.id,
+      workflow,
+      event,
+      sha,
+      inputs,
+      origin,
+      ...(beans === undefined ? {} : { beans }),
+      payloadJson: JSON.stringify(request.eventPayload),
+    };
   }
 
   async summary(): Promise<RunSummary | null> {

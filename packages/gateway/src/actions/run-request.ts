@@ -18,9 +18,23 @@ export type RunRequest = {
   readonly actor: string;
   readonly inputs: Readonly<Record<string, string>>;
   readonly origin: RunOrigin;
+  /** The beans a stalk move carried (push runs); absent for other runs and older records. */
+  readonly beans?: readonly string[] | undefined;
   /** An automation's model and spend cap (doc 25 §7.5); absent for a GitHub workflow. */
   readonly automation?: { readonly model: string | null; readonly maxCostUsd: number } | undefined;
   /** Set when the run must not start (the month's minutes are spent): its reason. */
   readonly refused: string | null;
   readonly createdMs: number;
+};
+
+/**
+ * What a re-run starts from (`ActionsRunDO.rerunSeed`), in a shape RPC can carry: the event
+ * payload as JSON text.
+ */
+export type RerunSeed = Pick<
+  RunRequest,
+  'workflow' | 'event' | 'sha' | 'inputs' | 'origin' | 'beans'
+> & {
+  readonly repoId: string;
+  readonly payloadJson: string;
 };

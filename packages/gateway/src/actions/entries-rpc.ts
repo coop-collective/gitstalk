@@ -29,7 +29,7 @@ import { accessResult, viewerPrincipal } from '../repos/access';
 import { d1Collaborators } from '../repos/collaborators';
 import { d1Registry } from '../repos/registry';
 import { auditOrg, auditRepository, handleOf, orgAuditLog } from './actions-audit';
-import { noRole } from './actions-rpc';
+import { auditDetail, noRole } from './actions-rpc';
 import type { Sourced } from './entry-policy';
 import type { Org, OrgRole } from './org-directory';
 import { managesOrgEntries } from './org-directory';
@@ -40,6 +40,7 @@ import { SecretsNotConfiguredError } from './secrets';
 export function actionsEntriesRpc(
   env: Env,
   stores: EntryStores = entryStoresOf(env),
+  options: { readonly via?: string } = {},
 ): ActionsEntriesRpc {
   const db = env.FORGE;
   const log = createLogger(readConfig(env).logLevel, { component: 'actions-entries' });
@@ -102,7 +103,7 @@ export function actionsEntriesRpc(
           viewer,
           actor: stamp.actor,
           action: 'actions-variable-set',
-          detail: saved.name,
+          detail: auditDetail(saved.name, options.via),
         });
         return ok(saved);
       }),
@@ -117,7 +118,7 @@ export function actionsEntriesRpc(
             viewer,
             actor: await handleOf(env, viewer),
             action: 'actions-variable-deleted',
-            detail: name.toUpperCase(),
+            detail: auditDetail(name.toUpperCase(), options.via),
           });
         return ok({ deleted });
       }),
@@ -163,7 +164,10 @@ export function actionsEntriesRpc(
           viewer,
           actor: stamp.actor,
           action: 'org-secret-set',
-          detail: auditDetail(saved.name, saved.access, saved.prelandAllowed),
+          detail: viaDetail(
+            orgAuditDetail(saved.name, saved.access, saved.prelandAllowed),
+            options,
+          ),
         });
         return ok(saved);
       }),
@@ -179,7 +183,7 @@ export function actionsEntriesRpc(
             viewer,
             actor: await handleOf(env, viewer),
             action: 'org-secret-deleted',
-            detail: name.toUpperCase(),
+            detail: viaDetail(name.toUpperCase(), options),
           });
         return ok({ deleted });
       }),
@@ -197,7 +201,7 @@ export function actionsEntriesRpc(
           viewer,
           actor: stamp.actor,
           action: 'org-variable-set',
-          detail: auditDetail(saved.name, saved.access, null),
+          detail: viaDetail(orgAuditDetail(saved.name, saved.access, null), options),
         });
         return ok(saved);
       }),
@@ -213,7 +217,7 @@ export function actionsEntriesRpc(
             viewer,
             actor: await handleOf(env, viewer),
             action: 'org-variable-deleted',
-            detail: name.toUpperCase(),
+            detail: viaDetail(name.toUpperCase(), options),
           });
         return ok({ deleted });
       }),
@@ -296,8 +300,12 @@ function effectiveVariableOf(
   };
 }
 
+function viaDetail(detail: string, options: { readonly via?: string }): string {
+  return auditDetail(detail, options.via);
+}
+
 /** `DEPLOY_KEY · selected: 2 repositories · pre-land` (never a value). */
-function auditDetail(
+function orgAuditDetail(
   name: string,
   access: RepositoryAccessPolicy,
   prelandAllowed: boolean | null,

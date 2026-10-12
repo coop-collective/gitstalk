@@ -59,7 +59,11 @@ const RunRow = z.object({
   minutes_billed: z.number(),
 });
 
-export function actionsRpc(env: Env): ActionsRpc {
+/**
+ * `via` names the agent client (`Claude Code`) when an MCP session makes the change, so the
+ * repository's audit line says the person acted through it.
+ */
+export function actionsRpc(env: Env, options: { readonly via?: string } = {}): ActionsRpc {
   const db = env.FORGE;
   const log = createLogger(readConfig(env).logLevel, { component: 'actions-rpc' });
   const config = readActionsConfig(env);
@@ -198,7 +202,7 @@ export function actionsRpc(env: Env): ActionsRpc {
           viewer,
           actor,
           action: 'actions-secret-set',
-          detail: saved.name,
+          detail: auditDetail(saved.name, options.via),
         });
         return ok(saved);
       }),
@@ -213,7 +217,7 @@ export function actionsRpc(env: Env): ActionsRpc {
             viewer,
             actor: await handleOf(env, viewer),
             action: 'actions-secret-deleted',
-            detail: name.toUpperCase(),
+            detail: auditDetail(name.toUpperCase(), options.via),
           });
         return ok({ deleted });
       }),
@@ -246,6 +250,14 @@ async function listRuns(
   if (filter.status !== undefined) {
     clauses.push('status = ?');
     bindings.push(filter.status);
+  }
+  if (filter.event !== undefined) {
+    clauses.push('event = ?');
+    bindings.push(filter.event);
+  }
+  if (filter.sha !== undefined) {
+    clauses.push('sha LIKE ?');
+    bindings.push(`${filter.sha}%`);
   }
   const cursor = filter.cursor === undefined ? Number.NaN : Number(filter.cursor);
   if (Number.isFinite(cursor)) {
@@ -298,6 +310,11 @@ function failed<T>(error: RpcError): RpcResult<T> {
 
 function invalid<T>(message: string): RpcResult<T> {
   return failed({ code: 'invalid_request', status: 400, message });
+}
+
+/** The audit line's detail: the name (never a value), and the agent client that changed it. */
+export function auditDetail(name: string, via: string | undefined): string {
+  return via === undefined ? name : `${name} · via ${via} (MCP)`;
 }
 
 /** Secret names are for people with a role; a public repository's other readers get this. */
