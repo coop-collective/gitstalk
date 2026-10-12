@@ -14,7 +14,7 @@ import type { RepoSection, RepoSettingsFacts } from '../settings/sections';
 import { firstRepoSection, repoSections, repoSettingsPath } from '../settings/sections';
 import type { ActionsSession } from './actions-source';
 import { actionsSession } from './actions-source';
-import type { RepositoryParams } from './repository-page';
+import type { RepositoryPage, RepositoryParams } from './repository-page';
 import { repositoryPage } from './repository-page';
 
 export type RepositorySettings = {
@@ -43,14 +43,29 @@ export function settingsMetadata(label: string) {
 
 export type SettingsQuery = Promise<Readonly<Record<string, string | string[] | undefined>>>;
 
+/** Who may open a repository's settings: a signed-in person with a role on it. */
+export type SettingsAccess = RepositoryPage & {
+  readonly role: ViewerRole;
+  readonly session: WebSession;
+};
+
+/**
+ * The repository at `params` if the viewer may open its settings, else a 404 (the same as a
+ * missing repository). `app/[owner]/[repo]/settings/layout.tsx` asks before anything streams;
+ * the session and the repository are memoised per request, so the pages' own ask is free.
+ */
+export async function settingsAccess(params: RepositoryParams): Promise<SettingsAccess> {
+  const [page, session] = await Promise.all([repositoryPage(params), currentSession()]);
+  const { role } = page;
+  if (role === null || session === null) notFound();
+  return { ...page, role, session };
+}
+
 export async function repositorySettings(
   params: RepositoryParams,
   section: RepoSection | 'landing',
 ): Promise<RepositorySettings> {
-  const { record, base, role } = await repositoryPage(params);
-  if (role === null) notFound();
-  const session = await currentSession();
-  if (session === null) notFound();
+  const { record, base, role, session } = await settingsAccess(params);
   const actor = { id: session.user.id, handle: session.user.handle };
   const actions = await actionsSession({ actor, repoId: record.id });
   const isArchived = record.archived_at !== null;

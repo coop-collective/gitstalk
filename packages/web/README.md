@@ -98,15 +98,29 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   or out clears the cache and the stored copy.
 - **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request;
   `keyedForRequest` (`src/server/request-memo.ts`) does the same per key (the access check,
-  the header's profile). Prefer it to React's `cache()` for anything a layout reads: vinext
+  a tab's engine reads, Ask's data, the header's profile). Prefer it to React's `cache()` for anything a layout reads: vinext
   probes layouts outside React's render, so `cache()` reads twice. `"use cache"` with
   `cacheLife` and `cacheTag` works, but the default cache handler is in memory, per isolate.
 - **Status before streaming**: vinext runs the layouts above a route's first `loading.tsx`
-  before it streams, and nothing below it. A 404 or redirect that must be the response's
-  status (the repository access check, an unknown owner, `/orgs` signed out) lives in a layout
-  at or above the loading file (`app/[owner]/[repo]/layout.tsx`, `app/[owner]/(profile)/`,
-  `app/orgs/(list)/`); a page under the skeleton can only render a not-found page inside a 200.
-  `src/server/repository-access.test.ts` keeps every layout off a loading boundary.
+  before it streams, and nothing below it; a page under a skeleton can only render a
+  not-found page inside a 200. So a 404 or redirect that must be the response's status lives
+  either in a layout at or above the loading file, or in a page no loading file encloses:
+  - `app/[owner]/[repo]/layout.tsx`: the repository access check (every repository route).
+  - `[repo]/(tabs)/`: the skeleton for the tabs with no check of their own (Code, tree, blob,
+    Files, People, Actions, Automations, New automation).
+  - `[repo]/changes/` and `history/`: a layout redirects home when the engine is unusable
+    (`engineTab`), above their skeletons; a bean's page (`changes/[bean]`) has none, so an
+    unknown bean is a 404. `ask/`: the layout redirects to the start page until something
+    grew (`askPage`), above Ask's skeleton.
+  - `[repo]/settings/`: a layout answers 404 to anyone without a role (`settingsAccess`), and
+    no skeleton, so a section's redirect is real too. Run pages (`actions/runs/[run]`,
+    `automations/runs/[run]`) and `automations/edit/[file]` have no skeleton either.
+  - `app/[owner]/(profile)/` (unknown owner), `app/orgs/(list)/` (`/orgs` signed out).
+
+  `src/server/route-tree.test.ts` reads the tree: no layout under a loading file, and no page
+  under one calls `notFound`, `redirect` or a status helper unless a layout above the boundary
+  made that check first. A query that names something missing inside the explorers (`?bean=`,
+  `?file=`) still renders its not-found page inside the stream.
 - **Prefetch**: links are `IntentLink` (`components/shell/intent-link.tsx`): they prefetch on
   hover, focus or touch, never because they scrolled into view (each prefetch is a server
   render with its gateway reads).

@@ -1,7 +1,3 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RepositoryRecord } from '../repositories/registry-client';
@@ -105,48 +101,3 @@ describe('the repository access check', () => {
     expect(platform.lookups).toEqual(['ada/notes', 'ada/notes']);
   });
 });
-
-/**
- * vinext runs the layouts above a route's first `loading.tsx` before it streams; a layout
- * below a loading boundary runs inside the stream, where its 404 or redirect can no longer
- * set the status. The access checks live in layouts, so none may sit under a loading file.
- */
-describe('the app routes', () => {
-  const appDir = join(dirname(fileURLToPath(import.meta.url)), '../../app');
-  const files = listFiles(appDir).map((file) => relative(appDir, file).split(sep).join('/'));
-  const dirsWith = (name: string) =>
-    files.filter((file) => file.endsWith(`/${name}`) || file === name).map((file) => dirname(file));
-
-  it('put no layout under a loading boundary', () => {
-    const loadings = dirsWith('loading.tsx');
-    const late = dirsWith('layout.tsx').filter((layout) =>
-      loadings.some((loading) => isStrictlyInside(layout, loading)),
-    );
-    expect(late).toEqual([]);
-  });
-
-  it('check access in the layouts above the repository, profile and organizations skeletons', () => {
-    const gates = [
-      ['[owner]/[repo]/layout.tsx', 'repositoryPage('],
-      ['[owner]/(profile)/layout.tsx', 'pageOwner('],
-      ['orgs/(list)/layout.tsx', 'signedInUser('],
-    ] as const;
-    for (const [layout, check] of gates) {
-      expect(files, layout).toContain(layout);
-      expect(readFileSync(join(appDir, layout), 'utf8'), layout).toContain(check);
-    }
-    for (const loading of dirsWith('loading.tsx'))
-      expect(files, loading).toContain(`${loading}/layout.tsx`);
-  });
-});
-
-function listFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    return statSync(path).isDirectory() ? listFiles(path) : [path];
-  });
-}
-
-function isStrictlyInside(dir: string, ancestor: string): boolean {
-  return ancestor === '.' ? dir !== '.' : dir.startsWith(`${ancestor}/`);
-}

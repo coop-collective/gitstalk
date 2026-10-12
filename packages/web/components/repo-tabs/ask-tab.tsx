@@ -3,17 +3,10 @@
  * What happened, and answers to questions), the same home a race's repository has. Its links
  * carry `?q=` and `?bean=` on the repository's root, which also opens here.
  */
-import { env } from 'cloudflare:workers';
-
-import { RunId } from '@gitstalk/shared-race/ids';
-
 import type { SearchParams } from '../home/repository-home';
 import { RepositoryHome } from '../home/repository-home';
-import { forgeForRun } from '../../src/forge/sources';
-import { hasGrown } from '../../src/repositories/flows';
-import { pushersOf } from '../../src/repositories/pushers';
-import type { HomePageData } from '../../src/server/home-page-data';
-import { homePageData } from '../../src/server/home-page-data';
+import type { AskData } from '../../src/server/ask-page';
+import { askData } from '../../src/server/ask-page';
 import type { RepositoryPage } from '../../src/server/repository-page';
 
 /** Query keys that belong to the Ask view rather than the Code tab. */
@@ -28,22 +21,23 @@ export async function AskTab(props: {
   readonly page: RepositoryPage;
   readonly searchParams: SearchParams;
 }) {
+  const ask = await askData(props.page.record);
+  if (ask === null) return null;
+  return <AskView page={props.page} ask={ask} searchParams={props.searchParams} />;
+}
+
+/** The Ask view over an engine that has grown something (`askData`). */
+export function AskView(props: {
+  readonly page: RepositoryPage;
+  readonly ask: AskData;
+  readonly searchParams: SearchParams;
+}) {
   const { record, base } = props.page;
-  const engine = RunId.safeParse(record.engine_id);
-  if (!engine.success) return null;
-  const source = forgeForRun(env.GATEWAY, engine.data);
-  const data = await Promise.all([
-    homePageData(source, engine.data, record.owner.handle),
-    pushersOf(env.GATEWAY, engine.data),
-  ]).then(
-    ([home, pushers]): HomePageData => ({ ...home, pushers }),
-    (): HomePageData | null => null,
-  );
-  if (data === null || !hasGrown(data.events)) return null;
+  const { run, source, data } = props.ask;
   return (
     <RepositoryHome
       frame={{
-        run: engine.data,
+        run,
         base,
         repository: { owner: record.owner.handle, name: record.name },
         kind: 'repository',

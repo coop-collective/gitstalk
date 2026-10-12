@@ -1,12 +1,12 @@
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 import { ChangeDetail } from '../../../../../components/repo-tabs/change-detail';
 import { repoScopeOf, seedChangeQueries } from '../../../../../components/repo-tabs/changes-tab';
 import { changesOf, groupCounts } from '../../../../../src/changes/changes';
 import { qk } from '../../../../../src/query/keys';
 import { getServerQueryClient } from '../../../../../src/query/server';
-import { repositoryTab } from '../../../../../src/server/repository-tab';
+import { engineTab } from '../../../../../src/server/repository-tab';
 
 type PageProps = {
   readonly params: Promise<{
@@ -29,8 +29,7 @@ export async function generateMetadata({ params }: PageProps) {
  */
 export default async function ChangePage({ params }: PageProps) {
   const resolved = await params;
-  const tab = await repositoryTab(Promise.resolve(resolved));
-  if (tab.reads === null) redirect(tab.base);
+  const tab = await engineTab(Promise.resolve(resolved));
   const name = decodeURIComponent(resolved.bean);
   const [events, pushed, diff] = await Promise.all([
     tab.reads.events(),

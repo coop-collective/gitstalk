@@ -1,12 +1,11 @@
 import { env } from 'cloudflare:workers';
-import { redirect } from 'next/navigation';
 
 import { HistoryTab } from '../../../../components/repo-tabs/history-tab';
 import { changesOf } from '../../../../src/changes/changes';
 import { historyOf, landingsOf } from '../../../../src/history/history';
 import { indexClient } from '../../../../src/repositories/index-client';
 import type { RepositoryParams } from '../../../../src/server/repository-page';
-import { repositoryTab } from '../../../../src/server/repository-tab';
+import { engineTab } from '../../../../src/server/repository-tab';
 
 type PageProps = { readonly params: RepositoryParams };
 
@@ -21,8 +20,7 @@ export async function generateMetadata({ params }: PageProps) {
  * index that does not answer leaves the commits alone on the page.
  */
 export default async function HistoryPage({ params }: PageProps) {
-  const tab = await repositoryTab(params);
-  if (tab.reads === null) redirect(tab.base);
+  const tab = await engineTab(params);
   const [stalk, sprout, pushed, events, validation] = await Promise.all([
     tab.reads.log('stalk'),
     tab.reads.log('sprout'),

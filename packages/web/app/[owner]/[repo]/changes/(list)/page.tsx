@@ -1,16 +1,15 @@
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { redirect } from 'next/navigation';
 
 import {
   ChangesTab,
   repoScopeOf,
   seedChangeQueries,
-} from '../../../../components/repo-tabs/changes-tab';
-import type { SearchParams } from '../../../../components/home/repository-home';
-import { changesOf, groupCounts } from '../../../../src/changes/changes';
-import { getServerQueryClient } from '../../../../src/query/server';
-import type { RepositoryParams } from '../../../../src/server/repository-page';
-import { repositoryTab } from '../../../../src/server/repository-tab';
+} from '../../../../../components/repo-tabs/changes-tab';
+import type { SearchParams } from '../../../../../components/home/repository-home';
+import { changesOf, groupCounts } from '../../../../../src/changes/changes';
+import { getServerQueryClient } from '../../../../../src/query/server';
+import type { RepositoryParams } from '../../../../../src/server/repository-page';
+import { engineTab } from '../../../../../src/server/repository-tab';
 
 type PageProps = {
   readonly params: RepositoryParams;
@@ -27,8 +26,7 @@ export async function generateMetadata({ params }: PageProps) {
  * browser starts from them (dehydrated) and follows the engine's feed from there.
  */
 export default async function ChangesPage({ params, searchParams }: PageProps) {
-  const [tab, query] = await Promise.all([repositoryTab(params), searchParams]);
-  if (tab.reads === null) redirect(tab.base);
+  const [tab, query] = await Promise.all([engineTab(params), searchParams]);
   const [events, pushed] = await Promise.all([tab.reads.events(), tab.reads.pushed()]);
   const queryClient = getServerQueryClient();
   seedChangeQueries(queryClient, repoScopeOf(tab), { events, pushed });

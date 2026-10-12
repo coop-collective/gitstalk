@@ -1,8 +1,8 @@
-import { CodeTab } from '../../../../../components/repo-tabs/code-tab';
-import type { SearchParams } from '../../../../../components/home/repository-home';
-import { pathOf, readRef } from '../../../../../src/code/tree';
-import { codePage } from '../../../../../src/server/code-page';
-import { repositoryTab } from '../../../../../src/server/repository-tab';
+import { CodeTab } from '../../../../../../components/repo-tabs/code-tab';
+import type { SearchParams } from '../../../../../../components/home/repository-home';
+import { pathOf, readRef } from '../../../../../../src/code/tree';
+import { codePage } from '../../../../../../src/server/code-page';
+import { repositoryTab } from '../../../../../../src/server/repository-tab';
 
 type PageProps = {
   readonly params: Promise<{

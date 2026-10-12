@@ -4,6 +4,7 @@
  * request, so every component that asks shares the reads already made. Server-only.
  */
 import { env } from 'cloudflare:workers';
+import { redirect } from 'next/navigation';
 
 import { sharedReadsFor } from '../repo-pages/cached-reads';
 import type { EngineReads } from '../repo-pages/engine-reads';
@@ -17,11 +18,27 @@ export type RepositoryTab = RepositoryPage & {
   readonly reads: EngineReads | null;
 };
 
+/** A tab whose engine answers: Changes and History, which have nothing to show without one. */
+export type EngineTab = RepositoryTab & { readonly reads: EngineReads };
+
 const tabs = keyedForRequest<RepositoryTab>();
 
 export async function repositoryTab(params: RepositoryParams): Promise<RepositoryTab> {
   const { owner, repo } = await params;
   return tabs(`${owner}/${repo}`, () => openTab(params));
+}
+
+/**
+ * The repository's tab with its engine's reads, or a redirect to its home when the record's
+ * engine id is unusable. `app/[owner]/[repo]/changes/layout.tsx` and `history/layout.tsx` ask
+ * above their `loading.tsx`, so the redirect is the response's status; the page asks again
+ * (memoised, no second read).
+ */
+export async function engineTab(params: RepositoryParams): Promise<EngineTab> {
+  const tab = await repositoryTab(params);
+  const { reads } = tab;
+  if (reads === null) redirect(tab.base);
+  return { ...tab, reads };
 }
 
 async function openTab(params: RepositoryParams): Promise<RepositoryTab> {

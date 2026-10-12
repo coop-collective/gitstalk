@@ -1,12 +1,12 @@
 import { env } from 'cloudflare:workers';
 
-import { RepoHead } from '../../../../components/home/repo-head';
-import { PeoplePanels } from '../../../../components/repository/people';
-import styles from '../../../../components/repository/repository.module.css';
-import { currentSession } from '../../../../src/auth/user';
-import { collaboratorsClient } from '../../../../src/repositories/collaborators-client';
-import type { RepositoryParams } from '../../../../src/server/repository-page';
-import { repositoryPage } from '../../../../src/server/repository-page';
+import { RepoHead } from '../../../../../components/home/repo-head';
+import { PeoplePanels } from '../../../../../components/repository/people';
+import styles from '../../../../../components/repository/repository.module.css';
+import { currentSession } from '../../../../../src/auth/user';
+import { collaboratorsClient } from '../../../../../src/repositories/collaborators-client';
+import type { RepositoryParams } from '../../../../../src/server/repository-page';
+import { repositoryPage } from '../../../../../src/server/repository-page';
 
 type PageProps = { readonly params: RepositoryParams };
 

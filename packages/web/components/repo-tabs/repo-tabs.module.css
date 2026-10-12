@@ -774,7 +774,7 @@
   }
 }
 
-/* Loading skeletons (app/[owner]/[repo]/loading.tsx and siblings): grey blocks sized like the
+/* Loading skeletons (app/[owner]/[repo]/(tabs)/loading.tsx and siblings): grey blocks sized like the
    content they stand for, so the page does not jump when the data arrives. */
 .skeleton {
   display: grid;
