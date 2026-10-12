@@ -1,6 +1,8 @@
+import { parsePatch } from 'diff';
 import { describe, expect, it } from 'vitest';
 
-import { BeanStreamSocketMessage, beanStreamView, currentStreams } from './bean-stream';
+import { toHunk } from '../repo/file-diff';
+import { BeanStreamSocketMessage, beanStreamView, currentStreams, toFileDiff } from './bean-stream';
 
 const SUMMARY = {
   type: 'bean.streaming',
@@ -90,5 +92,31 @@ describe('streamed bean changes', () => {
     expect(BeanStreamSocketMessage.safeParse({ type: 'bean.patch', task: 't001' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('toFileDiff', () => {
+  const patches = [
+    '@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n',
+    '@@ -0,0 +1,2 @@\n+one\n+two\n',
+    '@@ -4,2 +3,0 @@\n-x\n-y\n',
+    '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n',
+    '@@ -1,4 +1,5 @@\n a\n \n-b\n+B\n+C\n d\n@@ -20,2 +21,2 @@\n x\n-y\n+z\n',
+  ];
+
+  it.each(patches)('reads the hunks the diff package reads', (patch) => {
+    const path = 'src/a.ts';
+    const expected = parsePatch(`--- a/${path}\n+++ b/${path}\n${patch}`)[0]?.hunks.map(toHunk);
+
+    const { hunks } = toFileDiff({
+      path,
+      status: 'modified',
+      additions: 0,
+      deletions: 0,
+      binary: false,
+      patch,
+    });
+
+    expect(hunks).toEqual(expected);
   });
 });

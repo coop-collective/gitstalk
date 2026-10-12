@@ -7,6 +7,7 @@
  * lands or comes back red. If the file changed meanwhile, the save merges field by field (or
  * asks), and the draft is kept in this browser until it is saved.
  */
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -38,9 +39,11 @@ import type { FieldProblems } from './builder-form';
 import { BuilderForm } from './builder-form';
 import styles from './builder.module.css';
 import type { MergeView } from './merge-panel';
-import { MergePanel } from './merge-panel';
 import type { LineProblem } from './yaml-pane';
 import { YamlPane } from './yaml-pane';
+
+// Only a save that met a newer file shows the merge panel, so its code loads on demand.
+const MergePanel = dynamic(() => import('./merge-panel').then((module) => module.MergePanel));
 
 /** A file's directory with its slash: `.gitstalk/automations/`, or the older one an edit keeps. */
 const dirOf = (path: string): string => path.slice(0, path.lastIndexOf('/') + 1);

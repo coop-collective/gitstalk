@@ -5,8 +5,6 @@
  * in place, a new row can be highlighted once, and the view can follow the hunk the agent
  * changed last instead of the end of the file.
  */
-import { diffArrays } from 'diff';
-
 import type { FileDiff } from '@gitstalk/shared-ask/repo/repo-types';
 
 /** A unified-diff row: hunk header, added, deleted or context line. */
@@ -97,18 +95,18 @@ function carryRows(
   next: ReadonlyArray<Omit<DiffRow, 'id' | 'fresh'>>,
   ids: { readonly issue: () => number; readonly highlight: boolean },
 ): DiffRow[] {
-  const parts = diffArrays(old.map(matchKey), next.map(matchKey));
+  const parts = diffKeys(old.map(matchKey), next.map(matchKey));
   const rows: DiffRow[] = [];
   let oldAt = 0;
   for (const part of parts) {
-    if (part.removed) {
+    if (part.kind === 'removed') {
       oldAt += part.count;
       continue;
     }
     for (let i = 0; i < part.count; i += 1) {
       const row = next[rows.length];
       if (row === undefined) break;
-      const kept = part.added ? undefined : old[oldAt + i];
+      const kept = part.kind === 'added' ? undefined : old[oldAt + i];
       const isNew = kept === undefined;
       rows.push({
         ...row,
@@ -116,7 +114,7 @@ function carryRows(
         fresh: isNew && ids.highlight && row.kind !== 'h' && row.kind !== 'c',
       });
     }
-    if (!part.added) oldAt += part.count;
+    if (part.kind !== 'added') oldAt += part.count;
   }
   return rows;
 }
@@ -158,4 +156,79 @@ function lastHunkStart(rows: readonly DiffRow[]): number | null {
   const header = rows.findLastIndex((row) => row.kind === 'h');
   const change = rows.slice(header + 1).find((row) => row.kind === 'a' || row.kind === 'd');
   return change?.id ?? rows[Math.max(header, 0)]?.id ?? null;
+}
+
+/** A run of the line diff: kept as is, added (new side only) or removed (old side only). */
+type Part = { readonly count: number; readonly kind: 'kept' | 'added' | 'removed' };
+
+/** Past this many table cells the changed middle is treated as replaced, not matched. */
+const MAX_MATCH_CELLS = 4_000_000;
+
+/**
+ * A line diff of two key lists: the shared start and end are kept, the changed middle is matched
+ * by its longest common subsequence. Small on purpose: it replaces the `diff` package, which
+ * would ship to every page that follows a stream for this one call.
+ */
+function diffKeys(old: readonly string[], next: readonly string[]): Part[] {
+  let start = 0;
+  while (start < old.length && start < next.length && old[start] === next[start]) start += 1;
+  let oldEnd = old.length;
+  let nextEnd = next.length;
+  while (oldEnd > start && nextEnd > start && old[oldEnd - 1] === next[nextEnd - 1]) {
+    oldEnd -= 1;
+    nextEnd -= 1;
+  }
+  const middle = matchMiddle(old.slice(start, oldEnd), next.slice(start, nextEnd));
+  const parts: Part[] = [
+    { count: start, kind: 'kept' },
+    ...middle,
+    { count: old.length - oldEnd, kind: 'kept' },
+  ];
+  return parts.filter((part) => part.count > 0);
+}
+
+function matchMiddle(old: readonly string[], next: readonly string[]): Part[] {
+  if (
+    old.length === 0 ||
+    next.length === 0 ||
+    (old.length + 1) * (next.length + 1) > MAX_MATCH_CELLS
+  )
+    return [
+      { count: old.length, kind: 'removed' },
+      { count: next.length, kind: 'added' },
+    ];
+  const width = next.length + 1;
+  const common = new Uint32Array((old.length + 1) * width);
+  for (let i = old.length - 1; i >= 0; i -= 1) {
+    for (let j = next.length - 1; j >= 0; j -= 1) {
+      common[i * width + j] =
+        old[i] === next[j]
+          ? (common[(i + 1) * width + j + 1] ?? 0) + 1
+          : Math.max(common[(i + 1) * width + j] ?? 0, common[i * width + j + 1] ?? 0);
+    }
+  }
+  const parts: Part[] = [];
+  const push = (kind: Part['kind']) => {
+    const last = parts.at(-1);
+    if (last?.kind === kind) parts[parts.length - 1] = { kind, count: last.count + 1 };
+    else parts.push({ kind, count: 1 });
+  };
+  let i = 0;
+  let j = 0;
+  while (i < old.length && j < next.length) {
+    if (old[i] === next[j]) {
+      push('kept');
+      i += 1;
+      j += 1;
+    } else if ((common[(i + 1) * width + j] ?? 0) >= (common[i * width + j + 1] ?? 0)) {
+      push('removed');
+      i += 1;
+    } else {
+      push('added');
+      j += 1;
+    }
+  }
+  for (; i < old.length; i += 1) push('removed');
+  for (; j < next.length; j += 1) push('added');
+  return parts;
 }

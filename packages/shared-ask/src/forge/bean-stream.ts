@@ -5,95 +5,19 @@
  * and as the `beanStream` RPC serves it. The two RPC methods are optional on the binding, so an older
  * gateway without them still counts as a gateway (`asGatewayBinding` checks the rest).
  */
-import { parsePatch } from 'diff';
 import { z } from 'zod';
 
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
 
 import type { FileDiff } from '../repo/repo-types';
-import { toHunk } from '../repo/file-diff';
+import { toHunk } from '../repo/hunk';
+import type { RawHunk } from '../repo/hunk';
+import { BeanStreamAnswer, BeanStreamSummary } from './bean-stream-schema';
+import type { StreamFile } from './bean-stream-schema';
 import { unwrap } from './gateway-rpc';
 
-const Status = z.enum(['added', 'modified', 'deleted']);
-
-export const BeanStreamSummary = z.object({
-  type: z.literal('bean.streaming'),
-  task: z.string(),
-  inv: z.string(),
-  agent: z.string(),
-  seq: z.number().int(),
-  t: z.number(),
-  files: z.array(
-    z.object({
-      path: z.string(),
-      status: Status,
-      additions: z.number().int(),
-      deletions: z.number().int(),
-    }),
-  ),
-  additions: z.number().int(),
-  deletions: z.number().int(),
-  truncated: z.boolean(),
-  redacted: z.number().int().default(0),
-});
-export type BeanStreamSummary = z.infer<typeof BeanStreamSummary>;
-
-export const BeanStreamEnd = z.object({
-  type: z.literal('bean.streaming.end'),
-  task: z.string(),
-  inv: z.string(),
-  t: z.number(),
-});
-export type BeanStreamEnd = z.infer<typeof BeanStreamEnd>;
-
-/** A summary or an end: what every viewer gets. */
-export const BeanStreamMessage = z.discriminatedUnion('type', [BeanStreamSummary, BeanStreamEnd]);
-export type BeanStreamMessage = z.infer<typeof BeanStreamMessage>;
-
-export const StreamFile = z.object({
-  path: z.string(),
-  status: Status,
-  additions: z.number().int(),
-  deletions: z.number().int(),
-  binary: z.boolean(),
-  patch: z.string().nullable(),
-});
-export type StreamFile = z.infer<typeof StreamFile>;
-
-/** A subscribed bean's whole snapshot, sent when the viewer subscribes to it. */
-export const BeanStreamSnapshot = z.object({
-  type: z.literal('bean.snapshot'),
-  task: z.string(),
-  inv: z.string(),
-  seq: z.number().int(),
-  files: z.array(StreamFile),
-});
-export type BeanStreamSnapshot = z.infer<typeof BeanStreamSnapshot>;
-
-/** What one accepted post changed in a subscribed bean; `base_seq: 0` replaces the snapshot. */
-export const BeanStreamPatch = z.object({
-  type: z.literal('bean.patch'),
-  task: z.string(),
-  inv: z.string(),
-  seq: z.number().int(),
-  base_seq: z.number().int(),
-  files: z.array(StreamFile),
-  removed: z.array(z.string()),
-});
-export type BeanStreamPatch = z.infer<typeof BeanStreamPatch>;
-
-/** Any message of the run's stream socket. */
-export const BeanStreamSocketMessage = z.discriminatedUnion('type', [
-  BeanStreamSummary,
-  BeanStreamEnd,
-  BeanStreamSnapshot,
-  BeanStreamPatch,
-]);
-export type BeanStreamSocketMessage = z.infer<typeof BeanStreamSocketMessage>;
-
-export const BeanStreamAnswer = z
-  .object({ summary: BeanStreamSummary, files: z.array(StreamFile) })
-  .nullable();
+// The wire shapes live in their own module; every importer keeps using this path.
+export * from './bean-stream-schema';
 
 /** A bean's streamed change, ready to draw. */
 export type BeanStreamView = {
@@ -145,6 +69,46 @@ export function toFileDiff(file: StreamFile): FileDiff {
   const { path, status, additions, deletions } = file;
   if (file.patch === null || file.patch === '')
     return { path, status, additions, deletions, hunks: [] };
-  const [parsed] = parsePatch(`--- a/${path}\n+++ b/${path}\n${file.patch}`);
-  return { path, status, additions, deletions, hunks: (parsed?.hunks ?? []).map(toHunk) };
+  return { path, status, additions, deletions, hunks: parseHunks(file.patch).map(toHunk) };
+}
+
+const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+
+/**
+ * The hunks of a streamed patch (hunk text only, no file header). A small reader instead of the
+ * `diff` package's `parsePatch`, so the browser does not download that library to show a stream.
+ */
+function parseHunks(patch: string): RawHunk[] {
+  const lines = patch.split('\n');
+  const hunks: RawHunk[] = [];
+  let at = 0;
+  while (at < lines.length) {
+    const header = HUNK_HEADER.exec(lines[at] ?? '');
+    at += 1;
+    if (header === null) continue;
+    const oldLines = Number(header[2] ?? 1);
+    const newLines = Number(header[4] ?? 1);
+    // A zero-length side counts from the line before: the unified format's quirk.
+    const oldStart = Number(header[1]) + (oldLines === 0 ? 1 : 0);
+    const newStart = Number(header[3]) + (newLines === 0 ? 1 : 0);
+    const body: string[] = [];
+    let oldSeen = 0;
+    let newSeen = 0;
+    while (
+      at < lines.length &&
+      (oldSeen < oldLines || newSeen < newLines || lines[at]?.[0] === '\\')
+    ) {
+      const raw = lines[at] === '' ? ' ' : (lines[at] ?? '');
+      at += 1;
+      if (raw[0] === '+') newSeen += 1;
+      else if (raw[0] === '-') oldSeen += 1;
+      else if (raw[0] === ' ') {
+        oldSeen += 1;
+        newSeen += 1;
+      } else continue;
+      body.push(raw);
+    }
+    hunks.push({ oldStart, oldLines, newStart, newLines, lines: body });
+  }
+  return hunks;
 }

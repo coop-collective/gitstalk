@@ -4,7 +4,12 @@
  */
 import { structuredPatch } from 'diff';
 
-import type { DiffHunk, DiffLine, FileDiff, FileStatus } from './repo-types';
+import { toHunk } from './hunk';
+import type { FileDiff, FileStatus } from './repo-types';
+
+// Hunk numbering lives in its own module so a reader that never diffs does not load `diff`.
+export { toHunk } from './hunk';
+export type { RawHunk } from './hunk';
 
 /** Lines of context around each change, as `git diff` prints by default. */
 const CONTEXT_LINES = 3;
@@ -34,33 +39,6 @@ function fileStatus(before: string | undefined, after: string | undefined): File
   if (before === undefined) return 'added';
   if (after === undefined) return 'deleted';
   return 'modified';
-}
-
-export type RawHunk = {
-  readonly oldStart: number;
-  readonly oldLines: number;
-  readonly newStart: number;
-  readonly newLines: number;
-  readonly lines: readonly string[];
-};
-
-/** A jsdiff hunk with old and new line numbers on every line. */
-export function toHunk(hunk: RawHunk): DiffHunk {
-  let oldNo = hunk.oldStart;
-  let newNo = hunk.newStart;
-  const lines: DiffLine[] = [];
-  for (const raw of hunk.lines) {
-    const marker = raw[0];
-    const text = raw.slice(1);
-    if (marker === '+') {
-      lines.push({ kind: 'add', text, oldNo: null, newNo: newNo++ });
-    } else if (marker === '-') {
-      lines.push({ kind: 'del', text, oldNo: oldNo++, newNo: null });
-    } else if (marker === ' ') {
-      lines.push({ kind: 'context', text, oldNo: oldNo++, newNo: newNo++ });
-    }
-  }
-  return { ...hunk, lines };
 }
 
 /** New-side line numbers a diff adds or changes (for highlighting a file view). */
