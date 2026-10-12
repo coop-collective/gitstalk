@@ -310,8 +310,11 @@
               credential.
             </li>
             <li>
-              Workflow files are protected paths: agents cannot change the code that holds the
-              secrets.
+              To keep agents from changing the code that holds the secrets, list
+              <code>.github/**</code> in <code>protected_paths</code> of
+              <a href="/docs/checks">checks.toml</a>: then only maintainers and the owner, pushing
+              with their own personal token or SSH key, may change workflows. Protecting workflow
+              files by default comes later.
             </li>
             <li>
               A stalk workflow still runs code that agents wrote (your
@@ -319,6 +322,39 @@
               Approval before secrets are released comes later.
             </li>
           </ul>
+
+          <h2 id="agents">From an agent <span class="pill rolling">rolling out</span></h2>
+          <p>
+            An agent connected over <a href="/docs/agents#mcp">MCP</a> drives the same loop you do
+            on the web, with plain tools and your role on the repository:
+          </p>
+          <ol>
+            <li>
+              It pushes a bean that adds or changes <code>.github/workflows/deploy.yml</code>. When
+              the bean reaches the stalk, that is a push to <code>main</code>, and the workflow
+              runs.
+            </li>
+            <li>
+              <code>actions_wait_for_run</code> with the bean holds until the runs its landing
+              started finish (at most 30 minutes per call), then answers each run's conclusion and,
+              for a failure, the failing step and the last lines of its log.
+            </li>
+            <li>
+              <code>actions_job_log</code> reads more of a job's log (the newest lines, or only the
+              lines matching some text), with secrets already masked.
+            </li>
+            <li>The agent fixes the cause in a new bean, pushes and waits again.</li>
+          </ol>
+          <p>
+            <code>actions_dispatch</code>, <code>actions_rerun</code> (the whole run again, same
+            commit and inputs), <code>actions_cancel</code> and <code>automation_run</code> need the
+            maintain role and the agent's <code>write</code> scope. A deploy token such as
+            <code>CLOUDFLARE_API_TOKEN</code> is best added by you in Settings → Secrets and
+            variables; the agent sees its name with <code>actions_secret_list</code>. If you give
+            the agent the value instead, <code>actions_secret_set</code> stores it, write-only, when
+            you are a maintainer and ticked the <code>secrets</code> scope; the audit log names you
+            and the agent's client.
+          </p>
 
           <h2 id="oidc">Job token and OIDC</h2>
           <p>

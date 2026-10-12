@@ -51,3 +51,71 @@ MCP (packages/mcp)                         gateway (packages/gateway)
 - `preview_url` in repository answers still links `/runs/<engine>`; repository pages are `/<owner>/<repo>`.
 - A repository-bound credential keeps working for its hour if the person loses access to the repository (it is bound to the engine, like deploy tokens); revoking the agent's session revokes it.
 - Claims expire after two hours with no heartbeat beyond re-claiming; a long task needs the agent to claim again or push.
+
+## 5. Actions, secrets and automations (2026-10-12)
+
+**Why.** In the owner's session (Claude Code with the plugin, repository `coop/test`) the agent built a vinext app and `.github/workflows/deploy.yml`, then said "Gitstalk doesn't run GitHub Actions" (it does: a bean reaching the stalk is a push to `main`, doc 25 §2), found no tool to see the run its landing started, to read its log or to set `CLOUDFLARE_API_TOKEN`, and its OAuth link asked only for `read`. These tools and the scope change close that loop: push → `actions_wait_for_run` → read the failing step → fix → push.
+
+### 5.1 Scope model
+
+| Scope | Grants (always capped by the person's role, as on the web) | Asked for by default | Ticked on the consent page |
+|---|---|---|---|
+| `read` | Every read: repositories, runs, jobs, logs, workflows, secret names, variables, automations | yes | always (cannot untick) |
+| `collaborate` | Bean threads, requests, inbox | yes | yes |
+| `write` | Push own beans, claim tasks; with maintain: dispatch, re-run, cancel, run automations | yes | yes |
+| `secrets` | With maintain: set and delete secrets and variables (repository; org level with org owner or admin) | no | never: the person ticks it, with a warning that a value passes through the agent and its model provider |
+
+- **Advertised:** the protected resource's `scopes_supported` (RFC 9728) and the `scope` of the 401 `WWW-Authenticate` challenge are `read collaborate write` (`DEFAULT_SCOPES`, the library's `requiredScopes`, which it advertises and does not enforce). MCP clients, Claude Code and Codex among them, request the challenge's scopes, so the consent page opens with those three ticked. The authorization server's `scopes_supported` lists all four. Before, both advertised `read` only, so clients asked for `read` and the person had to tick the rest.
+- **Enforced:** `/mcp` needs `read` (403 `insufficient_scope` otherwise); each tool's scope is checked in the gateway, and the refusal says how to get it ("reconnect the agent and tick secrets on the consent page"); the secret tools add the Settings link.
+- **Personal tokens** may hold `secrets` too (Settings → Tokens lists it). Git credentials ignore it.
+
+### 5.2 Tools
+
+| Tool | Scope, role | What it does |
+|---|---|---|
+| `actions_workflow_list(repo)` | read, read role | Workflows and automations on the stalk: state (active, or invalid with problems), triggers (`push (main)`, `workflow_dispatch`, `schedule (…)`, Gitstalk events), dispatch inputs, unsupported events, jobs. No enable/disable: the product has none (an invalid file never runs) |
+| `actions_run_list(repo, workflow?, status?, event?, branch?, sha?, bean?, limit?, cursor?)` | read | Runs newest first with `run_url`; `bean` = the push runs its stalk move started; a `branch` that is not a name of the stalk answers none |
+| `actions_run_get(repo, run)` | read | Jobs and steps with status, conclusion, durations, `failed_step`; the commit, the beans the stalk move carried, inputs, `run_url`, `next` |
+| `actions_job_log(repo, run, job?, tail?, grep?, max_bytes?)` | read | `[step] line` text, newest last; default the first failed job, 80 lines, 12 KB; at most 2,000 lines and 48 KB; `grep` keeps matching lines (case-insensitive). Streams the R2 chunks through a bounded tail (at most 40 pages of 50 chunks) |
+| `actions_wait_for_run(repo, bean? / run? / workflow?, timeout_s?)` | read | Holds until the runs finish: `bean` waits for it to reach the stalk (the engine's watch, as `bean_wait`), then for the push runs it started (60 s for them to appear); `run` one run; `workflow` its newest run. Default 600 s, at most 1,800. `outcome`: completed, running, no_run, bean_not_on_stalk; each failed job's failing step and last 30 log lines |
+| `actions_dispatch(repo, workflow, inputs?, ref?)` | write, maintain | `workflow_dispatch` on the stalk head |
+| `actions_rerun(repo, run)` | write, maintain | The whole run again as a new run: same workflow source, commit, event, payload, inputs, origin (so D4 gives it the same secrets) and beans. Re-running only failed jobs is not supported. Automations re-run with `automation_run` |
+| `actions_cancel(repo, run)` | write, maintain | Cancels a queued or running run |
+| `actions_secret_list(repo)` | read, any role | Names (never values), source (repository or org), who and when, `preland_allowed`, `overridden`; `settings_url` |
+| `actions_secret_set(repo, name, value, level?)` | secrets, maintain (org: owner or admin) | Write-only: the value is never in an answer, an error or a log. Keeps a repository secret's pre-land toggle. A new org secret reaches only this repository (`selected`); an existing one keeps its reach |
+| `actions_secret_delete(repo, name, level?)` | secrets, maintain | |
+| `actions_variable_list` / `_set` / `_delete` | read (any role) / secrets, maintain | Values readable; same levels and reach rules |
+| `automation_get(repo, automation)` | read | The file on the stalk, triggers, harness, model, bot, memory ref, problems, its 10 newest runs |
+| `automation_run(repo, automation)` | write, maintain | A manual run (every automation takes `workflow_dispatch`); one at a time |
+
+`repo_status` gained `stalk_runs` (the runs at the stalk head: "what happened to my last landing"), `bean_status`'s `next` for `landed` and `green` points at `actions_wait_for_run`, and `repository_access` answers `may.run_workflows` and `may.set_secrets`. Every tool takes `repo: "owner/name"`; a run of another repository is not found.
+
+### 5.3 How it works
+
+```
+MCP src/actions/actions-tools.ts ── RPC ──▶ AgentActionsRpc (gateway src/agent/agent-actions-rpc.ts)
+    actions-answers.ts (run_url, settings_url,     actions-target.ts: scope → openRepository (404 when hidden)
+    summary, next)                                   → the person's own actionsRpc / actionsEntriesRpc
+                                                     (maintain checks as for the web), via = client name
+                                                   agent-runs.ts, agent-run-wait.ts, agent-entries.ts,
+                                                   agent-automation.ts, agent-run-views.ts (pure)
+```
+
+- **Contract:** `@gitstalk/shared-race/agent-actions` (Zod inputs, snake_case answers).
+- **Same rules as the web:** the gateway opens the repository as the other agent tools do, then calls the Actions RPC the web calls with the person as viewer, so roles, archive refusals and messages are identical. The session's scope is checked first.
+- **Audit:** secret and variable changes made through MCP write the same `repository_audit` / `actions_org_audit` lines, with `NAME · via Claude Code (MCP)` (the `via` option of `actionsRpc` and `actionsEntriesRpc`).
+- **Beans on runs:** a push run's request keeps the beans its stalk move carried (`RunRequest.beans`, in the run's stored record; older runs have none). That is how `bean` filters and waits find a landing's runs, and how `actions_run_get` names them.
+- **Re-run:** `ActionsRepoDO.rerun` reads `ActionsRunDO.rerunSeed()` (the request, with the payload as JSON for RPC) and creates a new run with the next number.
+- **Waiting:** the bean part holds on the engine's `watchBeans`; runs have no watch yet, so the gateway reads their status every 1 to 5 seconds (backing off) inside the one RPC, bounded by `timeout_s`.
+
+### 5.4 Verified
+
+- `pnpm check` exits 0. Gateway `test/agent-actions.test.ts` (12): a landing's push run followed by bean, with the failing step, its log tail and the secret masked; workflows; runs by workflow, bean, sha and branch; log tail, grep and bounds; dispatch with inputs, re-run (of a dispatch and of a push), cancel, a bounded wait on a hanging run; refusals (read-only session `insufficient_scope`; write collaborator `forbidden` for dispatch, re-run and cancel; stranger 404; a maintainer may); secret names to a reader, setting needing `secrets` and maintain, the value never returned, audit `via Claude Code (MCP)`, org level refused on a person's repository; variables; automations. `src/agent/agent-run-views.test.ts` (5). MCP `test/actions-tools.test.ts` (7), through Streamable HTTP with the real gateway and its repo-events queue: the deploy loop (secret set, workflow pushed, `actions_wait_for_run` by bean, log, run get, run list by bean, `repo_status.stalk_runs`), lists, dispatch, bounded wait, cancel, re-run, automations, the permission matrix, and the secret value never in any tool answer or any line the MCP Worker logged. `test/oauth.test.ts`: the challenge and metadata advertise the new defaults; the secrets scope is granted only when ticked.
+
+- **Staging** (gitstalk.dev, 2026-10-12; gateway `ab65d8fb`, web `2ab34a82`, MCP `1a28c9cd`; production not deployed). `pnpm env:smoke staging` ok. A raw MCP HTTP client (Node `fetch`, no SDK): the 401 challenge said `scope="read collaborate write"`, the protected-resource metadata the same, the authorization server all four; dynamic registration, PKCE S256, a passkey sign-up in headless Chrome; the consent page opened with read, collaborate and write ticked and secrets unticked; the test ticked secrets and the token came back `read collaborate write secrets`. 35 tools, no `execute`. `actions_secret_set DEPLOY_TOKEN` (a random value), `actions_variable_set REGION`, then `git_credentials` and real git pushed `bean/add-ci` adding `ci.yml` (push and dispatch, a step printing `$TOKEN` and `vars.REGION`), `slow.yml` and an automation. `actions_wait_for_run(bean: add-ci)` returned after 43 s with `CI #1 success (13 s) beans=add-ci`; `actions_job_log` read `[Deploy] deploying with *** to eu-e2e`; `repo_status.stalk_runs` named the run; `actions_dispatch(CI, who: agents)` then `grep: hello agents` read `[Greet] hello agents`; `actions_rerun` ran #3 with the same inputs; `slow.yml`'s wait with `timeout_s: 20` returned `running` after 21 s, `actions_cancel` then a wait gave `cancelled`; secret and variable lists; `automation_run(note)` succeeded and its log read `noted by the automation`; delete variable and secret. The secret's value was in no tool answer. Claude Code 2.1.296 with an isolated config: `claude plugin marketplace add` of the plugin branch installed `gitstalk` 0.10.0; `claude mcp login` against staging asked for `scope=read+collaborate+write` and connected. A headless `claude -p` session was not run: the isolated config has no Anthropic login, and the owner's was not to be used. Test accounts and the repository were deleted (one more, from a first run that stopped at the OAuth callback before saving its handle, is left on staging: an empty `e2e-` account).
+
+### 5.5 Gaps
+
+- No re-run of failed jobs only, and no workflow enable/disable (the product has neither).
+- Runs have no completion watch, so `actions_wait_for_run` reads run rows every few seconds inside the gateway (one RPC for the agent).
+- Doc 25 §4.4's always-protected workflow paths are still a design (§7.13): today an agent session can land a workflow change on a repository whose `checks.toml` does not protect `.github/**`.

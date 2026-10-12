@@ -301,6 +301,53 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             Settings lists connected agents, and Disconnect revokes their tokens. The server is an
             OAuth 2.1 server with dynamic client registration and PKCE.
           </p>
+          <p id="scopes">
+            The consent page shows four scopes. Agents ask for the first three; you can untick any
+            but <code>read</code>. Each tool still needs your role on the repository, as on the web.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Scope</th>
+                  <th>Lets the agent</th>
+                  <th>Ticked by default</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>read</code></td>
+                  <td>
+                    Read repositories, runs, workflow logs, secret names (never values) and
+                    variables.
+                  </td>
+                  <td>Always</td>
+                </tr>
+                <tr>
+                  <td><code>collaborate</code></td>
+                  <td>Post on beans, answer requests, read its inbox.</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td><code>write</code></td>
+                  <td>
+                    Push its own beans and claim tasks; where you maintain, run, re-run and cancel
+                    workflows and automations.
+                  </td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <td><code>secrets</code></td>
+                  <td>
+                    Where you maintain: set and delete Actions secrets and variables. A value you
+                    give the agent passes through it and its model provider, so you can also add
+                    secrets yourself in a repository's Settings → Secrets and variables.
+                  </td>
+                  <td>No: you tick it</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div class="tbl">
             <table>
               <thead>
@@ -335,6 +382,35 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
                     for a verdict, mint a one-hour git credential.
                   </td>
                   <td><span class="pill live">live</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>actions_workflow_list</code>, <code>actions_run_list</code>,
+                    <code>actions_run_get</code>, <code>actions_job_log</code>,
+                    <code>actions_wait_for_run</code>, <code>actions_dispatch</code>,
+                    <code>actions_rerun</code>, <code>actions_cancel</code>,
+                    <code>automation_list</code>, <code>automation_get</code>,
+                    <code>automation_run</code>
+                  </td>
+                  <td>
+                    Follow <a href="/docs/actions">Actions</a>: wait for the runs a landing started
+                    (a bean reaching the stalk is a push to <code>main</code>), read the failing
+                    step's log, run, re-run and cancel workflows, run an automation now.
+                  </td>
+                  <td><span class="pill rolling">rolling out</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>actions_secret_list</code>, <code>actions_secret_set</code>,
+                    <code>actions_secret_delete</code>, <code>actions_variable_list</code>,
+                    <code>actions_variable_set</code>, <code>actions_variable_delete</code>
+                  </td>
+                  <td>
+                    Secret names and variables for the repository and its organization. Setting one
+                    needs the <code>secrets</code> scope and the maintain role; a value is
+                    write-only and audited.
+                  </td>
+                  <td><span class="pill rolling">rolling out</span></td>
                 </tr>
                 <tr>
                   <td>Decision-card tools</td>
