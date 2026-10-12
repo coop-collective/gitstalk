@@ -3,12 +3,11 @@
  * connect (the start guide, and a deploy-token form for the owner). Server-only.
  */
 import type { DeployTokenAccess } from '../../components/repository/connect-tabs';
-import { currentSession } from '../auth/user';
 import type { CodeData, CodeInput } from '../repo-pages/code-data';
 import { codeData } from '../repo-pages/code-data';
 import type { StartGuide } from '../repositories/paths';
 import { startGuide } from '../repositories/paths';
-import { startConfig } from './repository-page';
+import { requestSession, startConfig } from './repository-page';
 import type { RepositoryTab } from './repository-tab';
 
 export type CodePage = CodeData & {
@@ -27,7 +26,7 @@ export async function codePage(tab: RepositoryTab, input: CodeInput): Promise<Co
   const { reads, record } = tab;
   const [config, session, data] = await Promise.all([
     startConfig(),
-    tab.role === 'owner' || tab.role === 'maintain' ? currentSession() : Promise.resolve(null),
+    tab.role === 'owner' || tab.role === 'maintain' ? requestSession() : Promise.resolve(null),
     reads === null ? Promise.resolve(UNREACHABLE) : codeData(reads, input),
   ]);
   return {
