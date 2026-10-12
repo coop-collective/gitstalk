@@ -3928,45 +3928,61 @@ dialog.choose::backdrop {
   height: 13px;
   background: var(--leaf);
 }
-.am-coming {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
-  padding: 18px;
+.am-autohead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
-.am-coming h4 {
-  margin: 0 0 10px;
-  font: 600 18px var(--sans);
+.am-tools {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
-.am-coming p {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--fg-muted);
-}
-.am-coming code {
-  font: 12px var(--mono);
-  color: var(--fg);
-}
-.am-coming u {
-  color: var(--leaf-ink);
-}
-.am-soon {
-  margin-left: 6px;
-  padding: 0 7px;
-  border: 1px dashed var(--border);
-  border-radius: 999px;
-  font: 500 11px/16px var(--sans);
-  color: var(--fg-subtle);
-  vertical-align: 3px;
-}
-.am-coming pre {
+.am-tools .ps-btn {
   margin: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
+}
+.am-autofacts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 16px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+}
+.am-autofacts div {
+  border-bottom: 1px solid var(--border-muted);
+}
+.am-autofacts div:nth-child(3n) {
+  border-right: 0;
+}
+.am-autofacts div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+.am-autofacts dd {
+  overflow-wrap: anywhere;
+}
+.am-yaml {
+  margin: 10px 16px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border-muted);
   border-radius: 8px;
   background: var(--bg);
   font: 11.5px/1.6 var(--mono);
-  overflow: hidden;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+}
+.am-triggers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 10px 16px 12px;
+}
+.am-triggers li {
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: 12px/20px var(--mono);
+  color: var(--fg-muted);
 }
 /* People: an org that owns the repository */
 .pp-org {
@@ -4206,9 +4222,21 @@ dialog.choose::backdrop {
   .am-logbox {
     height: 200px;
   }
-  .am-coming {
+  .am-autohead {
+    flex-direction: column;
+  }
+  .am-autofacts {
     grid-template-columns: minmax(0, 1fr);
-    padding: 14px;
+  }
+  .am-autofacts div {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-muted);
+  }
+  .am-autofacts div:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border-muted);
+  }
+  .am-autofacts div:last-child {
+    border-bottom: 0;
   }
   .ps-shell {
     grid-template-columns: minmax(0, 1fr);
