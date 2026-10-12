@@ -2,7 +2,9 @@
  * The Changes tab's model: every bean of a repository with who brought it (a person, or an
  * agent session when nobody pushed it), what it is for, where it stands, and its journey
  * (pushes, checks, verdicts with failing tests and the beans it collided with, landing,
- * validation, decisions), read from the engine's event log and the pushed beans. Pure.
+ * validation, decisions), read from the engine's event log and the pushed beans. Pure and
+ * client-safe: it imports types only from the zod-validated modules, so the Changes tab's
+ * client components derive their rows with it without carrying a schema library.
  */
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { Bean, BeanPhase } from '@gitstalk/shared-ask/race/race-state';
@@ -97,6 +99,49 @@ export function changesOf(
     changeOf({ id, bean: state.beans[id], push: byBean.get(id), title: titles[id], events, clock }),
   );
   return changes.toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+}
+
+/** `?show=` as a group; without one, open when anything is, else landed. */
+export function shownGroup(value: unknown, changes: readonly Change[]): ChangeGroup {
+  if (value === 'open' || value === 'landed' || value === 'parked') return value;
+  return inGroup(changes, 'open').length > 0 ? 'open' : 'landed';
+}
+
+/** Whether nothing more will happen to a bean in this state (validated, parked, fell off). */
+export function isSettledState(state: ChangeState): boolean {
+  return state === 'validated' || state === 'parked' || state === 'fell-off';
+}
+
+/** The state as a person reads it. */
+export function stateText(state: ChangeState): string {
+  switch (state) {
+    case 'checking':
+      return 'in check';
+    case 'waiting':
+      return 'waiting';
+    case 'red':
+      return 'red';
+    case 'conflict':
+      return 'conflict';
+    case 'landed':
+      return 'on the sprout';
+    case 'validated':
+      return 'on the stalk';
+    case 'parked':
+      return 'parked';
+    case 'fell-off':
+      return 'fell off';
+    default:
+      return assertNever(state);
+  }
+}
+
+/**
+ * The clock "5 minutes ago" is measured against: the page's render time, moved up to the
+ * newest activity when live events arrive later (so a bean that just moved reads "just now").
+ */
+export function latestActivityMs(changes: readonly Change[], renderedAtMs: number): number {
+  return changes.reduce((latest, change) => Math.max(latest, change.updatedAt ?? 0), renderedAtMs);
 }
 
 /** The changes of one group, in the tab's order. */
@@ -299,5 +344,5 @@ function reworkEntry(
 }
 
 function assertNever(value: never): never {
-  throw new Error(`unexpected bean phase ${String(value)}`);
+  throw new Error(`unexpected bean phase or state ${String(value)}`);
 }

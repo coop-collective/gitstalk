@@ -95,6 +95,11 @@ export function useLiveStreams(
   return { streams, seed };
 }
 
+/** The engine run the page streams from ('' outside a `LiveStreamsProvider`). */
+export function useStreamRun(): string {
+  return useContext(LiveStreamsContext).run;
+}
+
 /** The summaries of every bean being written now, by task. */
 export function useStreamSummaries(): ReadonlyMap<string, BeanStreamSummary> {
   return useContext(LiveStreamsContext).summaries;

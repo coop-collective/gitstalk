@@ -1,15 +1,18 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import type { BeanStreamView } from '@gitstalk/shared-ask/forge/bean-stream';
 
 import type { FileDiff } from '@gitstalk/shared-ask/repo/repo-types';
 import type { JourneyTone } from '@gitstalk/shared-ask/home/journey';
+import { beanDiffPath, isRepoDiff } from '../../src/changes/change-feed';
+import { fetchJson, isHttpStatus } from '../../src/query/fetch-json';
+import { qk } from '../../src/query/keys';
 import { formatClock, formatSpan, plural } from '../../src/race/race-format';
 import styles from './home.module.css';
-import { useBeanStream } from './live-streams';
+import { useBeanStream, useStreamRun } from './live-streams';
 import { DiffFiles } from './marks';
 import { StreamingDiff } from './streaming-diff';
 
@@ -64,7 +67,7 @@ export function BeanJourney(props: {
   };
   const step = props.steps.find((item) => item.id === selected);
   const { bean } = props;
-  const stream = useStreamUntilCommitted(bean.id, props.files);
+  const { stream, files } = useStreamUntilCommitted(bean.id, props.files);
   return (
     <div className={styles.box}>
       <div className={styles.beanhead}>
@@ -113,7 +116,7 @@ export function BeanJourney(props: {
         <div className={styles.jdetail}>
           <StepDetail
             step={step}
-            files={props.files}
+            files={files}
             now={props.now}
             landed={bean.landedIdx !== null}
             stream={stream}
@@ -230,27 +233,86 @@ function LiveChangeView(props: {
 
 /**
  * The bean's streamed change while its agent writes; after the stream ends, the last
- * snapshot until the page has the commit (a refresh of the server render brings new files),
- * then the commit in the same view.
+ * snapshot until the bean's committed files are read again (`useCommittedFiles`), then the
+ * commit in the same view.
  */
-function useStreamUntilCommitted(bean: string, files: readonly unknown[]): LiveChange | null {
+function useStreamUntilCommitted(
+  bean: string,
+  serverFiles: readonly FileDiff[],
+): { readonly stream: LiveChange | null; readonly files: readonly FileDiff[] } {
   const { view, writing } = useBeanStream(bean);
-  const router = useRouter();
-  const [endedWith, setEndedWith] = useState<readonly unknown[] | null>(null);
   const ended = !writing && view !== null;
+  const files = useCommittedFiles(bean, serverFiles, ended);
+  const [endedWith, setEndedWith] = useState<readonly unknown[] | null>(null);
   useEffect(() => {
     if (!ended) {
       setEndedWith(null);
       return;
     }
     setEndedWith((current) => current ?? files);
-    router.refresh();
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- refresh once when the stream ends, not per render
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- capture the files once, when the stream ends
   }, [ended]);
-  if (view === null || view.summary.task !== bean) return null;
+  return { stream: liveChangeOf({ bean, view, writing, endedWith, files }), files };
+}
+
+function liveChangeOf(input: {
+  readonly bean: string;
+  readonly view: BeanStreamView | null;
+  readonly writing: boolean;
+  readonly endedWith: readonly unknown[] | null;
+  readonly files: readonly FileDiff[];
+}): LiveChange | null {
+  const { view, writing, endedWith, files } = input;
+  if (view === null || view.summary.task !== input.bean) return null;
   if (writing) return { kind: 'stream', view, writing };
   if (endedWith === null || endedWith === files) return { kind: 'stream', view, writing };
   return files.length === 0 ? null : { kind: 'committed', view };
+}
+
+/**
+ * The bean's files: the server's until a stream of it ends, then its committed change read
+ * again through the engine's diff route (each later stream's end invalidates the query).
+ *
+ * The home knows the engine run but not the viewer, so the key's viewer segment is the
+ * anonymous one: the data is the run's own (the route answers whoever may read the run), it
+ * is dropped as soon as the card unmounts (`gcTime: 0`), and `QueryProvider` clears the
+ * cache whenever the viewer changes.
+ */
+function useCommittedFiles(
+  bean: string,
+  serverFiles: readonly FileDiff[],
+  ended: boolean,
+): readonly FileDiff[] {
+  const run = useStreamRun();
+  const queryClient = useQueryClient();
+  const queryKey = qk.repo(null, 'runs', run).bean(bean);
+  const committed = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => readBeanFiles(beanDiffPath(run, bean), signal),
+    enabled: ended && run !== '',
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+  });
+  useEffect(() => {
+    // The first end enables the query (it fetches); a later end reads the newer commit.
+    if (ended && queryClient.getQueryData(queryKey) !== undefined)
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- queryKey is rebuilt every render; run and bean stand for it
+  }, [ended, queryClient, run, bean]);
+  return committed.data ?? serverFiles;
+}
+
+/** The committed files, or null while the bean has no change (the route's 404). */
+async function readBeanFiles(
+  path: string,
+  signal: AbortSignal,
+): Promise<readonly FileDiff[] | null> {
+  try {
+    return (await fetchJson(path, isRepoDiff, { signal })).files;
+  } catch (error: unknown) {
+    if (isHttpStatus(error, 404)) return null;
+    throw error;
+  }
 }
 
 function withCode(text: string) {
