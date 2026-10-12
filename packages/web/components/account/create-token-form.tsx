@@ -10,7 +10,12 @@ import styles from './account.module.css';
 const SCOPES = [
   { value: 'read', label: 'read', detail: 'clone and fetch; MCP read tools' },
   { value: 'collaborate', label: 'collaborate', detail: 'post on beans, answer requests' },
-  { value: 'write', label: 'write', detail: 'push to your own beans' },
+  { value: 'write', label: 'write', detail: 'push to your own beans; run workflows (maintainers)' },
+  {
+    value: 'secrets',
+    label: 'secrets',
+    detail: 'set Actions secrets and variables (maintainers); the token can write deploy keys',
+  },
 ] as const;
 
 const EXPIRY = [

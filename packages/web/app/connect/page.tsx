@@ -17,10 +17,16 @@ type PageProps = {
 };
 
 const SCOPE_TEXT: Readonly<Record<string, string>> = {
-  read: 'Read repositories and runs: Ask, status, checks, overlaps',
+  read: 'Read repositories, runs and workflow logs, and see secret names (never values)',
   collaborate: 'Post on beans, answer requests and read its inbox',
-  write: 'Push code to its own beans (never the stalk, never settings)',
+  write:
+    'Push code to its own beans (never the stalk, never settings); where you maintain, run, re-run and cancel workflows',
+  secrets:
+    'Where you maintain: set and delete Actions secrets and variables, such as deploy tokens',
 };
+
+/** Scopes the person must tick themselves, whatever the agent asked for. */
+const OPT_IN: ReadonlySet<string> = new Set(['secrets']);
 
 /**
  * The OAuth consent screen. An agent (Claude Code, Codex…) started at the MCP Worker's
@@ -99,19 +105,29 @@ export default async function ConnectPage({ searchParams }: PageProps) {
 
 function ScopeOption({ scope, view }: { readonly scope: string; readonly view: ConsentViewType }) {
   const required = scope === 'read';
+  const isOptIn = OPT_IN.has(scope);
+  const isRequested = view.requestedScopes.some((requested) => requested === scope);
   return (
     <label className={styles.scope}>
       <input
         type="checkbox"
         name="scope"
         value={scope}
-        defaultChecked={required || view.requestedScopes.some((requested) => requested === scope)}
+        defaultChecked={required || (isRequested && !isOptIn)}
         disabled={required}
       />
       <span className={styles.scopeName}>{scope}</span>
       <span className={styles.scopeDetail}>
         {SCOPE_TEXT[scope] ?? scope}
         {required ? ' (always)' : ''}
+        {isOptIn ? (
+          <span className={styles.scopeWarning}>
+            {' '}
+            Only if you will hand this agent secret values: each one passes through the agent and
+            its model provider. You can always add secrets yourself in a repository’s Settings
+            instead.
+          </span>
+        ) : null}
       </span>
       {required ? <input type="hidden" name="scope" value="read" /> : null}
     </label>

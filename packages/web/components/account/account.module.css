@@ -629,3 +629,13 @@ textarea.input {
   font-size: var(--step-1);
   letter-spacing: 0.3em;
 }
+
+/* The consent page's opt-in scope (secrets): why it is not ticked for the person. */
+.scopeWarning {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--warn-fill);
+  background: var(--warn-wash);
+  color: var(--ink);
+}
