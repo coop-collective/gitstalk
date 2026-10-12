@@ -1,6 +1,6 @@
 # @gitstalk/shared-identity
 
-Accounts for Gitstalk: people, handles and profiles, passkeys and email magic links, web
+Accounts for Gitstalk: people, handles and profiles, passkeys and email sign-in codes, web
 sessions, personal and session tokens, SSH keys, organizations and their members, audit logs,
 Turnstile and sign-in rate limits. It is a TypeScript library over one D1 database, bound as
 `IDENTITY_DB` (`gitstalk-identity`), whose schema lives here in `migrations/`. It has no Worker
@@ -14,14 +14,21 @@ gitstalk-mcp     ─┘  agent sessions, session tokens, scopes
 
 ## Key concepts
 
-- **Credentials**: every secret Gitstalk issues (session ids, tokens, magic links, challenge
-  handles) is 32 random bytes, shown once and stored only as its SHA-256 (`secrets.ts`).
+- **Credentials**: every secret Gitstalk issues (session ids, tokens, email-code tickets,
+  challenge handles) is 32 random bytes, shown once and stored only as its SHA-256
+  (`secrets.ts`). Six-digit email codes are stored as an HMAC under the web's
+  `EMAIL_SIGNIN_KEY`, since a plain hash of six digits is easy to reverse.
   Tokens are `bsu_` (personal, up to a year) and `bss_` (agent session, up to an hour), with
   the scopes `read`, `collaborate` and `write` (`scopes.ts`). Landing on the stalk is never
   grantable to a token.
 - **Sessions and cookies**: `__Host-` cookies only, 30-day sliding web sessions.
-- **Passkeys** are the primary sign-in, verified in the Worker with `@simplewebauthn/server`.
-  Magic links are built but stay off until `EMAIL_SENDER_DOMAIN` and an `EMAIL` binding exist.
+- **Sign-in**: passkeys, verified in the Worker with `@simplewebauthn/server`, or a six-digit
+  code mailed through Cloudflare Email Service (`email-codes.ts`: ten minutes, single use,
+  five tries, five codes an address an hour, bound to the asking browser). A verified address
+  signs its account in, or starts a sign-up whose handle step creates the account with the
+  address verified (`email-sign-in.ts`). Every method opens its session through
+  `openSessionStatements` (`sessions.ts`). Mail goes out through the `EmailPort` (`email.ts`);
+  tests use `testing/capturing-email.ts`.
 - **SSH keys**: public keys only, registered from a terminal and approved in a browser
   (`ssh-key-requests.ts`, the RFC 8628 device pattern), or pasted in Settings.
 - **Organizations** share the handle namespace with people; four roles; the last owner cannot
@@ -42,7 +49,7 @@ There is no index module; import files by path, for example
 | Path | Contents |
 | --- | --- |
 | `src/users.ts`, `profiles.ts`, `reserved-handles.ts`, `account-deletion.ts` | People, handles (with retired-handle redirects), profiles, deletion rules |
-| `src/passkeys.ts`, `webauthn-json.ts`, `magic-links.ts`, `sessions.ts`, `cookies.ts` | Sign-in ceremonies and web sessions |
+| `src/passkeys.ts`, `webauthn-json.ts`, `email-codes.ts`, `email-sign-in.ts`, `email.ts`, `sessions.ts`, `cookies.ts` | Sign-in (passkeys, email codes), the outgoing-mail port and web sessions |
 | `src/user-tokens.ts`, `scopes.ts`, `secrets.ts` | Personal and session tokens, scopes, hashing |
 | `src/ssh-keys.ts`, `ssh-key-requests.ts`, `ssh-wire.ts` | SSH public keys, browser approval, wire-format parsing and fingerprints |
 | `src/orgs.ts`, `org-admin.ts`, `org-members.ts`, `org-audit.ts` | Organizations, members, invitations, org audit log |
@@ -50,8 +57,8 @@ There is no index module; import files by path, for example
 | `src/audit.ts`, `product-events.ts` | Audit rows; product analytics through Analytics Engine (hashed ids only) |
 | `src/turnstile.ts`, `rate-limit.ts`, `request-context.ts`, `transport-security.ts` | Bot checks, sign-in limits, request facts, HSTS |
 | `src/identity-env.ts` | The bindings the library expects (`IdentityEnv`, `SignInEnv`) and the clock |
-| `src/testing/virtual-authenticator.ts` | Software passkey for tests; never imported by a Worker |
-| `migrations/` | D1 schema (`0001_identity.sql` to `0006_org_base_none.sql`) |
+| `src/testing/virtual-authenticator.ts`, `capturing-email.ts` | Software passkey and a mail port that keeps messages, for tests; never imported by a Worker |
+| `migrations/` | D1 schema (`0001_identity.sql` to `0007_email_codes.sql`) |
 | `test/` | Tests, a test-only Worker and `wrangler.jsonc` for Miniflare |
 
 Imported by `packages/web`, `packages/gateway` and `packages/mcp`.
@@ -73,7 +80,8 @@ Bindings and values the importing Worker provides (names only):
 - `IDENTITY_DB` (D1, `gitstalk-identity`): bound by the web app, the gateway and the MCP
   Worker, each with `migrations_dir` pointing at `../shared-identity/migrations`.
 - `SIGNIN_RATE_LIMIT` (Rate Limiting binding): web app only.
-- `EMAIL` (send-email binding) and `EMAIL_SENDER_DOMAIN`: magic links, off when either is absent.
+- `EMAIL` (send-email binding), `EMAIL_SENDER_DOMAIN` and the secret `EMAIL_SIGNIN_KEY`: email
+  sign-in codes, off unless all three are present.
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_HOSTNAMES`, `TURNSTILE_TEST_KEYS` and the secret
   `TURNSTILE_SECRET_KEY`: Turnstile is on only when both the site key and the secret are set.
 - `PRODUCT_EVENTS` (Analytics Engine dataset `product_events`): product analytics.

@@ -174,6 +174,7 @@ async function provision(env) {
   saveResources(env);
   generate(env);
   await ensureAiGateway(env);
+  ensureEmailSending(env);
 
   // Migrations: each database once, from the first package (in deploy order) that binds it.
   const migrated = new Set();
@@ -333,6 +334,34 @@ async function ensureAiGateway(env) {
   for (const line of await Promise.all([...names].map(ensure))) console.log(line);
 }
 
+/**
+ * Email sign-in sends from signin@<EMAIL_SENDER_DOMAIN> (the web's var) through Cloudflare Email
+ * Sending, which needs the domain onboarded (SPF, DKIM and a bounce MX, added to the zone by
+ * `wrangler email sending enable`). Onboards it when it is not yet; says what to do otherwise.
+ */
+function ensureEmailSending(env) {
+  if (!env.packages.includes('web')) return;
+  const domain = generateConfig(env, 'web', { allowMissingIds: true }).vars?.EMAIL_SENDER_DOMAIN;
+  if (!domain) {
+    console.log('email sending: off (no EMAIL_SENDER_DOMAIN in overrides.web.vars)');
+    return;
+  }
+  const isEnabled = () =>
+    (wrangler(env, ['email', 'sending', 'list'], { allowFailure: true }) ?? '')
+      .split('\n')
+      .some((row) => new RegExp(`│\\s*${domain.replace(/\./g, '\\.')}\\s*│\\s*yes\\s*│`).test(row));
+  if (isEnabled()) {
+    console.log(`email sending ${domain}: enabled`);
+    return;
+  }
+  wrangler(env, ['email', 'sending', 'enable', domain], { allowFailure: true });
+  console.log(
+    isEnabled()
+      ? `email sending ${domain}: enabled now (DNS records added; allow a few minutes)`
+      : `email sending ${domain}: NOT enabled; onboard it in the dashboard (Compute & AI → Email Service → Email Sending → Onboard Domain) or with \`wrangler email sending enable ${domain}\``,
+  );
+}
+
 function deploy(env, args) {
   const dryRun = args.includes('--dry-run');
   const only = valueOf(args, '--only')?.split(',') ?? env.packages;
@@ -431,6 +460,14 @@ async function smoke(env, args) {
   await check(`web ${url('web')}/signup`, async () => {
     const { status, body } = await get(`${url('web')}/signup`);
     if (status !== 200 || !body.includes('passkey')) throw new Error(`HTTP ${status}`);
+  });
+  const emailDomain = generateConfig(env, 'web', { allowMissingIds: true }).vars
+    ?.EMAIL_SENDER_DOMAIN;
+  await check(`web ${url('web')}/login (email sign-in ${emailDomain ? 'on' : 'off'})`, async () => {
+    const { status, body } = await get(`${url('web')}/login`);
+    if (status !== 200) throw new Error(`HTTP ${status}`);
+    if (body.includes('Continue with email') !== Boolean(emailDomain))
+      throw new Error(`the email form is ${emailDomain ? 'missing' : 'shown'}`);
   });
   if (env.packages.includes('mcp'))
     await check(`mcp ${url('mcp')}/.well-known/oauth-authorization-server`, async () => {

@@ -10,7 +10,7 @@ export const metadata = publicPageMetadata({
   path: '/login',
   title: 'Sign in',
   description:
-    'Sign in to Gitstalk with your passkey to see your repositories, the agents working on them and the decisions waiting for you.',
+    'Sign in to Gitstalk with a passkey or a code sent to your email to see your repositories, the agents working on them and the decisions waiting for you.',
 });
 
 export default function LoginLayout({ children }: { readonly children: ReactNode }) {

@@ -622,3 +622,10 @@ textarea.input {
     align-items: stretch;
   }
 }
+
+/* The six-digit email code: wide, monospaced digits. */
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--step-1);
+  letter-spacing: 0.3em;
+}

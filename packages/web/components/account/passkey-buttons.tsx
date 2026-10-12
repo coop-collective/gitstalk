@@ -1,14 +1,15 @@
 'use client';
 
 /**
- * The passkey controls: sign up with a handle, sign in, and add another passkey. Each runs
- * one ceremony and then navigates; errors are announced next to the control.
+ * The passkey controls: sign in ("Continue with a passkey", plus autofill where the browser
+ * offers it), sign up with a handle, and add a passkey. Each runs one ceremony and then
+ * navigates; errors are announced next to the control.
  */
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 import styles from './account.module.css';
 import type { Ceremony } from './passkey-client';
-import { runPasskeyCeremony } from './passkey-client';
+import { canAutofillPasskeys, runPasskeyCeremony } from './passkey-client';
 import type { TurnstileState } from './turnstile';
 import { TurnstileBox, useTurnstile } from './turnstile';
 
@@ -85,7 +86,7 @@ export function PasskeySignup({
           name="handle"
           value={handle}
           onChange={(event) => setHandle(event.target.value.toLowerCase())}
-          autoComplete="username webauthn"
+          autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
           required
@@ -97,7 +98,8 @@ export function PasskeySignup({
         />
       </div>
       <p id={`${handleId}-hint`} className={styles.hint}>
-        2–39 lowercase letters, digits or hyphens. It names you on beans, decisions and git.
+        2–39 lowercase letters, digits or hyphens. It names you on beans, decisions and git. You can
+        add an email in Settings later, to sign in without this device.
       </p>
       <TurnstileBox siteKey={turnstileSiteKey} state={human.state} />
       <button type="submit" className={styles.primary} disabled={status.kind === 'busy'}>
@@ -118,6 +120,7 @@ export function PasskeySignin({
   const human = useHumanCheck(turnstileSiteKey, 'signin');
   const { status, run } = usePasskey('signin', human.required);
   const errorId = useId();
+  usePasskeyAutofill(next, turnstileSiteKey === null);
   return (
     <div className={styles.form}>
       <TurnstileBox siteKey={turnstileSiteKey} state={human.state} />
@@ -128,25 +131,59 @@ export function PasskeySignin({
         onClick={() => void run({ next })}
         aria-describedby={status.kind === 'error' ? errorId : undefined}
       >
-        {status.kind === 'busy' ? 'Waiting for your passkey…' : 'Sign in with a passkey'}
+        {status.kind === 'busy' ? 'Waiting for your passkey…' : 'Continue with a passkey'}
       </button>
       <StatusLine id={errorId} status={status} />
     </div>
   );
 }
 
-export function AddPasskey({ csrf }: { readonly csrf: string }) {
+/**
+ * Conditional UI: where the browser supports it, saved passkeys appear in the email field's
+ * autofill list (its autocomplete ends in `webauthn`) and picking one signs in. Off while
+ * Turnstile is on, whose token the options request needs before anyone has interacted. The
+ * button aborts this waiting ceremony when pressed (the library runs one at a time), and an
+ * aborted or failed autofill says nothing: the visible controls still work.
+ */
+function usePasskeyAutofill(next: string, isEnabled: boolean) {
+  useEffect(() => {
+    let isCurrent = isEnabled;
+    void (async () => {
+      if (!isCurrent || !(await canAutofillPasskeys()) || !isCurrent) return;
+      const outcome = await runPasskeyCeremony('signin', { next, mediation: 'autofill' });
+      if (isCurrent && outcome.kind === 'done') window.location.assign(outcome.redirect);
+    })();
+    return () => {
+      isCurrent = false;
+    };
+  }, [next, isEnabled]);
+}
+
+/**
+ * Adds a passkey to the signed-in person. From Settings it returns to the passkey list; with
+ * `next` (the offer after an email sign-up) it goes on there.
+ */
+export function AddPasskey({
+  csrf,
+  next,
+  label = 'Add a passkey',
+}: {
+  readonly csrf: string;
+  readonly next?: string;
+  readonly label?: string;
+}) {
   const { status, run } = usePasskey('add');
   const errorId = useId();
   return (
-    <div className={styles.inline}>
+    <div className={styles.stack}>
       <button
         type="button"
-        className={styles.secondary}
+        className={next === undefined ? styles.secondary : styles.primary}
         disabled={status.kind === 'busy'}
-        onClick={() => void run({ csrf })}
+        onClick={() => void run(next === undefined ? { csrf } : { csrf, next })}
+        aria-describedby={status.kind === 'error' ? errorId : undefined}
       >
-        {status.kind === 'busy' ? 'Waiting…' : 'Add a passkey'}
+        {status.kind === 'busy' ? 'Waiting for your passkey…' : label}
       </button>
       <StatusLine id={errorId} status={status} />
     </div>

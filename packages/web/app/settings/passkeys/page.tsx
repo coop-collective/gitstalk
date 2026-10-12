@@ -36,14 +36,14 @@ export default async function PasskeySettingsPage({ searchParams }: PageProps) {
       current="passkeys"
       profile={profile}
       title="Passkeys"
-      lede="How you sign in: a key kept by your device or password manager. Nothing to type, nothing to phish."
+      lede="A key kept by your device or password manager: nothing to type, nothing to phish. You can also sign in with a code sent to your verified email."
     >
       <SettingsSection
         id="list"
         title={passkeys.length === 1 ? 'Your passkey' : `Your ${passkeys.length} passkeys`}
         lede={
           isLast
-            ? 'Add a second one (another device, or a password manager) before you can remove this one.'
+            ? 'It is your only way in: add a second passkey, or an email address in Settings → Emails, before you can remove it.'
             : 'Name them after where they live, so you know which to remove when a device goes.'
         }
       >
@@ -80,7 +80,11 @@ export default async function PasskeySettingsPage({ searchParams }: PageProps) {
                       className={styles.danger}
                       aria-label={`Remove ${passkey.name}`}
                       disabled={isLast}
-                      title={isLast ? 'Your only passkey: add another first' : undefined}
+                      title={
+                        isLast
+                          ? 'Your only way in: add another passkey or an email first'
+                          : undefined
+                      }
                     >
                       Remove
                     </button>

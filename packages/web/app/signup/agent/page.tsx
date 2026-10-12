@@ -11,7 +11,7 @@ export const metadata = publicPageMetadata({
   path: '/signup/agent',
   title: 'Connect an agent',
   description:
-    'Sign up through your coding agent: one line for Claude Code, Codex, Cursor, Gemini CLI or any MCP client adds Gitstalk to your agent and opens your browser to pick a handle, save a passkey and approve the session.',
+    'Sign up through your coding agent: one line for Claude Code, Codex, Cursor, Gemini CLI or any MCP client adds Gitstalk to your agent and opens your browser to sign in with a passkey or an email code, pick a handle if you are new, and approve the session.',
 });
 /** The heading depends on who is signed in. */
 export const dynamic = 'force-dynamic';
@@ -19,8 +19,8 @@ export const dynamic = 'force-dynamic';
 /**
  * Sign up through your agent (`docs/claude-opus/16` §2.2, item 1.4): one command per harness
  * that installs the plugin (or adds the MCP server) and runs the client's own OAuth sign-in,
- * which opens `/connect`; with no account yet, that page asks for a handle and a passkey
- * first. Signed in, the same page connects another agent.
+ * which opens `/connect`; signed out, that page sends you through sign-in (a passkey or an email
+ * code; a new address picks a handle) first. Signed in, the same page connects another agent.
  */
 export default async function AgentSignupPage() {
   const user = await currentUser();
@@ -36,7 +36,7 @@ export default async function AgentSignupPage() {
         </h1>
         <p className={styles.lede}>
           {user === null
-            ? 'That is the whole sign-up: the command adds Gitstalk to your agent and opens your browser, where you pick a handle, save a passkey and approve the session.'
+            ? 'That is the whole sign-up: the command adds Gitstalk to your agent and opens your browser, where you sign in with a passkey or an email code (new here: pick a handle) and approve the session.'
             : 'The command adds Gitstalk to your agent and opens your browser; approve the session and it shows up on Home within seconds.'}
         </p>
         {user === null ? (

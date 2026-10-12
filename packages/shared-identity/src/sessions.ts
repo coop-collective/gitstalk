@@ -2,6 +2,7 @@
  * Web sessions: an opaque 32-byte id in the `__Host-bs_session` cookie, its SHA-256 in D1,
  * 30 days sliding. Revocation is a row update; "sign out everywhere" revokes every row.
  */
+import { auditStatement } from './audit';
 import { SESSION_COOKIE, readCookie } from './cookies';
 import type { Clock, IdentityEnv } from './identity-env';
 import { systemClock } from './identity-env';
@@ -22,6 +23,52 @@ export type WebSession = {
 };
 
 export type NewSession = { readonly secret: string; readonly expiresAt: number };
+
+/** How a person proved who they are; recorded on the audit row. */
+export type SignInMethod = 'passkey' | 'email';
+
+/**
+ * The statements that open a session and audit it, for the caller to batch with its own
+ * (a passkey's counter, a new user's row). Every sign-in method opens sessions this way.
+ * `signup` audits `user.signup` (target: the handle), `signin` audits `session.signin`.
+ */
+export async function openSessionStatements(
+  env: IdentityEnv,
+  input: {
+    readonly user: { readonly id: string; readonly handle: string };
+    readonly kind: 'signin' | 'signup';
+    readonly method: SignInMethod;
+    readonly userAgent: string | null;
+    readonly ip: string | null;
+    readonly now: number;
+  },
+): Promise<{ readonly session: NewSession; readonly statements: D1PreparedStatement[] }> {
+  const session = { secret: randomSecret(), expiresAt: input.now + SESSION_SECONDS * 1000 };
+  const audit = await auditStatement(
+    env,
+    input.kind === 'signup'
+      ? {
+          action: 'user.signup',
+          actorUserId: input.user.id,
+          target: input.user.handle,
+          ip: input.ip,
+          detail: { method: input.method },
+        }
+      : {
+          action: 'session.signin',
+          actorUserId: input.user.id,
+          ip: input.ip,
+          detail: { method: input.method },
+        },
+    input.now,
+  );
+  const insert = await sessionInsert(
+    env,
+    { userId: input.user.id, userAgent: input.userAgent, ...session },
+    input.now,
+  );
+  return { session, statements: [insert, audit] };
+}
 
 /** Opens a session for a user; the caller sets `secret` as the session cookie. */
 export async function createSession(

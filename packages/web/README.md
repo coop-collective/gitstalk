@@ -26,7 +26,7 @@ the stable line that only moves to validated sprout commits. See the public
 | Route | What it is |
 |---|---|
 | `/` | Home when signed in: first steps, your repositories and organisations, invitations, connected agent sessions, recent activity. Signed out, the marketing landing (when `SITE` is bound) or `/login` |
-| `/signup`, `/signup/agent`, `/login` | Accounts: a handle and a passkey, optional email links, Turnstile; sign-up through your agent's own OAuth flow |
+| `/login`, `/signup`, `/signup/agent` | One sign-in flow (`components/account/sign-in-flow.tsx`): continue with a passkey (autofill where supported) or an email and six-digit code; a new address picks a handle, then is offered a passkey; `/signup` also creates an account from a handle and a passkey. Turnstile when configured; `next` is kept on every step. Sign-up through your agent's own OAuth flow |
 | `/connect` | OAuth consent for an agent, opened by `gitstalk-mcp`'s `/authorize` |
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
 | `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk |
@@ -35,7 +35,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
 | `/<owner>/<repo>/settings/*` | General, visibility, branches, checks, collaborators, deploy tokens, secrets, Actions, social image, danger zone |
 | `/orgs`, `/orgs/new`, `/orgs/<org>/settings/*` | Organisations: members, repository defaults, secrets, audit log, danger zone |
-| `/settings/*` | Profile, account, emails, passkeys, SSH keys, personal access tokens, sessions, notifications |
+| `/settings/*` | Profile, account, emails (add or change the sign-in address by code), passkeys, SSH keys, personal access tokens, sessions, notifications |
 | `/setup.sh`, `/setup.ps1`, `/api/setup` | Git setup scripts for agents without the plugin, pointed at this deployment |
 | `/<owner>/<repo>.git/...`, `/v1/whoami` | Git smart HTTP and the credential check, forwarded to the gateway |
 | `/api/repos/<owner>/<repo>/live` | A repository's new engine events as Server-Sent Events |
@@ -108,7 +108,7 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
 | `app/` | Routes (thin): pages, route handlers, server actions' forms |
 | `components/` | UI by area: `shell`, `repository`, `repo-tabs`, `home` (Ask), `explorer`, `actions`, `automations`, `settings`, `orgs`, `account`, `admin`, plus the benchmark views (`canvas`, `race`, `runs`) |
 | `src/server/` | Server actions and page data loaders |
-| `src/auth/`, `src/account/`, `src/security/` | Sessions, passkeys, Turnstile, sign-out, response headers |
+| `src/auth/`, `src/account/`, `src/security/` | Sessions, the sign-in steps (`sign-in-steps.ts`) and email-code routes (`email-routes.ts`), passkeys, Turnstile, sign-out, response headers |
 | `src/repositories/`, `src/repo-pages/`, `src/changes/`, `src/history/`, `src/code/` | Gateway clients and the repository tabs' view models |
 | `src/actions/`, `src/automations/` | Actions client (gateway or fixture fake), log streaming, the automation builder |
 | `src/live/`, `src/stream/` | WebSocket-to-SSE bridges |
@@ -125,7 +125,7 @@ runs the script tests; change both together.
 
 ```bash
 pnpm install                                                # from the repo root
-cp packages/web/.dev.vars.example packages/web/.dev.vars    # optional: DEMO_PASSWORD, Turnstile test keys
+cp packages/web/.dev.vars.example packages/web/.dev.vars    # DEMO_PASSWORD, EMAIL_SIGNIN_KEY; optional Turnstile, email
 cd packages/web && npx wrangler d1 migrations apply gitstalk-identity --local   # once, local accounts
 pnpm -F @gitstalk/web dev          # vite dev, http://localhost:5173
 pnpm -F @gitstalk/web test         # vitest on the app's pure modules (src/**/*.test.ts)
@@ -141,7 +141,9 @@ remote session at start-up: it needs `wrangler login`, and with several accounts
 the gateway: run `pnpm -F @gitstalk/gateway dev` (and `pnpm -F @gitstalk/mcp dev --port 8788`
 for agent consent) in other terminals; Wrangler's dev registry connects the service bindings.
 Setting `ACTIONS_SOURCE=fixtures` in `.dev.vars` swaps the Actions control plane for the app's
-own fake.
+own fake. Email sign-in works locally with `EMAIL_SENDER_DOMAIN` set in `.dev.vars` (any
+domain): Miniflare simulates the `EMAIL` binding, sends nothing, and prints each message's
+subject, which carries the code.
 
 The tests run under plain vitest (no Miniflare): view models, the gateway and Actions clients
 against fakes, auth helpers, site forwarding and search headers, the setup API, and the
@@ -152,7 +154,7 @@ benchmark reducer.
 Bindings (`wrangler.jsonc`): services `GATEWAY`, `ACTIONS` (the gateway's `Actions`
 entrypoint) and `MCP`; D1 `IDENTITY_DB` (schema in `packages/shared-identity/migrations`);
 R2 `MEDIA`; `IMAGES`; rate limit `SIGNIN_RATE_LIMIT`; Analytics Engine `PRODUCT_EVENTS`;
-`AI`; static `ASSETS`. Environments that serve the site on this origin add `SITE`.
+`AI`; Email Service `EMAIL` (`send_email`, sign-in codes); static `ASSETS`. Environments that serve the site on this origin add `SITE`.
 
 Vars: `LOG_LEVEL`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `JEV_GATEWAY`,
 `EMAIL_SENDER_DOMAIN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_HOSTNAMES`, `TURNSTILE_TEST_KEYS`,
@@ -160,8 +162,11 @@ Vars: `LOG_LEVEL`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `JEV_GATEWAY`,
 `SSH_HOST_KEY_FINGERPRINT`, `ACTIONS_SOURCE`, `PLATFORM_ADMINS`. Each is explained in
 `wrangler.jsonc`.
 
-Secrets: `DEMO_PASSWORD` (required), `TURNSTILE_SECRET_KEY` (optional; Turnstile is on only with
-both it and the site key).
+Secrets: `DEMO_PASSWORD` and `EMAIL_SIGNIN_KEY` (required; the second is the HMAC key for email
+codes and pending sign-ups, generated by `pnpm env:provision`), `TURNSTILE_SECRET_KEY`
+(optional; Turnstile is on only with both it and the site key). Email sign-in is on when
+`EMAIL_SENDER_DOMAIN` names a domain onboarded to Cloudflare Email Sending (set per
+environment in `env.jsonc`; provision onboards it).
 
 Deploy through an environment: `pnpm env:provision <env>`, `pnpm env:secrets <env>`, then
 `pnpm env:deploy <env> --only web` (see

@@ -5,3 +5,8 @@ DEMO_PASSWORD=
 # Locally, Cloudflare's test pair works: site key 1x00000000000000000000AA with this secret
 # and TURNSTILE_TEST_KEYS=allow. Never commit a real secret.
 # TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+# Email sign-in codes: the HMAC key (any random string locally, e.g. `openssl rand -base64 32`).
+# Email sign-in also needs EMAIL_SENDER_DOMAIN (e.g. example.test locally); Miniflare simulates
+# sending and prints where each message (with its code) was saved.
+EMAIL_SIGNIN_KEY=
+# EMAIL_SENDER_DOMAIN=example.test
