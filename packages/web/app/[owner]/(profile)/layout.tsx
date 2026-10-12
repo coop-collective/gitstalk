@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { viewerProfile } from '../../../src/server/header-data';
 import type { OwnerParams } from '../../../src/server/owner-page';
 import { pageOwner } from '../../../src/server/owner-page';
 
@@ -16,6 +17,7 @@ export default async function ProfileLayout({
   readonly children: ReactNode;
   readonly params: OwnerParams;
 }) {
-  await pageOwner(params);
+  // The header's profile is read beside the owner, not after it (see `viewerProfile`).
+  await Promise.all([pageOwner(params), viewerProfile()]);
   return children;
 }

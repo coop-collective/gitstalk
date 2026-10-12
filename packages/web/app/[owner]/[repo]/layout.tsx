@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { viewerProfile } from '../../../src/server/header-data';
 import type { RepositoryParams } from '../../../src/server/repository-page';
 import { repositoryPage } from '../../../src/server/repository-page';
 
@@ -17,6 +18,7 @@ export default async function RepositoryLayout({
   readonly children: ReactNode;
   readonly params: RepositoryParams;
 }) {
-  await repositoryPage(params);
+  // The header's profile is read beside the check, not after it (see `viewerProfile`).
+  await Promise.all([repositoryPage(params), viewerProfile()]);
   return children;
 }

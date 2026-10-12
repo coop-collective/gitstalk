@@ -5,7 +5,7 @@ import { Avatar } from '../account/avatar';
 import { currentSession } from '../../src/auth/user';
 import { configuredPlatformAdmins } from '../../src/admin/admin-gate';
 import { isPlatformAdmin } from '../../src/admin/platform-admins';
-import { cachedProfile } from '../../src/server/header-data';
+import { viewerProfile } from '../../src/server/header-data';
 import { viewerTheme } from '../../src/server/viewer';
 import { NEW_MENU, primaryLinks, userMenu } from '../../src/shell/header-entries';
 import { IntentLink as Link } from './intent-link';
@@ -20,16 +20,13 @@ import { VineMark } from './vine-mark';
  * area for platform admins, connect an agent, docs, day or night, sign out). Signed out: the theme pair, Sign in and Sign up.
  */
 export async function SiteHeader() {
-  const theme = viewerTheme();
-  const session = await currentSession();
+  const [resolvedTheme, session, profile] = await Promise.all([
+    viewerTheme(),
+    currentSession(),
+    viewerProfile(),
+  ]);
   const user = session?.user ?? null;
   const links = primaryLinks(user?.handle ?? null);
-  // The profile needs the session's user id, so it starts the moment the session is known and
-  // runs beside the theme cookie read.
-  const [resolvedTheme, profile] = await Promise.all([
-    theme,
-    user === null ? null : cachedProfile(user.id),
-  ]);
   return (
     <header className={styles.header}>
       <Link href="/" className={styles.brand} aria-label="gitstalk home">
