@@ -1,10 +1,10 @@
 # 19 · Accounts and authentication
 
-Built 2026-10-07 on branch `auth-accounts` (from `prototype` at `fed4f54`). This is Phase 1 items 1.1–1.3 and part of 1.5 from `16-product-backlog.md`: people sign up and sign in, agents connect over MCP OAuth, and git gets user tokens. Everything runs on Cloudflare: D1, KV, Workers Rate Limiting, Email Service (built, off), and two open-source libraries inside Workers (`@cloudflare/workers-oauth-provider`, `@simplewebauthn/server` and `/browser`). No third-party service is in any request path.
+Built 2026-10-07 on branch `auth-accounts` (from `prototype` at `fed4f54`). This is Phase 1 items 1.1–1.3 and part of 1.5 from `16-product-backlog.md`: people sign up and sign in, agents connect over MCP OAuth, and git gets user tokens. Everything runs on Cloudflare: D1, KV, Workers Rate Limiting, Email Service (sign-in codes, §6), and two open-source libraries inside Workers (`@cloudflare/workers-oauth-provider`, `@simplewebauthn/server` and `/browser`). No third-party service is in any request path.
 
-**Owner decisions applied:** 100% Cloudflare; vinext web; OAuth on MCP; passkeys are the primary sign-up path (Coop, 2026-10-07); email magic links are built and tested but switched off and hidden until a sender domain is configured.
+**Owner decisions applied:** 100% Cloudflare; vinext web; OAuth on MCP; passkeys are the primary sign-up path (Coop, 2026-10-07); email sign-in by six-digit code next to passkeys, with a handle step for new addresses (Coop, 2026-10-11: "i can only signup with handle, we should have a login with email, passkey, and send a code via cloudflare workers email"; §6). The magic links built on 10-07 never went on and are removed.
 
-**Open for Coop:** the sender domain for sign-in mail (§6). That is the only thing blocking email sign-in. Since §10 (Phase 1 polish): the Turnstile widget for live, the plugin's home (which GitHub organisation), and merging this branch so the public marketplace serves the fixed `.mcp.json` (§10.5).
+**Open for Coop:** deploying email sign-in to production (§6.6). Since §10 (Phase 1 polish): the Turnstile widget for live, the plugin's home (which GitHub organisation), and merging this branch so the public marketplace serves the fixed `.mcp.json` (§10.5).
 
 ## 1. What works on staging
 
@@ -46,7 +46,7 @@ Screenshots (night and day): `exp/auth/signup-*.png`, `login-*.png`, `consent-*.
 ```
  browser ──▶ beanstalk-web (vinext)            Claude Code / Codex / any MCP client
              /signup /login /connect /settings        │  401 + resource_metadata
-             /api/auth/passkey/* /auth/*               ▼
+             /api/auth/{passkey,email}/* /auth/*       ▼
                 │ D1 IDENTITY_DB              beanstalk-mcp
                 │ RPC (MCP binding):            OAuthProvider (workers-oauth-provider)
                 │  consentRequest, approve…     /.well-known/*, /oauth/register, /oauth/token
@@ -56,7 +56,7 @@ Screenshots (night and day): `exp/auth/signup-*.png`, `login-*.png`, `consent-*.
  git ──▶ beanstalk-gateway  verifyGitCredential: bst1. run tokens | bsu_/bss_ user tokens (D1)
 ```
 
-- **One D1 database, `beanstalk-identity`**, bound as `IDENTITY_DB` in web, MCP and gateway. Schema in `packages/shared-identity/migrations/` (users, passkeys, web_sessions, auth_challenges, magic_links, user_tokens, audit_events). Apply it from the web package: `wrangler d1 migrations apply beanstalk-identity --remote`.
+- **One D1 database, `beanstalk-identity`**, bound as `IDENTITY_DB` in web, MCP and gateway. Schema in `packages/shared-identity/migrations/` (users, passkeys, web_sessions, auth_challenges, email_codes, user_tokens, audit_events, and the unused magic_links). Apply it from the web package: `wrangler d1 migrations apply beanstalk-identity --remote`.
 - **Why D1, not a Durable Object.** Identity is read from three Workers and looked up by globally unique keys (handle, email, credential id, token hash, session hash). D1 gives unique constraints, joins (token → user) and later read replication, with no single-threaded hot spot. One global DO would serialise every sign-in and token check; sharding DOs by user breaks lookups by email, handle or token. Per-repository state stays in RepoDOs as `16` §3.2 plans.
 - **Why no `beanstalk-identity` Worker yet.** `16` §3.1 plans one; the brief asked for functions in a shared package, so the logic is a library (`@gitstalk/shared-identity`) that each Worker calls against its own binding. Wrapping it in a Worker with RPC later changes no schema and no caller signature.
 - **OAuth lives in the MCP Worker** (issuer = its origin), and the consent screen is the web app's `/connect`. On workers.dev they are two origins, so the library's cookie-bound consent helpers can't be used across them; instead `/authorize` validates the request (`parseAuthRequest`, `describeConsent`), stores it in KV for ten minutes under the hash of a random id, and redirects to `/connect?request=<id>`. The first signed-in person to open it claims it; approve/deny consume it; the web form carries the session CSRF token. In production `16` §3.1 puts both on one zone, which changes nothing here.
@@ -99,36 +99,106 @@ All in `packages/shared-identity/src/` (import `@gitstalk/shared-identity/<modul
 - **Passkeys (primary):** discoverable credentials (`residentKey: required`), `attestation: none`, ES256/RS256/EdDSA via `@simplewebauthn/server`. Each options request stores a single-use challenge for five minutes (hashed handle in the `__Host-bs_challenge` cookie). Sign-up creates user + passkey + session + audit in one D1 batch; a handle race is caught by the unique constraint. RP ID is the request host (workers.dev is on the public suffix list, so the full host is the RP). A person can add passkeys and remove any but the last.
 - **Sessions:** 32 random bytes in `__Host-bs_session` (HttpOnly, Secure, SameSite=Lax, Path=/), SHA-256 in D1, 30 days sliding (one write a day), sign out and sign out everywhere.
 - **CSRF:** every state-changing endpoint checks `Origin` (or `Sec-Fetch-Site: same-origin` when the origin is withheld); signed-in forms also carry a session-bound token (hash of the session secret); passkey endpoints require `application/json`.
-- **Rate limits:** Workers Rate Limiting binding `SIGNIN_RATE_LIMIT`, 10 per minute per IP and per handle or email (keys hashed).
-- **Turnstile** (§10.1): the start of a passkey sign-up or sign-in (the `options` step) and the email forms carry a Turnstile token; the server redeems it at Siteverify and requires `success`, the surface's action (`signup` or `signin`) and this deployment's hostname, after the rate limit. On only when both `TURNSTILE_SITE_KEY` and the `TURNSTILE_SECRET_KEY` secret are set (coordinator's decision, 2026-10-08); with either missing it is off and logged as half configured, so sign-in and sign-up work exactly as without it.
+- **Rate limits:** Workers Rate Limiting binding `SIGNIN_RATE_LIMIT`, 10 per minute per key (keys hashed): per IP for passkey ceremonies, per IP for sending codes and separately for checking them, per address, per handle and per signed-in person (§6). Email codes add a D1 cap of five codes an address an hour.
+- **Turnstile** (§10.1): the start of a passkey sign-up or sign-in (the `options` step) and the email form carries a Turnstile token; the server redeems it at Siteverify and requires `success`, the surface's action (`signup` or `signin`) and this deployment's hostname, after the rate limit. On only when both `TURNSTILE_SITE_KEY` and the `TURNSTILE_SECRET_KEY` secret are set (coordinator's decision, 2026-10-08); with either missing it is off and logged as half configured, so sign-in and sign-up work exactly as without it.
 - **Constant-time compares** for token and CSRF checks; every secret stored only as SHA-256; tokens never logged (logs carry ids and reasons only).
-- **Audit events** in D1: `user.signup`, `session.signin`/`signout`/`signout_all`, `passkey.add`/`remove`, `magic_link.request`, `token.create`/`revoke`, `session_token.mint`, `oauth.grant`/`deny`/`revoke`.
+- **Audit events** in D1: `user.signup` and `session.signin` (detail `method`: `passkey` or `email`), `session.signout`/`signout_all`, `passkey.add`/`remove`, `email_code.send` (detail `purpose`), `email.add`, `token.create`/`revoke`, `session_token.mint`, `oauth.grant`/`deny`/`revoke`.
 - Account pages send `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `Referrer-Policy: same-origin` and `no-store`. (`no-referrer` made Chrome send `Origin: null` on form posts, which the origin check refused; caught on staging.)
 - OAuth redirect URIs: a fuzz test of 11 variants (path traversal, trailing slash, extra query, case, other host, https on loopback, fragment, `javascript:`, scheme-relative, userinfo tricks) never redirects; another port on loopback is allowed by design (RFC 8252 §7.3). Plain PKCE and missing PKCE are refused. `workers-oauth-provider` is pinned to 1.2.3 (`16` notes its 2025 redirect-URI CVE).
 
-## 6. Email magic links (built, off)
+## 6. Email sign-in by code
 
-`packages/shared-identity/src/magic-links.ts`: 32-byte token, hashed, single use, 15 minutes, bound to the asking browser (`__Host-bs_preauth`); the request never reveals whether an address has an account (no account and no handle → a "sign up here" mail without a link). Tested with a fake Email Service binding (5 tests). The web app hides every email control and `/api/auth/email` answers 404 until **both** are set:
+Built 2026-10-11 (branch `auth-email-sign-in`). It replaces the magic links of 10-07, which never went on. Two ways in, on one page: **a passkey** or **an email address and a six-digit code**. A new address chooses a handle; a passkey is then offered, skippable.
 
-1. `EMAIL_SENDER_DOMAIN` in `packages/web/wrangler.jsonc` vars (mail comes from `signin@<domain>`), and
-2. `"send_email": [{ "name": "EMAIL" }]` in the same file, after `wrangler email sending enable <domain>`.
+### 6.1 The flows
 
-**Coop decides:** the sender domain. It has to be a domain on the Cloudflare account, onboarded to Email Sending (SPF/DKIM set up by the onboarding). It is tied to the product domain decision in `16` (beanstalk.sh, beanstalk.build, beanstalkgit.com were free on 10-06); a subdomain such as `mail.<domain>` keeps sign-in mail reputation separate.
+`/login` and `/signup` render the same flow (`web/components/account/sign-in-flow.tsx`); steps are `?step=` on the entry page (`web/src/auth/sign-in-steps.ts`), and `next` (a path on this site only, `NextPath`) rides on every step and every form.
+
+| Who | Steps |
+|---|---|
+| Returning, passkey | `/login` → "Continue with a passkey" (discoverable credential), or pick the passkey from the email field's autofill (WebAuthn conditional UI, where the browser supports it and Turnstile is off) → `next` |
+| Returning, email | `/login` → email → "Continue with email" → `?step=code` "Check your email" → code → signed in → `next` |
+| New, email | same as above; the verified address has no account → `?step=handle` "Choose your handle" → account created with the address verified → `?step=passkey` "Add a passkey for faster sign-in" (Add, or Skip) → `next` |
+| New, passkey | `/signup` → handle → "Create account with a passkey" → `next`. No email: Settings → Emails and Settings → Passkeys say how to add one, and the last passkey cannot be removed until an address is verified |
+| Existing account without email | Settings → Emails → address → "Send code" → code → "Verify address"; from then on email sign-in works for it |
+| Agent (OAuth) | the agent's `/authorize` → `/connect?request=…` → signed out: `/login?next=/connect?request=…` → any of the above (handle step if new) → back to `/connect` → Allow |
+
+Every email step is a plain form post to `POST /api/auth/email/<step>` (`web/src/auth/email-routes.ts`), answered with a 303, so it works without JavaScript: `start`, `verify`, `handle` (signed out) and `add`, `confirm` (Settings, signed in, CSRF token). Only the passkey ceremonies need JavaScript.
+
+### 6.2 Codes (`shared-identity/src/email-codes.ts`)
+
+- Six uniformly random digits (rejection sampling), **10 minutes**, **single use**, **five tries**. A wrong code says how many tries are left; the fifth wrong try, an expired code or a used one sends the person back to ask for a new one.
+- The browser that asked keeps a random 32-byte **ticket** in `__Host-bs_email` (HttpOnly, 10 minutes); the `email_codes` row (migration `0007`) is keyed by the ticket's SHA-256, and the code is stored only as **HMAC-SHA-256 under `EMAIL_SIGNIN_KEY`**, bound to the ticket. A database read alone cannot recover a code (a plain hash of six digits falls to a million guesses), and a code is useless without the ticket of the browser that asked.
+- Every check spends a try before comparing (one `UPDATE … attempts = attempts + 1 … RETURNING`), so parallel guesses cannot exceed five; the comparison is constant-time; the right code is claimed once (`used_at`).
+- At most **five codes per address per hour** (counted in D1): with five tries each, at most 25 guesses in a million per address per hour. On top, the rate limiter: sending is limited per IP and per address, checking per IP (separate budgets from the passkey ceremonies, whose autofill asks for options on each sign-in page load).
+- **No enumeration:** asking for a code sends the same mail and gives the same answer whether or not the address has an account. Only after the code is entered does the flow differ (sign in, or choose a handle), when the person has proved they read that inbox.
+- Addresses are trimmed and lower-cased (`Email` in `users.ts`); `users.email` is `UNIQUE COLLATE NOCASE` and set only once verified.
+- Audit: `email_code.send` (purpose), then `session.signin` or `user.signup` with `method: email`, and `email.add` from Settings.
+
+### 6.3 New accounts (`shared-identity/src/email-sign-in.ts`)
+
+- A verified address with no account gets a **pending sign-up**: `base64url(email, expiry) . HMAC` under `EMAIL_SIGNIN_KEY`, in `__Host-bs_signup` (HttpOnly, 15 minutes). The handle step accepts only a pending sign-up that verifies and has not expired, so nobody can create an account for an address they did not prove.
+- Handles follow the same rules as everywhere (`Handle`: 2–39 characters, reserved words refused, `isHandleTaken` covers people, organizations and retired handles). The user row, the session and the audit row are one D1 batch; a handle race is caught by the unique constraint. If another tab created an account for the same address meanwhile, that account is signed in instead.
+- Sessions open exactly as for passkeys: `openSessionStatements` (`sessions.ts`) is the one place that inserts a session and its audit row, used by passkey sign-up and sign-in and by both email paths.
+
+### 6.4 Sending (Cloudflare Email Service)
+
+- The web binds `send_email` as `EMAIL` (Email Sending, not Email Routing's `send_email`, which reaches only verified destination addresses). Mail comes from `Gitstalk <signin@<EMAIL_SENDER_DOMAIN>>`: `gitstalk.io` in production, `gitstalk.dev` on staging, set per environment in `env.jsonc` (`overrides.web.vars.EMAIL_SENDER_DOMAIN`). Email sign-in is on only when the domain, the binding and the `EMAIL_SIGNIN_KEY` secret are all present; otherwise every email control is hidden and the routes answer 404.
+- Text: "Your Gitstalk sign-in code is 123456. It expires in 10 minutes. If you didn't ask for it, ignore this email." (plain text and simple HTML; the subject is "123456 is your Gitstalk sign-in code"; Settings sends "verification code").
+- Identity code sends through the `EmailPort` (`shared-identity/src/email.ts`); `emailServicePort` wraps the binding, and tests use `testing/capturing-email.ts`. Locally Miniflare simulates the binding and prints each message's subject (with the code), so `vite dev` sends nothing.
+- `pnpm env:provision <env>` onboards the domain to Email Sending when it is not yet (`wrangler email sending enable`, which adds the SPF, DKIM and bounce MX records) and generates `EMAIL_SIGNIN_KEY`; `pnpm env:smoke` checks that `/login` shows the email form exactly when a domain is set. Both `gitstalk.io` and `gitstalk.dev` were already onboarded (2026-10-11; DKIM `cf-bounce._domainkey`, bounce MX `cf-bounce`, `_dmarc` `p=reject`), so sending needs no dashboard step.
+
+### 6.5 Verified on staging (2026-10-11)
+
+Deployed to staging only: migration `0007` applied to `gitstalk-identity-staging`, web `gitstalk-web-staging` version `1ae0970e`. `pnpm env:smoke staging` passes (including "/login (email sign-in on)").
+
+To receive real mail without sending to anyone else, Email Routing was turned on for `gitstalk.dev` and two addresses, `e2e-a@` and `e2e-b@gitstalk.dev`, route to a small capture Worker (`gitstalk-e2e-inbox-staging`, kept in the session scratchpad, not the repo) that keeps the newest code per address for ten minutes behind a bearer token. So the codes went through Email Sending, real SMTP delivery (about 20 s) and Email Routing; no staging-only hook exists in the product. Headless Chrome with a CDP virtual authenticator:
+
+| Check | Result |
+|---|---|
+| `/login?next=/settings/tokens` → email → code page names the address | pass |
+| Wrong code → "That code is not right. 4 tries left." | pass |
+| Right code, new address → "Choose your handle", `next` kept | pass |
+| Reserved handle (`admin`) refused | pass |
+| Account created → passkey offered → Add a passkey → lands on `next` | pass |
+| Sign out → email code again → signed straight in at `next` | pass |
+| Sign out → "Continue with a passkey" → `next` | pass |
+| Sign out → passkey from autofill (conditional UI) → `next` | pass |
+| Settings → Emails → change to `e2e-b@` by code → verified | pass |
+| Sign out → sign in with `e2e-b@` → same account | pass |
+| Account deleted | pass |
+| `claude mcp login` (Claude Code 2.1.296, staging MCP): agent link → `/login?next=/connect…` → Create an account → handle + passkey → consent → Allow → ✔ Connected, `whoami` = the new handle | pass |
+| The same with email sign-up (code → handle → Skip the passkey) → consent → Allow → ✔ Connected, `whoami` = the new handle | pass |
+
+Every test account (`email-…`) was deleted through Settings → Account; a final query found none left. The capture Worker, its KV namespace and the two routing rules stay for the next run (delete them, or turn Email Routing off for `gitstalk.dev`, when no longer wanted).
+
+### 6.6 Production
+
+Production's `env.jsonc` sets `EMAIL_SENDER_DOMAIN` to `gitstalk.io` and its local secrets file holds a new `EMAIL_SIGNIN_KEY`; nothing was deployed there. To turn it on: `pnpm env:provision production` (applies migration `0007`; the domain is already onboarded), then `pnpm env:deploy production --only web` and `pnpm env:smoke production`. CI deploys read secrets from `GITSTALK_SECRETS_JSON`: run `pnpm env:secrets production --to-github <owner>/<deploy-repo>` first, or provision generates a different key there (harmless before launch: it only invalidates codes in flight).
+
+### 6.7 Rough edges
+
+- The passkey autofill asks for sign-in options on each load of the sign-in start page, which counts against the per-IP passkey limit (10 a minute); a person reloading the page many times in a minute, or many people behind one address, can see "Too many attempts" on the passkey button. Email has its own budgets.
+- With Turnstile on, autofill is off (the options request needs a token before anyone has interacted); the button and email still work.
+- An account has one address: Settings changes it rather than adding a second.
+- The table `magic_links` is unused and stays until a later migration drops it, so a deployment still running older code during a rollout keeps working.
 
 ## 7. Not done, and why
 
 - **Gateway staging not redeployed.** The staging gateway hosts other agents' live races (its RunDOs would pick up this branch's code mid-race, and its container image would rebuild). `verifyGitCredential` and `/v1/whoami` are covered by Miniflare tests (5) instead. Deploying it needs only the `IDENTITY_DB` binding added to the staging template.
 - `beanstalk-web-staging` was redeployed from this branch (previous version `17a5b302`, deployed by another agent at 06:56Z; `wrangler rollback` restores it).
-- Not in this change: the six-digit email code, orgs/teams, a separate identity Worker. Since done: Turnstile, the plugin's OAuth `.mcp.json`, Home and product events (§10); repository-scoped authorization (`20`, `22`).
+- Not in this change: orgs/teams, a separate identity Worker. Since done: the six-digit email code (§6), Turnstile, the plugin's OAuth `.mcp.json`, Home and product events (§10); repository-scoped authorization (`20`, `22`).
 
 ## 8. Tests
 
 | Package | New tests | What |
 |---|---|---|
-| `shared-identity` | 33 | passkey sign-up/sign-in/add/remove with a software ES256 authenticator (real CBOR and DER), wrong origin, challenge expiry and single use, handle races; sessions (sliding, revoke, everywhere, CSRF); tokens (hash at rest, scopes, expiry, revoke, ownership, session tokens die with their client); magic links (browser binding, single use, expiry, no enumeration); the real rate-limit binding; handles; same-origin checks |
+| `shared-identity` | 33 | passkey sign-up/sign-in/add/remove with a software ES256 authenticator (real CBOR and DER), wrong origin, challenge expiry and single use, handle races; sessions (sliding, revoke, everywhere, CSRF); tokens (hash at rest, scopes, expiry, revoke, ownership, session tokens die with their client); the real rate-limit binding; handles; same-origin checks |
 | `mcp` | 25 | discovery metadata and the 401 challenge, DCR, authorize → consent → token, wrong/missing PKCE, code replay, refresh, revocation, deny, consent claimed by one person, connected sessions and revoke (with session git tokens), redirect-URI fuzz, PATs on `/mcp`, run tokens still routed to the old path |
 | `gateway` | 5 | `verifyGitCredential` for run, personal and session tokens; `/v1/whoami`; user tokens refused on race repos |
 | `web` | 4 | safe `next` paths, relying party, cross-site refusal |
+| `shared-identity` (2026-10-11) | 17 | email codes (`test/email-sign-in.test.ts`): the agreed text, HMAC-only storage, single use, spaces typed in a code, the asking browser's ticket only, ten-minute expiry, five tries then refused, five codes an address an hour, sign-in and Settings codes kept apart; no enumeration (same answer and same mail for a known and an unknown address); existing account signed in with a session like a passkey's and audited `method: email`; new address → pending sign-up → account with the address verified; forged, foreign-key or expired pending sign-ups refused; taken, retired handles refused; a second tab's account signed in; Settings add then sign in; an address another account has refused |
+| `web` (2026-10-11) | 5 | `next` kept on the code, handle and passkey steps; mode kept; a `next` that leaves the site never carried; step errors and tries read, junk ignored |
 
 ## 9. Connecting git
 
@@ -210,7 +280,7 @@ remote:   3. CI and scripts: a deploy token in GITSTALK_TOKEN (the repository pa
 
 ## 10. Phase 1 polish: Turnstile, the plugin line, Home, product events
 
-Built 2026-10-07 on a worktree branch from `prototype` at `b58cf65`: backlog `16` items 1.4, 1.6, 1.7 and the Turnstile half of 1.2. Email magic links are unchanged (off until the sender domain, §6).
+Built 2026-10-07 on a worktree branch from `prototype` at `b58cf65`: backlog `16` items 1.4, 1.6, 1.7 and the Turnstile half of 1.2. Email sign-in came later (§6).
 
 ### 10.1 Turnstile on sign-in and sign-up
 
