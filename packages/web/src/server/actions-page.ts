@@ -23,9 +23,11 @@ export type ActionsAccess = {
 };
 
 export async function actionsPage(params: RepositoryParams): Promise<ActionsPage> {
-  const page = await repositoryPage(params);
+  // The session (for the CSRF token) is read beside the repository, not after it: the two
+  // lookups are independent, and a serial pair cost a round trip on every maintainer's page.
+  const [page, viewerSession] = await Promise.all([repositoryPage(params), currentSession()]);
   const canMaintain = page.role === 'owner' || page.role === 'maintain';
-  const session = canMaintain ? await currentSession() : null;
+  const session = canMaintain ? viewerSession : null;
   const actor = page.user === null ? null : { id: page.user.id, handle: page.user.handle };
   const actions = await actionsSession({ actor, repoId: page.record.id });
   return {

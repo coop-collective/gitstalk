@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DispatchInput, Job } from './actions-contract';
+import type { DispatchInput, Job, RunDetail } from './actions-contract';
+import { RunDetail as RunDetailSchema } from './actions-contract';
 import { dispatchInputsOf, filterHref, runFilterOf } from './run-filters';
-import { cronWords, focusJob, formatDuration, jobColumns, stateOf } from './run-view';
+import {
+  cronWords,
+  focusJob,
+  formatDuration,
+  isRunDetail,
+  jobColumns,
+  optimisticRun,
+  stateOf,
+} from './run-view';
 
 function job(id: string, needs: readonly string[], conclusion: Job['conclusion'] = 'success'): Job {
   return {
@@ -137,5 +146,45 @@ describe('dispatch inputs', () => {
     expect(
       dispatchInputsOf(declared, form({ 'input:environment': 'staging', 'input:count': 'ten' })).ok,
     ).toBe(false);
+  });
+});
+
+describe('the run page status', () => {
+  const live: RunDetail = RunDetailSchema.parse({
+    id: 'run1',
+    number: 1,
+    attempt: 1,
+    workflowName: 'ci',
+    workflowId: '.github/workflows/ci.yml',
+    event: 'push',
+    status: 'in_progress',
+    conclusion: null,
+    branch: 'stalk',
+    sha: 'abc1234',
+    title: '',
+    bean: null,
+    actor: { kind: 'schedule' },
+    createdAt: '2026-10-11T00:00:00Z',
+    startedAt: '2026-10-11T00:00:01Z',
+    completedAt: null,
+    billedMinutes: 0,
+    reason: null,
+    jobs: [],
+    annotations: [],
+    summary: null,
+    inputs: {},
+    workflowPath: '.github/workflows/ci.yml',
+    canRerun: true,
+  });
+
+  it('shows a cancel as finished and cancelled, and a re-run as queued', () => {
+    expect(stateOf(optimisticRun(live, 'cancel'))).toBe('cancelled');
+    expect(stateOf(optimisticRun(live, 'rerun'))).toBe('queued');
+  });
+
+  it('recognises a run and rejects an error body', () => {
+    expect(isRunDetail(live)).toBe(true);
+    expect(isRunDetail({ error: { message: 'no such run' } })).toBe(false);
+    expect(isRunDetail(null)).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { ActionsOff, ActionsShell } from '../../../../../../components/actions/actions-shell';
 import { RunView } from '../../../../../../components/actions/run-view';
-import { focusJob } from '../../../../../../src/actions/run-view';
+import { focusJob, initialLog } from '../../../../../../src/actions/run-view';
 import { actionsPage } from '../../../../../../src/server/actions-page';
 
 type PageProps = {
@@ -36,15 +36,18 @@ export default async function RunPage({ params, searchParams }: PageProps) {
   const asked = query['job'];
   const job =
     run.value.jobs.find((candidate) => candidate.id === asked) ?? focusJob(run.value.jobs);
-  const lines = job === null ? null : await page.actions.log(run.value.id, job.id, 0);
+  const lines = job === null ? null : await initialLog(page.actions, run.value.id, job);
   return (
     <ActionsShell page={page} view="actions" mode={page.actions.mode}>
       <RunView
+        uid={page.user?.id ?? null}
+        owner={page.record.owner.handle}
+        repo={page.record.name}
         base={page.base}
         apiBase={`/api/repos/${encodeURIComponent(page.record.owner.handle)}/${encodeURIComponent(page.record.name)}/actions`}
         run={run.value}
         jobId={job?.id ?? null}
-        lines={lines?.ok === true ? lines.value.lines : null}
+        lines={lines}
         access={page.access}
         nowMs={Date.now()}
       />
