@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseRaceEvents } from '@gitstalk/shared-ask/race/race-events';
-import { authorText, changesOf, groupCounts, inGroup } from './changes';
+import {
+  authorText,
+  changesOf,
+  groupCounts,
+  inGroup,
+  isSettledState,
+  latestActivityMs,
+  shownGroup,
+  stateText,
+} from './changes';
 import { GREETER_EVENTS, GREETER_PUSHED } from './testing/greeter';
 
 describe('the Changes tab of a real repository', () => {
@@ -74,5 +83,44 @@ describe('the Changes tab of a real repository', () => {
     expect(change).toMatchObject({ title: 'Coupons cap', state: 'red', collided: ['t000'] });
     expect(authorText(change?.author ?? null)).toBe('session a3');
     expect(change?.journey.at(-1)).toMatchObject({ tone: 'rework', beans: ['t000'] });
+  });
+});
+
+describe('how the Changes tab shows its lists', () => {
+  const changes = changesOf(GREETER_EVENTS, GREETER_PUSHED);
+
+  it('shows the group asked for, else open beans when there are any, else landed ones', () => {
+    expect(shownGroup('parked', changes)).toBe('parked');
+    expect(shownGroup(null, changes)).toBe('open');
+    expect(shownGroup('everything', inGroup(changes, 'landed'))).toBe('landed');
+  });
+
+  it('reads each state as a person would say it', () => {
+    expect(changes.map((change) => stateText(change.state)).toSorted()).toEqual([
+      'on the stalk',
+      'on the stalk',
+      'red',
+    ]);
+    expect(stateText('fell-off')).toBe('fell off');
+  });
+
+  it('settles a bean once it is validated, parked or fell off', () => {
+    expect([
+      isSettledState('validated'),
+      isSettledState('parked'),
+      isSettledState('fell-off'),
+    ]).toEqual([true, true, true]);
+    expect([isSettledState('checking'), isSettledState('red'), isSettledState('landed')]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('measures "ago" from the newest activity when it is later than the render', () => {
+    const newest = Math.max(...changes.map((change) => change.updatedAt ?? 0));
+    expect(latestActivityMs(changes, 0)).toBe(newest);
+    expect(latestActivityMs(changes, newest + 1000)).toBe(newest + 1000);
+    expect(latestActivityMs([], 5)).toBe(5);
   });
 });
