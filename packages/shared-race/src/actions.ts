@@ -340,6 +340,9 @@ export type RunFilter = {
   /** Only GitHub workflows' runs, or only automations'. */
   readonly kind?: 'workflow' | 'automation';
   readonly status?: ActionsStatus;
+  readonly event?: ActionsEvent;
+  /** The commit the run checked out: a full sha or a prefix of at least 7 characters. */
+  readonly sha?: string;
   /** Newest first; at most 100 (default 25). */
   readonly limit?: number;
   /** The `next` cursor of the previous page. */
@@ -689,6 +692,11 @@ export const RunFilterSchema = z.object({
   workflowPath: z.string().max(200).optional(),
   kind: z.enum(['workflow', 'automation']).optional(),
   status: Status.optional(),
+  event: z.enum(ACTIONS_EVENTS).optional(),
+  sha: z
+    .string()
+    .regex(/^[0-9a-f]{7,40}$/)
+    .optional(),
   limit: z.number().int().min(1).max(100).optional(),
   cursor: z.string().max(100).optional(),
 });

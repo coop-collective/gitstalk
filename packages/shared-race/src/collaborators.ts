@@ -128,7 +128,7 @@ export type InviteInput = z.input<typeof InviteInput>;
 /** An agent (MCP session or personal token) asking about a repository for its person. */
 export type AgentPrincipal = {
   readonly user: RepoOwner;
-  /** The session's account scopes: `read`, `collaborate`, `write`. */
+  /** The session's account scopes: `read`, `collaborate`, `write`, `secrets`. */
   readonly scopes: readonly string[];
   /** The client the person approved ("Claude Code"), for the repository's sessions list. */
   readonly label: string;

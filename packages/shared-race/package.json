@@ -16,6 +16,7 @@
     "./deploy-tokens": "./src/deploy-tokens.ts",
     "./read-maps": "./src/read-maps.ts",
     "./agent-repos": "./src/agent-repos.ts",
+    "./agent-actions": "./src/agent-actions.ts",
     "./collaborators": "./src/collaborators.ts",
     "./engine-feed": "./src/engine-feed.ts",
     "./repo-events": "./src/repo-events.ts",
