@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 
+import type { AgentActionsRpc } from '@gitstalk/shared-race/agent-actions';
 import type { AgentReposRpc } from '@gitstalk/shared-race/agent-repos';
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
 
@@ -23,6 +24,33 @@ const AGENT_METHODS = [
   'agentClaimTask',
   'agentReleaseTask',
 ] as const satisfies readonly (keyof AgentReposRpc)[];
+
+const ACTIONS_METHODS = [
+  'agentWorkflows',
+  'agentRuns',
+  'agentRun',
+  'agentJobLog',
+  'agentDispatch',
+  'agentRerun',
+  'agentCancel',
+  'agentWaitRun',
+  'agentActionsEntries',
+  'agentPutSecret',
+  'agentDeleteSecret',
+  'agentPutVariable',
+  'agentDeleteVariable',
+  'agentAutomation',
+  'agentRunAutomation',
+] as const satisfies readonly (keyof AgentActionsRpc)[];
+
+/** The binding as `AgentActionsRpc`, or undefined when the gateway predates it. */
+export function asAgentActions(binding: object): AgentActionsRpc | undefined {
+  return isAgentActions(binding) ? binding : undefined;
+}
+
+function isAgentActions(binding: object): binding is AgentActionsRpc {
+  return ACTIONS_METHODS.every((method) => typeof Reflect.get(binding, method) === 'function');
+}
 
 /** The binding as `AgentReposRpc`, or undefined when it does not answer to it. */
 export function asAgentRepos(binding: object): AgentReposRpc | undefined {

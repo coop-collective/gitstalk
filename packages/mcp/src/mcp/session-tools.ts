@@ -19,7 +19,7 @@ export function registerSessionTools(server: McpServer, scope: ToolScope): void 
     {
       title: 'Who this session is',
       description:
-        'The Gitstalk account this agent session acts for: handle, the client the person approved, the scopes granted (read, collaborate, write) and the run tools read when they name no repository.',
+        'The Gitstalk account this agent session acts for: handle, the client the person approved, the scopes granted (read, collaborate, write, secrets) and the run tools read when they name no repository.',
       inputSchema: z.object({}),
       annotations: {
         readOnlyHint: true,
@@ -43,7 +43,7 @@ export function registerSessionTools(server: McpServer, scope: ToolScope): void 
     {
       title: 'Your access to a repository',
       description:
-        "What this session's person may do with a repository (owner/name): their role (owner, maintain, write, read, or none on a public repository), and whether this session may read and push beans. A repository they may not see answers as not found, like one that does not exist.",
+        "What this session's person may do with a repository (owner/name): their role (owner, maintain, write, read, or none on a public repository), and whether this session may read, push beans, run workflows (maintain role and write scope) and set secrets (maintain role and secrets scope). A repository they may not see answers as not found, like one that does not exist.",
       inputSchema: z.object({
         repository: z.string().trim().min(3).max(110).describe('owner/name, e.g. coop/greeter'),
       }),
@@ -60,11 +60,20 @@ export function registerSessionTools(server: McpServer, scope: ToolScope): void 
       if (!read.ok) return failure(read.message);
       const write = await repositoryAccess(access, repository, 'write');
       const { owner, name, visibility, viewer_role: role } = read.repository;
+      const maintains = role === 'owner' || role === 'maintain';
       return answer(async () => ({
         repository: `${owner.handle}/${name}`,
         visibility,
         role,
-        may: { read: true, push_beans: write.ok, decide: false, settings: false },
+        scopes: session.scopes,
+        may: {
+          read: true,
+          push_beans: write.ok,
+          run_workflows: maintains && session.scopes.includes('write'),
+          set_secrets: maintains && session.scopes.includes('secrets'),
+          decide: false,
+          settings: false,
+        },
         why: write.ok ? null : write.message,
       }));
     },

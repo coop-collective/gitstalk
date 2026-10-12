@@ -214,7 +214,8 @@ describe('discovery (MCP authorization spec)', () => {
     expect(challenge).toContain(
       `resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp"`,
     );
-    expect(challenge).toContain('scope="read"');
+    // Clients request what the challenge names: everything but the opt-in secrets scope.
+    expect(challenge).toContain('scope="read collaborate write"');
   });
 
   it('publishes protected-resource metadata naming this server as the authorization server', async () => {
@@ -222,7 +223,7 @@ describe('discovery (MCP authorization spec)', () => {
     expect(await response.json()).toMatchObject({
       resource: `${ORIGIN}/mcp`,
       authorization_servers: [ORIGIN],
-      scopes_supported: ['read'],
+      scopes_supported: ['read', 'collaborate', 'write'],
     });
   });
 
@@ -235,13 +236,25 @@ describe('discovery (MCP authorization spec)', () => {
       registration_endpoint: `${ORIGIN}/oauth/register`,
       revocation_endpoint: `${ORIGIN}/oauth/token`,
       code_challenge_methods_supported: expect.arrayContaining(['S256']),
-      scopes_supported: ['read', 'collaborate', 'write'],
+      scopes_supported: ['read', 'collaborate', 'write', 'secrets'],
       client_id_metadata_document_supported: true,
     });
   });
 });
 
 describe('the authorization code flow', () => {
+  it('grants the opt-in secrets scope only when the person ticks it', async () => {
+    const { tokens } = await connectAgent(['read', 'collaborate', 'write', 'secrets']);
+    expect(tokens.scope).toBe('read collaborate write secrets');
+    const client = await mcpClient(tokens.access_token);
+    expect(await callTool(client, 'whoami')).toMatchObject({
+      scopes: ['read', 'collaborate', 'write', 'secrets'],
+    });
+    await client.close();
+    const without = await connectAgent(['read', 'collaborate', 'write']);
+    expect(without.tokens.scope).toBe('read collaborate write');
+  });
+
   it('completes register → authorize → consent → token, and the token opens /mcp', async () => {
     const { user, tokens } = await connectAgent(['read', 'write']);
     expect(tokens).toMatchObject({ token_type: 'bearer', expires_in: 900, scope: 'read write' });
@@ -346,6 +359,7 @@ describe('the authorization code flow', () => {
       redirectHost: 'localhost',
       redirectIsLoopback: true,
       requestedScopes: ['read'],
+      grantableScopes: ['read', 'collaborate', 'write', 'secrets'],
     });
     expect(await mcp().consentRequest(request, bob)).toBeNull();
     expect(await mcp().approveConsent(request, bob, ['read'], null)).toBeNull();

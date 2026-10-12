@@ -8,6 +8,7 @@ import { classifierFrom } from '@gitstalk/shared-ask/ask/classifier-from-env';
 import { gatewaySource } from '@gitstalk/shared-ask/forge/gateway-source';
 import { memoSource } from '@gitstalk/shared-ask/forge/memo-source';
 import { pickerFrom } from '@gitstalk/shared-ask/pick/picker-from-env';
+import type { AgentActionsRpc } from '@gitstalk/shared-race/agent-actions';
 import type { AgentReposRpc } from '@gitstalk/shared-race/agent-repos';
 import type { RunId } from '@gitstalk/shared-race/ids';
 import { RunId as RunIdSchema } from '@gitstalk/shared-race/ids';
@@ -39,6 +40,7 @@ export function serveMcp(
     readonly ctx: ExecutionContext;
     readonly gateway: GatewayRpc;
     readonly agents?: AgentReposRpc;
+    readonly actions?: AgentActionsRpc;
     readonly log: Logger;
     readonly caller: McpCaller;
   },
@@ -84,6 +86,7 @@ function toolScope(input: Parameters<typeof serveMcp>[1]): ToolScope {
     },
     ...(session === undefined ? {} : { session }),
     ...(agents === undefined ? {} : { agents }),
+    ...(input.actions === undefined || session === undefined ? {} : { actions: input.actions }),
     gateway: input.gateway,
     gitOrigin: env.GIT_ORIGIN,
     webUrl: env.WEB_URL,

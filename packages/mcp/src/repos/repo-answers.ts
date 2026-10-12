@@ -64,6 +64,7 @@ export async function repoStatus(scope: ToolScope, repo: string): Promise<object
     agents.agentPushedBeans(principal, repo),
   ]);
   const beans = valueOf(pushed);
+  const stalkRuns = await runsAt(scope, { repo, sha: lines.stalk.sha });
   const inFlight = beans.filter((bean) => IN_FLIGHT.has(bean.phase)).map(beanLine);
   const sentBack = beans.filter((bean) => SENT_BACK.has(bean.phase)).map(beanLine);
   return {
@@ -75,6 +76,7 @@ export async function repoStatus(scope: ToolScope, repo: string): Promise<object
     sent_back: sentBack,
     recent_reds: lines.red_validations.recent,
     open_cards: lines.open_cards,
+    stalk_runs: stalkRuns,
     landed: beans.filter((bean) => bean.phase === 'landed' || bean.phase === 'green').length,
     preview_url: lines.preview_url,
     summary: [
@@ -83,8 +85,40 @@ export async function repoStatus(scope: ToolScope, repo: string): Promise<object
       `window ${lines.window.unvalidated}${lines.window.size === null ? '' : `/${lines.window.size}`}`,
       `${lines.red_validations.count} red validations`,
       `${lines.open_cards.length} open cards`,
+      `${stalkRuns.length} workflow runs on the stalk head (${stalkRuns.filter((run) => run.status !== 'completed').length} running, ${stalkRuns.filter((run) => run.conclusion === 'failure').length} failed)`,
     ].join(', '),
   };
+}
+
+/**
+ * The workflow runs the stalk's head started (its landing's push runs): what an agent asks
+ * after a landing. Empty when the gateway has no Actions RPC, the stalk has no head, or the
+ * read fails: a hint, never a reason to fail `repo_status`.
+ */
+async function runsAt(
+  scope: ToolScope,
+  input: { readonly repo: string; readonly sha: string | null },
+): Promise<
+  readonly {
+    readonly id: string;
+    readonly workflow: string;
+    readonly status: string;
+    readonly conclusion: string | null;
+  }[]
+> {
+  const { actions, session } = scope;
+  if (actions === undefined || session === undefined || input.sha === null) return [];
+  const listed = await actions.agentRuns(session.principal, input.repo, {
+    sha: input.sha,
+    limit: 10,
+  });
+  if (!listed.ok) return [];
+  return listed.value.runs.map((run) => ({
+    id: run.id,
+    workflow: run.workflow,
+    status: run.status,
+    conclusion: run.conclusion,
+  }));
 }
 
 export async function openBean(
@@ -218,9 +252,9 @@ function nextStep(phase: string, bean: string): string {
     case 'waiting':
       return `the pre-land check is running: keep working; when out of work, bean_wait or git push -o bean=${branch.slice('bean/'.length)} origin HEAD:refs/wait/any (wakes at the verdict)`;
     case 'landed':
-      return 'landed on the sprout; it reaches the stalk when the sprout validates (bean_wait until: stalk)';
+      return 'landed on the sprout; it reaches the stalk when the sprout validates (bean_wait until: stalk), and that starts push workflows (actions_wait_for_run with bean)';
     case 'green':
-      return 'done: on the stalk';
+      return `on the stalk (a push to main): if the repository has workflows, actions_wait_for_run with bean ${bean.replace(/^beans?\//, '')} follows the runs it started`;
     case 'red':
       return `git fetch origin sprout && git rebase origin/sprout; fix the code so the failing tests pass, keeping the collided beans' intent; git push -f origin HEAD:refs/heads/${branch}`;
     case 'conflict':

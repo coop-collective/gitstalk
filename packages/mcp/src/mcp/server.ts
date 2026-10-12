@@ -12,6 +12,7 @@ import { LineRef } from '@gitstalk/shared-ask/ask/view-spec';
 import { ForgeError } from '@gitstalk/shared-ask/forge/forge-errors';
 import type { TaskId } from '@gitstalk/shared-race/ids';
 
+import { registerActionsTools } from '../actions/actions-tools';
 import { registerRepoTools } from '../repos/repo-tools';
 import { askRepo } from '../tools/ask-repo';
 import { changeStatus } from '../tools/change-status';
@@ -57,7 +58,7 @@ const Repo = z
   .describe('owner/name of a repository you may use (repo_list); omit to read your run');
 
 export function createServer(scope: ToolScope): McpServer {
-  const server = new McpServer({ name: 'gitstalk', version: '0.2.0' });
+  const server = new McpServer({ name: 'gitstalk', version: '0.3.0' });
   registerAsk(server, scope);
   registerWorkOverlaps(server, scope);
   registerBeanTools(server, scope);
@@ -65,6 +66,7 @@ export function createServer(scope: ToolScope): McpServer {
   if (scope.own !== null) registerCollaboration(server, scope.own);
   registerSessionTools(server, scope);
   registerRepoTools(server, scope);
+  registerActionsTools(server, scope);
   return server;
 }
 

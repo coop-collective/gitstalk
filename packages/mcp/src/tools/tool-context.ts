@@ -17,6 +17,7 @@ import type { RaceState } from '@gitstalk/shared-ask/race/race-state';
 import { reduceRace } from '@gitstalk/shared-ask/race/reduce-race';
 
 import type { Scope } from '@gitstalk/shared-identity/scopes';
+import type { AgentActionsRpc } from '@gitstalk/shared-race/agent-actions';
 import type { AgentPrincipal, AgentReposRpc } from '@gitstalk/shared-race/agent-repos';
 
 import type { ContributorSession } from '../auth/bearer';
@@ -55,6 +56,8 @@ export type ToolScope = {
   readonly session?: AgentSessionContext;
   /** The gateway's repository RPC (sessions only). */
   readonly agents?: AgentReposRpc;
+  /** The gateway's Actions RPC (sessions only). */
+  readonly actions?: AgentActionsRpc;
   /** The gateway binding, for `repository_access` (`repository-access.ts`). */
   readonly gateway: object;
   /** The gateway's public origin, for clone URLs and credentials. */

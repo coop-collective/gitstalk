@@ -18,8 +18,18 @@ export const GrantProps = z.object({
 });
 export type GrantProps = z.infer<typeof GrantProps>;
 
-/** Scopes everyone may grant an agent session; landing and settings are never grantable. */
-export const GRANTABLE_SCOPES = ['read', 'collaborate', 'write'] as const;
+/**
+ * Scopes a person may grant an agent session (the authorization server's `scopes_supported`);
+ * landing on the stalk and repository settings are never grantable. `secrets` is opt-in: the
+ * consent page never ticks it for the person.
+ */
+export const GRANTABLE_SCOPES = ['read', 'collaborate', 'write', 'secrets'] as const;
 
-/** Every MCP session needs `read`; clients ask for it first (RFC 9728 `scopes_supported`). */
-export const REQUIRED_SCOPES = ['read'];
+/**
+ * What clients ask for by default: the protected resource's `scopes_supported` (RFC 9728) and
+ * the `scope` of its `WWW-Authenticate` challenge, which MCP clients (Claude Code, Codex)
+ * request as is. Everything an agent needs to work on a repository and follow its workflows;
+ * the person can untick any but `read` on the consent page. Only `read` is enforced on `/mcp`;
+ * each tool checks the scope it needs.
+ */
+export const DEFAULT_SCOPES = ['read', 'collaborate', 'write'];

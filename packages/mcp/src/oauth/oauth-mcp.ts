@@ -28,7 +28,7 @@ export function createOAuthMcpHandler(depsFor: (env: Env) => Deps): ExportedHand
 } {
   return {
     async fetch(request, env, ctx) {
-      const { gateway, agents, log } = depsFor(env);
+      const { gateway, agents, actions, log } = depsFor(env);
       const auth = resourceAuth(ctx);
       const props = GrantProps.safeParse(Reflect.get(ctx, 'props'));
       if (auth === null || !props.success) {
@@ -70,6 +70,7 @@ export function createOAuthMcpHandler(depsFor: (env: Env) => Deps): ExportedHand
         ctx,
         gateway,
         ...(agents === undefined ? {} : { agents }),
+        ...(actions === undefined ? {} : { actions }),
         log: log.with(who),
         caller: { run, sub: props.data.userId, session },
       });

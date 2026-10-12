@@ -60,6 +60,8 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     setupFiles: ['./test/apply-migrations.ts'],
+    // The Actions tools follow real landings and runs on the stub executor (a few seconds).
+    testTimeout: 30_000,
   },
 });
 
@@ -89,6 +91,10 @@ function auxiliaryWorkers() {
         ACTIONS_SECRETS_KEY: 'bWNwLXRlc3QtYWN0aW9ucy1zZWNyZXRzLWtleS0zMmI=',
       },
       r2Buckets: ['ACTIONS_LOGS'],
+      // Landings reach Actions through the repo-events queue, as deployed: a stalk move starts
+      // the push runs the Actions tools follow.
+      queueProducers: { REPO_EVENTS: { queueName: 'gitstalk-repo-events' } },
+      queueConsumers: { 'gitstalk-repo-events': { maxBatchSize: 100, maxBatchTimeout: 0 } },
       serviceBindings: {
         ARTIFACTS: { name: 'fake-artifacts', entrypoint: 'FakeArtifacts' },
         REPOS: { name: 'fake-artifacts', entrypoint: 'FakeRepositories' },

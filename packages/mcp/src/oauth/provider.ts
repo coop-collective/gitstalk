@@ -10,7 +10,7 @@ import type { OAuthProviderOptions } from '@cloudflare/workers-oauth-provider';
 import { verifyUserToken } from '@gitstalk/shared-identity/user-tokens';
 
 import type { GrantProps } from './grant-props';
-import { GRANTABLE_SCOPES, REQUIRED_SCOPES } from './grant-props';
+import { DEFAULT_SCOPES, GRANTABLE_SCOPES } from './grant-props';
 
 export const AUTHORIZE_PATH = '/authorize';
 export const TOKEN_PATH = '/oauth/token';
@@ -39,7 +39,7 @@ export function providerOptions(env: Env, handlers: ProviderHandlers): OAuthProv
     refreshTokenTTL: REFRESH_TOKEN_SECONDS,
     refreshTokenIdleTTL: REFRESH_TOKEN_SECONDS,
     scopesSupported: [...GRANTABLE_SCOPES],
-    requiredScopes: REQUIRED_SCOPES,
+    requiredScopes: DEFAULT_SCOPES,
     clientIdMetadataDocumentEnabled: true,
     resourceMetadata: {
       resource: `${origin}/mcp`,
