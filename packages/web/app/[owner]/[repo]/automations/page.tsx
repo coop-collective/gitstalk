@@ -101,9 +101,7 @@ function NoAutomations({ newHref }: { readonly newHref: string | null }) {
     <section className={styles.box} aria-labelledby="automations-title">
       <div className={styles.coming}>
         <div>
-          <h2 id="automations-title">
-            Automations <span className={styles.soon}>rolling out</span>
-          </h2>
+          <h2 id="automations-title">No automations yet</h2>
           <p>
             An automation is an agent defined by a file in <code>.gitstalk/automations/</code> on
             the stalk. It runs on Gitstalk events (a red bean, a landing, a red validation, a
