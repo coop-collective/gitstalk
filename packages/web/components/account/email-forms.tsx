@@ -3,6 +3,7 @@
  * to `/api/auth/email/<step>` (they work without JavaScript); `mode` and `next` ride along
  * as hidden fields. Settings → Emails reuses the address and code forms with its CSRF token.
  */
+import { EMAIL_CODE_PATTERN } from '../../src/auth/sign-in-steps';
 import type { SignInMode, StepError } from '../../src/auth/sign-in-steps';
 import styles from './account.module.css';
 import { TurnstileField } from './turnstile';
@@ -122,7 +123,7 @@ export function CodeForm({
         className={`${styles.input} ${styles.code}`}
         inputMode="numeric"
         autoComplete="one-time-code"
-        pattern="\s*\d{3}[\s-]?\d{3}\s*"
+        pattern={EMAIL_CODE_PATTERN}
         maxLength={9}
         required
         autoFocus

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { modeOf, nextFromQuery, stepFromQuery, stepPath } from './sign-in-steps';
+import {
+  EMAIL_CODE_PATTERN,
+  modeOf,
+  nextFromQuery,
+  stepFromQuery,
+  stepPath,
+} from './sign-in-steps';
 
 const CONNECT = '/connect?request=req_ABC-123';
 
@@ -48,5 +54,23 @@ describe('the sign-in flow keeps `next` on every step', () => {
     expect(modeOf('signup')).toBe('signup');
     expect(modeOf('admin')).toBe('signin');
     expect(modeOf(null)).toBe('signin');
+  });
+});
+
+/** The code field's pattern as a browser compiles it: wrapped as ^(?:…)$, with the `v` flag. */
+function asBrowser(): RegExp {
+  return new RegExp(`^(?:${EMAIL_CODE_PATTERN})$`, 'v');
+}
+
+describe('the code field pattern', () => {
+  it('compiles under the v flag browsers use for `pattern`', () => {
+    expect(asBrowser).not.toThrow();
+  });
+
+  it('accepts six digits, split by a space or a hyphen or not at all', () => {
+    for (const code of ['123456', '123 456', '123-456', ' 123456 '])
+      expect(asBrowser().test(code), code).toBe(true);
+    for (const code of ['12345', '1234567', '123--456', 'abc123'])
+      expect(asBrowser().test(code), code).toBe(false);
   });
 });

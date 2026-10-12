@@ -58,6 +58,13 @@ export function stepFromQuery(query: Query): {
   };
 }
 
+/**
+ * The code field's `pattern`: six digits, optionally split three and three by a space or a
+ * hyphen (what `normalizeCode` strips). Browsers compile a `pattern` with the `v` flag, where a
+ * `-` inside a class must be escaped: `[\s-]` is a syntax error there, logged on every load.
+ */
+export const EMAIL_CODE_PATTERN = String.raw`\s*\d{3}[\s\-]?\d{3}\s*`;
+
 /** The entry page for a mode. */
 export function entryPath(mode: SignInMode): '/login' | '/signup' {
   return mode === 'signup' ? '/signup' : '/login';
