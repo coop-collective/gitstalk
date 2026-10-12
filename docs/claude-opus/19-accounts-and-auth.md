@@ -150,7 +150,7 @@ Every email step is a plain form post to `POST /api/auth/email/<step>` (`web/src
 
 ### 6.5 Verified on staging (2026-10-11)
 
-Deployed to staging only: migration `0007` applied to `gitstalk-identity-staging`, web `gitstalk-web-staging` version `1ae0970e`. `pnpm env:smoke staging` passes (including "/login (email sign-in on)").
+Deployed to staging only: migration `0007` applied to `gitstalk-identity-staging`, web `gitstalk-web-staging` version `1ae0970e`, then `5767b0fa` (2026-10-12, the branch merged with main: vinext 1.1.0, TanStack Query), on which the walk-through and the passkey `claude mcp login` run below were repeated. `pnpm env:smoke staging` passes (including "/login (email sign-in on)").
 
 To receive real mail without sending to anyone else, Email Routing was turned on for `gitstalk.dev` and two addresses, `e2e-a@` and `e2e-b@gitstalk.dev`, route to a small capture Worker (`gitstalk-e2e-inbox-staging`, kept in the session scratchpad, not the repo) that keeps the newest code per address for ten minutes behind a bearer token. So the codes went through Email Sending, real SMTP delivery (about 20 s) and Email Routing; no staging-only hook exists in the product. Headless Chrome with a CDP virtual authenticator:
 
