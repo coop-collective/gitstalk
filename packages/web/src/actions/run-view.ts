@@ -3,10 +3,13 @@
  * plus conclusion folded together), durations, who and what started a run, the job graph's
  * columns, and which job a run page opens on.
  */
+import type { ActionsClient } from './actions-client';
 import type {
   Conclusion,
   Job,
+  LogLine,
   RunActor,
+  RunDetail,
   RunEvent,
   RunStatus,
   RunSummary,
@@ -202,6 +205,49 @@ export function runTitle(run: RunSummary): string {
   return run.event === 'push' && run.title !== ''
     ? run.title
     : `${run.workflowName} · ${eventWord(run.event)}`;
+}
+
+/** What a maintainer just asked for, shown before the control plane has answered. */
+export type RunIntent = 'cancel' | 'rerun';
+
+/** The run as it will read once the request lands: cancelled, or (re-run) queued again. */
+export function optimisticRun(run: RunDetail, intent: RunIntent): RunDetail {
+  switch (intent) {
+    case 'cancel':
+      return { ...run, status: 'completed', conclusion: 'cancelled' };
+    case 'rerun':
+      return { ...run, status: 'queued', conclusion: null };
+    default:
+      return assertNever(intent);
+  }
+}
+
+/**
+ * Whether JSON from the run route is a run. The route's answer was checked by the schema on
+ * the server; this keeps the client bundle free of it and rejects an error body.
+ */
+export function isRunDetail(value: unknown): value is RunDetail {
+  if (typeof value !== 'object' || value === null) return false;
+  return (
+    typeof Reflect.get(value, 'id') === 'string' &&
+    typeof Reflect.get(value, 'status') === 'string' &&
+    Array.isArray(Reflect.get(value, 'jobs'))
+  );
+}
+
+/**
+ * The job's log as the page starts it. A running job's log is not read here: its stream
+ * (`JobLog`) replays from line 1, so reading it first only delayed the page. A finished job's
+ * stored log is the page's to read, since nothing streams it. Null when it cannot be read.
+ */
+export async function initialLog(
+  actions: ActionsClient,
+  runId: string,
+  job: Job,
+): Promise<readonly LogLine[] | null> {
+  if (isLive(stateOf(job))) return [];
+  const log = await actions.log(runId, job.id, 0);
+  return log.ok ? log.value.lines : null;
 }
 
 export function assertNever(value: never): never {
