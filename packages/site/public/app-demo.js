@@ -1162,24 +1162,32 @@ function runPage(t) {
   return `<div class="am-crumb">← Deploy runs</div><header class="am-runhead">${mark(state, 20)}<h4>${esc(SAVED_CARTS.title)}</h4><span class="ps-btn">${done ? 'Re-run' : 'Cancel run'}</span><p><b>Deploy #19</b><span>stalk moved</span><u>${DEPLOY_SHA}</u><span class="pc-bean">bean/${slug(SAVED_CARTS.title)}</span><span>@${ownerOf(SAVED_CARTS.agent)}</span><span>just now</span></p></header><section class="pg-box am-runbox"><dl class="am-facts"><div><dt>Status</dt><dd>${STATE_WORDS[state]}</dd></div><div><dt>Wall time</dt><dd>${wall}</dd></div><div><dt>Minutes billed</dt><dd>${done ? 2 : 1}</dd></div><div><dt>Line</dt><dd>stalk</dd></div><div><dt>Workflow</dt><dd><u>deploy.yml</u></dd></div></dl><div class="am-jobs"><b>Jobs</b><span>2 jobs · runs-on ubuntu-latest</span></div><div class="am-graph"><span class="am-node" data-state="success">${mark('success')}<b>test</b><small>${testTime}</small></span><i class="am-stem" data-state="${done ? 'success' : 'running'}"></i><span class="am-node on" data-state="${state}">${mark(state)}<b>deploy</b><small>${deployTime}</small></span></div></section><section class="pg-box am-log"><div class="am-loghead">${mark(state)}<b>deploy</b><span>${STATE_WORDS[state]} ${deployTime}</span><span class="am-search">Search log</span><span class="am-dl">Download log</span></div><div class="am-logbox"><div>${steps}</div></div>${tail}</section>`;
 }
 
-const AUTOMATION_FILE = `# .gitstalk/automations/posthog-errors.yml
-name: PostHog errors → beans
-on:
-  schedule: [{ cron: "0 * * * *" }]
-  validation_red:
-permissions:
-  beans: write
-jobs:
-  triage:
-    steps:
-      - uses: gitstalk/agent@v1
-        with:
-          budget-usd: 0.50
-          mcp: [posthog]
-          outputs: open-bean, comment`;
+/** The prompt of the built-in "Fix red beans" template, which the list shows under the facts. */
+const AUTOMATION_PROMPT = `Read why the bean went red. Check your memory for this failure. Fix it in a new bean, and note what you learned.`;
 
+/** The Automations tab as the app shows it: the rail, the selected automation, its facts and runs. */
 function automationsPage() {
-  return `<section class="pg-box am-coming"><div><h4>Automations <span class="am-soon">coming</span></h4><p>An automation is a workflow file in <code>.gitstalk/automations/</code>: the same <code>on:</code> triggers as Actions, plus Gitstalk events such as a red validation or a landed bean. Its steps open beans, comment and raise decision cards, or hand a task to an agent session with a budget.</p><p>They run in isolates that start in milliseconds, act as the repository’s own bot, and never see your secrets. Like workflows, they change by a bean that lands on the stalk.</p><p>Until then, <u>Actions</u> runs the workflows in <code>.github/workflows/</code>.</p></div><pre>${esc(AUTOMATION_FILE)}</pre></section>`;
+  const rail = `<aside class="am-rail"><h5>Automations</h5><ul><li><span></span>All automations</li><li class="on">${mark('success')}Fix red beans</li><li>${mark('success')}Heartbeat</li></ul></aside>`;
+  const facts = [
+    ['Runs', 'agent on <span>@cf/moonshotai/kimi-k2.7-code</span>'],
+    ['Acts as', `${REPO}[automation]`],
+    ['May', 'read and push beans'],
+    ['Secrets', 'none'],
+    ['Memory', 'refs/automations/fix-red/memory'],
+    ['Limits', '30 min · 40 turns · $0.50'],
+  ]
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)
+    .join('');
+  const runs = [
+    ['success', 2, 'bean red', 'bulk-edit-invoice-due-dates', '@dana', '2 hours ago', '1m 48s'],
+    ['success', 1, 'run by hand', null, '@coop', 'yesterday', '2m 05s'],
+  ]
+    .map(
+      ([state, n, event, bean, actor, when, wall]) =>
+        `<li class="am-run">${mark(state)}<b class="am-title">Fix red beans · ${event}</b><span class="am-meta"><b>Fix red beans #${n}</b><span class="am-event">${event}</span><u>${sha(TOTAL)}</u>${bean ? `<span class="pc-bean">bean/${bean}</span>` : ''}<span>${actor}</span></span><span class="am-times"><span>${when}</span><span>${wall}</span><span>1 min billed</span></span></li>`,
+    )
+    .join('');
+  return `<div class="am-layout">${rail}<section class="pg-box am-box"><div class="am-head am-autohead"><div><h4>Fix red beans</h4><p>.gitstalk/automations/fix-red.yml</p></div><div class="am-tools"><span class="ps-btn">View file</span><span class="ps-btn">Edit</span><span class="ps-btn">Run</span></div></div><dl class="am-facts am-autofacts">${facts}</dl><pre class="am-yaml">${esc(AUTOMATION_PROMPT)}</pre><ul class="am-triggers"><li>bean red · beans *, !fix-*</li><li>run by hand</li></ul><div class="am-filters"><span>Status <i>any</i></span><span>Line <i>any</i></span></div><ol class="am-runs">${runs}</ol></section></div>`;
 }
 
 function automations(f) {
