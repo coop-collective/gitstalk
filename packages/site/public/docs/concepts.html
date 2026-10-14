@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Concepts: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="How a Gitstalk change grows: bean, sprout, stalk, the pre-land check, validation, and what happens when a check goes red."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Concepts: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="How a Gitstalk change grows: bean, sprout, stalk, the pre-land check, validation, and what happens when a check goes red."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Concepts</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs concepts</p>
+          <h1>Concepts: how a change grows</h1>
+          <p class="lede">
+            One diagram and a few short cards explain the whole model. A change is a bean, it lands
+            on the sprout once it passes on the exact merged code, and the stalk only moves to
+            verified work.
+          </p>
+
+          <h2 id="life">The life of a bean</h2>
+          <ol
+            class="flow"
+            aria-label="A push becomes a bean, is checked on the sprout plus the bean, lands on the sprout, is validated, then reaches the stalk"
+          >
+            <li class="bean"><b>Push</b><span>bean/&lt;name&gt;</span></li>
+            <li class="bean"><b>Pre-land check</b><span>sprout + bean, whole suite</span></li>
+            <li class="sprout"><b>LANDED</b><span>on the sprout</span></li>
+            <li class="sprout"><b>Validation</b><span>CI on the sprout</span></li>
+            <li class="stalk"><b>On the stalk</b><span>stable, green</span></li>
+          </ol>
+          <p>
+            A <strong>bean</strong> is a small change on its own branch. It is checked together with
+            the newest sprout, lands there at once if it is green, and later moves to the stable
+            <strong>stalk</strong> when CI validates the sprout. The side exits are below.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Exit</th>
+                  <th>When</th>
+                  <th>What happens</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Red</b></td>
+                  <td>The merged tree fails its tests.</td>
+                  <td>
+                    Not landed. The author gets the failing tests and the beans it collided with,
+                    fixes it and pushes again.
+                  </td>
+                </tr>
+                <tr>
+                  <td><b>Conflict</b></td>
+                  <td>The bean does not merge onto the sprout.</td>
+                  <td>
+                    Not landed. The push quotes the conflicting hunks and who landed the other side.
+                  </td>
+                </tr>
+                <tr>
+                  <td><b>Parked</b></td>
+                  <td>
+                    It needs a person: after a decision card, it is still red against the bean that
+                    won.
+                  </td>
+                  <td>
+                    Held with a reason such as <em>needs a person: two specs disagree</em>. It holds
+                    no check or slot while it waits.
+                  </td>
+                </tr>
+                <tr>
+                  <td><b>Fell off</b></td>
+                  <td>
+                    The engine dropped the bean: still red or in conflict after 20 rounds of fixes,
+                    or reverted because validation went red and it was the suspect.
+                  </td>
+                  <td>
+                    Shown in the Changes tab under Parked, as <em>fell off</em>, with the reason. A
+                    reverted bean is taken off the sprout before more beans build on it.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="status-line">
+            Which concepts apply to pushed repositories today: pre-land check, validation,
+            revert-first, informed repair and decision cards (the push prints the card id) all run.
+            Separate acceptance tests for pushed beans do not exist yet, so the reconcile step has
+            nothing to amend there.
+          </p>
+
+          <h2 id="cards">The pieces, one at a time</h2>
+          <h3 id="bean">Bean</h3>
+          <p>
+            One change, pushed as <code>bean/&lt;name&gt;</code> by an agent or a person. You never
+            open a pull request or wait in a queue. See <a href="/docs/git">Git compatibility</a>.
+          </p>
+          <h3 id="sprout">Sprout</h3>
+          <p>
+            The staged line. A bean lands here as soon as its pre-land check is green, and every
+            later bean is checked on top of it. Branch: <code>sprout</code>.
+          </p>
+          <h3 id="stalk">Stalk</h3>
+          <p>
+            The stable line, and the default branch you clone. It moves only to a sprout commit that
+            passed validation, together with the beans below it. No token, key or role can push to
+            the sprout or the stalk: only the engine moves them. Branch: <code>stalk</code>.
+          </p>
+          <h3 id="preland">Pre-land check</h3>
+          <p>
+            The engine merges your bean onto the current sprout and runs the whole suite on
+            <em>that exact merged tree</em>, not on your branch alone. Tests that pass on your
+            branch can still fail after the merge; this finds out before landing. Each bean in check
+            gets its own container. See <a href="/docs/checks">Checks</a>.
+          </p>
+          <figure class="mock" aria-label="Beans in different states">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.io/ada/notes-api/changes</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span><span class="name">add-truncate</span
+                ><span class="by">@ada</span><span class="ms checking">in check</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span><span class="name">fix-trim</span
+                ><span class="by">@bo</span><span class="ms landed">on the sprout</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span><span class="name">rename-cache</span
+                ><span class="by">@ada</span><span class="ms green">on the stalk</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span><span class="name">retry-jitter</span
+                ><span class="by">@cy</span><span class="ms red">red</span>
+              </div>
+            </div>
+            <figcaption>
+              Where each bean stands. Beans in check or red are listed under Open; landed ones under
+              Landed. The author is whoever pushed the bean.
+            </figcaption>
+          </figure>
+          <h3 id="validation">Validation</h3>
+          <p>
+            After landing, CI runs on the sprout's newest commit. A green validation moves the stalk
+            to that commit. That is why the History tab can show a commit as <em>landed</em> but not
+            yet <em>validated</em>. The word <em>green</em> in a status ref means the same as
+            validated. Only a limited number of landings may run ahead of validation; the exact rule
+            is in <a href="/docs/architecture">Architecture</a>.
+          </p>
+          <h3 id="revert">Revert-first</h3>
+          <p>
+            If validation goes red, the same failure must repeat to count, so a flaky test does not
+            undo good work. When one bean is the only suspect it is taken off the sprout at once,
+            before other beans pile on top. Otherwise the engine resets the sprout to the stalk and
+            re-checks the beans in the window, suspects one at a time.
+          </p>
+          <h3 id="repair">Informed repair</h3>
+          <p>
+            A red goes back to its author with what failed and why, not just a red cross. Agents
+            read it in the push output (or with <code>bean_status</code> over MCP), fix the bean and
+            push again.
+          </p>
+          <figure class="mock" aria-label="A terminal showing a red verdict">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre
+                class="m-term"
+              ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/add-truncate
+<span class="bad">remote: gitstalk: RED: add-truncate was not landed. Merged onto the sprout, these tests failed:</span>
+remote: gitstalk:   - truncate keeps short strings unchanged
+remote: gitstalk: it collided with these landed beans (accepted behaviour; keep both):
+remote: gitstalk:   - fix-trim "Trim input before truncating"
+remote: gitstalk:     intent: Strings are trimmed before any length check.
+remote: gitstalk: fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout
+remote: gitstalk:      then fix, commit and git push -f origin HEAD:refs/heads/bean/add-truncate</pre>
+            </div>
+            <figcaption>
+              A red push names the failing tests, the landed beans it collided with and what they
+              meant to do, then the commands to fix it.
+            </figcaption>
+          </figure>
+          <h3 id="reconcile">Reconcile</h3>
+          <p>
+            If the same test fails again, the engine looks at the landed tasks behind the failing
+            tests. When a test only pinned an old value that another change legitimately changed,
+            the test is updated and the bean lands. This runs in the engine today, but on pushed
+            beans there are no separate acceptance tests to amend, so a real clash goes straight to
+            a decision card.
+          </p>
+          <h3 id="decision">Decision card <span class="badge beta">beta</span></h3>
+          <p>
+            When two changes truly want different behaviour, the engine raises a card with both
+            intents, and the push prints <code>decision card D001: ...</code>. There is
+            <em>no answer control</em> on a repository's web pages yet (it exists only in the admin
+            race view). Today the engine answers by itself after 30 seconds: the landed bean's
+            behaviour stays, and the new bean goes back to its author with that decision. If it is
+            still red against the winner after that, it is parked as
+            <em>needs a person: two specs disagree</em>.
+          </p>
+          <figure class="mock" aria-label="A decision card with two intents and a choice">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.io/ada/notes-api/changes/add-truncate</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-decision">
+                <span class="ms held">card D001: needs a decision</span>
+                <p class="q">
+                  Two beans disagree about <code>truncate("")</code>. Which behaviour stays?
+                </p>
+                <div class="opts">
+                  <div class="opt pick">
+                    <b>Keep fix-trim</b><span>Returns an empty string. Its test stays.</span>
+                  </div>
+                  <div class="opt">
+                    <b>Keep add-truncate</b
+                    ><span>Returns an ellipsis. Its test would be amended.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              A card names both beans and what each side wants. See
+              <a href="/docs/decisions">Decision cards</a> for what works today and what is planned.
+            </figcaption>
+          </figure>
+          <h3 id="approval">Approval rules <span class="badge beta">beta</span></h3>
+          <p>
+            A <code>.gitstalk/policy.yml</code> file can say which kinds of change land on their own
+            and which wait for a person. See <a href="/docs/approval-rules">Approval rules</a>.
+          </p>
+          <h3 id="clef">Clef and Jev</h3>
+          <p>
+            Clef (from Cloudflare) and Jev (from TypeSafe) are small decision models on Workers AI.
+            They only <em>pick or rank</em>: choose a route, order a list, decide which view answers
+            a question. They never write code or text. Every question has a time budget and a fixed
+            fallback rule, and a receipt records which model answered.
+          </p>
+
+          <h2 id="glossary">Glossary</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Word</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Bean</td>
+                  <td>One change on a <code>bean/&lt;name&gt;</code> branch.</td>
+                </tr>
+                <tr>
+                  <td>Sprout</td>
+                  <td>Where beans land first; the staging line.</td>
+                </tr>
+                <tr>
+                  <td>Stalk</td>
+                  <td>The stable, validated line.</td>
+                </tr>
+                <tr>
+                  <td>Pre-land check</td>
+                  <td>The whole suite on bean plus sprout, before landing.</td>
+                </tr>
+                <tr>
+                  <td>Landed</td>
+                  <td>On the sprout; not yet validated.</td>
+                </tr>
+                <tr>
+                  <td>Validated (green)</td>
+                  <td>On the stalk; CI passed on the sprout commit.</td>
+                </tr>
+                <tr>
+                  <td>Red</td>
+                  <td>The merged tree failed its tests; the bean is not landed.</td>
+                </tr>
+                <tr>
+                  <td>Parked</td>
+                  <td>Held with a reason until a person acts.</td>
+                </tr>
+                <tr>
+                  <td>Revert-first</td>
+                  <td>Take a red landing off before others build on it.</td>
+                </tr>
+                <tr>
+                  <td>Informed repair</td>
+                  <td>
+                    A red goes back to its author with failing tests and the beans it collided with.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Reconcile</td>
+                  <td>Update a test that only pinned an old value.</td>
+                </tr>
+                <tr>
+                  <td>Decision card</td>
+                  <td>Both intents and tests; a person picks which stays.</td>
+                </tr>
+                <tr>
+                  <td>Receipt</td>
+                  <td>The record of which rule or model made a routing decision.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="more">Go deeper</h2>
+          <ul>
+            <li>
+              <a href="/docs/git">Git compatibility</a>: the push options and refs behind each
+              verdict.
+            </li>
+            <li><a href="/docs/checks">Checks</a>: what the pre-land check runs.</li>
+            <li>
+              <a href="/docs/decisions">Decision cards and reconcile</a>: the ladder and the
+              measurements.
+            </li>
+            <li>
+              <a href="/docs/architecture">Architecture</a>: the engine rules and the Cloudflare
+              pieces.
+            </li>
+          </ul>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/quickstart"><small>Previous</small>Quickstart</a
+            ><a class="next" href="/docs/account"><small>Next</small>Accounts, tokens and keys</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
