@@ -109,6 +109,14 @@ describe('the triage evaluation set', () => {
     for (const entry of cases) expect(subjectOf(entry, null).classes, entry.id).toEqual(['lib']);
   });
 
+  it('labels the benchmark beans as the owner decided on 2026-10-14', () => {
+    const benchmarkCards = cases
+      .filter((entry) => entry.recorded !== null && entry.label === 'card')
+      .map((entry) => entry.id);
+    expect(benchmarkCards).toEqual(['t006', 't007', 't009', 't012', 't019']);
+    expect(cases.find((entry) => entry.id === 't013')?.label).toBe('auto');
+  });
+
   it('keeps requests.jsonl equal to the bodies the gate sends', async () => {
     await expect(evaluationRequests()).toMatchFileSnapshot('./triage-eval/requests.jsonl');
   });
