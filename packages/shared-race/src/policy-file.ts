@@ -24,21 +24,13 @@
  *     writers: ["@security"]
  * ```
  */
-import {
-  LineCounter,
-  isAlias,
-  isMap,
-  isNode,
-  isScalar,
-  parseDocument,
-  stringify,
-  visit,
-} from 'yaml';
-import type { Document } from 'yaml';
+import { stringify } from 'yaml';
 import { z } from 'zod';
 
 import { configPaths } from './config-dir';
 import type { ConfigFile } from './config-dir';
+import { fieldOf, parseStrictYaml, yamlPathOf } from './strict-yaml';
+import type { YamlLocator, YamlPosition } from './strict-yaml';
 
 /** Where the policy lives, in lookup order: `.gitstalk/` wins over `.beanstalk/`. */
 export const POLICY_PATHS: readonly string[] = configPaths('policy.yml');
@@ -177,34 +169,23 @@ export function readApprovalPolicy(text: string | null, path = POLICY_PATH): Pol
   if (text === null) return { kind: 'missing' };
   if (text.length > MAX_FILE_CHARS)
     return invalid(path, [at(null, '', `longer than ${MAX_FILE_CHARS} characters`)]);
-  const counter = new LineCounter();
-  const document = parseDocument(text, {
-    version: '1.2',
-    schema: 'core',
-    strict: true,
-    uniqueKeys: true,
-    merge: false,
-    prettyErrors: false,
-    lineCounter: counter,
-  });
-  const syntax = [...document.errors, ...document.warnings].map((error) =>
-    at(counter.linePos(error.pos[0]), '', firstLine(error.message)),
-  );
-  const shared = syntax.length === 0 ? anchorsAndAliases(document, counter) : [];
-  if (syntax.length > 0 || shared.length > 0) return invalid(path, [...syntax, ...shared]);
-  const parsed = PolicyFile.safeParse(document.toJS() ?? {});
-  if (!parsed.success)
+  const parsed = parseStrictYaml(text);
+  if (!parsed.ok)
     return invalid(
       path,
-      parsed.error.issues
-        .slice(0, MAX_PROBLEMS)
-        .map((issue) => problemOf(issue, document, counter)),
+      parsed.problems.map((problem) => at(problem.position, '', problem.message)),
     );
-  const duplicate = duplicateName(parsed.data.classes.map((entry) => entry.name));
+  const file = PolicyFile.safeParse(parsed.value ?? {});
+  if (!file.success)
+    return invalid(
+      path,
+      file.error.issues.slice(0, MAX_PROBLEMS).map((issue) => problemOf(issue, parsed.at)),
+    );
+  const duplicate = duplicateName(file.data.classes.map((entry) => entry.name));
   if (duplicate !== null)
     return invalid(path, [
       at(
-        locate(document, counter, ['classes', duplicate.index, 'name']),
+        parsed.at.value(['classes', duplicate.index, 'name']),
         `classes[${duplicate.index}].name`,
         `two classes are named "${duplicate.name}"`,
       ),
@@ -213,8 +194,8 @@ export function readApprovalPolicy(text: string | null, path = POLICY_PATH): Pol
     kind: 'valid',
     path,
     policy: {
-      groups: parsed.data.groups,
-      classes: parsed.data.classes.map((entry) => ({ ...entry, match: matchOf(entry.match) })),
+      groups: file.data.groups,
+      classes: file.data.classes.map((entry) => ({ ...entry, match: matchOf(entry.match) })),
     },
   };
 }
@@ -273,96 +254,19 @@ export function policyView(
   }
 }
 
-type Position = { readonly line: number; readonly col: number } | null;
-
-function at(position: Position, field: string, message: string): PolicyProblem {
-  return { line: position?.line ?? null, column: position?.col ?? null, field, message };
+function at(position: YamlPosition | null, field: string, message: string): PolicyProblem {
+  return { line: position?.line ?? null, column: position?.column ?? null, field, message };
 }
 
-function firstLine(message: string): string {
-  return message.split('\n')[0] ?? message;
-}
-
-/** Anchors (`&a`) and aliases (`*a`, which `<<` merge keys need) are refused: rules read as written. */
-function anchorsAndAliases(document: Document, counter: LineCounter): PolicyProblem[] {
-  const problems: PolicyProblem[] = [];
-  visit(document, (_key, node) => {
-    if (isAlias(node))
-      problems.push(
-        at(
-          rangeStart(node.range, counter),
-          '',
-          'aliases (*name) and merge keys are not allowed; write each value out',
-        ),
-      );
-    else if (isNode(node) && node.anchor !== undefined)
-      problems.push(
-        at(
-          rangeStart(node.range, counter),
-          '',
-          'anchors (&name) are not allowed; write each value out',
-        ),
-      );
-  });
-  return problems;
-}
-
-function rangeStart(range: readonly number[] | null | undefined, counter: LineCounter): Position {
-  const start = range?.[0];
-  return start === undefined ? null : counter.linePos(start);
-}
-
-function problemOf(
-  issue: z.core.$ZodIssue,
-  document: Document,
-  counter: LineCounter,
-): PolicyProblem {
-  const path = issue.path.filter((part) => typeof part !== 'symbol');
+function problemOf(issue: z.core.$ZodIssue, where: YamlLocator): PolicyProblem {
+  const path = yamlPathOf(issue.path);
   if (issue.code === 'unrecognized_keys') {
     const keys = issue.keys.map((key) => `"${key}"`).join(', ');
     const first = issue.keys[0];
-    const where =
-      first === undefined
-        ? locate(document, counter, path)
-        : keyPosition(document, counter, [...path, first]);
-    return at(where, fieldOf(path), `unknown key ${keys}`);
+    const position = first === undefined ? where.value(path) : where.key([...path, first]);
+    return at(position, fieldOf(path), `unknown key ${keys}`);
   }
-  return at(locate(document, counter, path), fieldOf(path), issue.message);
-}
-
-/** The position of the value at `path`, or of the nearest ancestor the document has. */
-function locate(
-  document: Document,
-  counter: LineCounter,
-  path: readonly (string | number)[],
-): Position {
-  for (let depth = path.length; depth >= 0; depth -= 1) {
-    const node: unknown = document.getIn(path.slice(0, depth), true);
-    if (isNode(node)) return rangeStart(node.range, counter);
-  }
-  return null;
-}
-
-/** The position of the key at the end of `path` (an unknown key's name). */
-function keyPosition(
-  document: Document,
-  counter: LineCounter,
-  path: readonly (string | number)[],
-): Position {
-  const parent: unknown = document.getIn(path.slice(0, -1), true);
-  const key = path.at(-1);
-  if (isMap(parent)) {
-    const pair = parent.items.find((item) => isScalar(item.key) && item.key.value === key);
-    if (pair !== undefined && isNode(pair.key)) return rangeStart(pair.key.range, counter);
-  }
-  return locate(document, counter, path.slice(0, -1));
-}
-
-function fieldOf(path: readonly (string | number)[]): string {
-  return path.reduce<string>((text, part) => {
-    if (typeof part === 'number') return `${text}[${part}]`;
-    return text === '' ? part : `${text}.${part}`;
-  }, '');
+  return at(where.value(path), fieldOf(path), issue.message);
 }
 
 type ParsedMatch = z.infer<typeof Match>;
