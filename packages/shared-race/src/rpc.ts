@@ -244,7 +244,8 @@ export type CacheCountView = {
   readonly hit_rate: number | null;
 };
 
-export type CacheView = {
+/** One purpose's counts: objects together, each kind, and the ref memo apart. */
+export type CacheKindsView = {
   /** Commits, trees and blobs together. */
   readonly objects: CacheCountView;
   readonly commit: CacheCountView;
@@ -252,6 +253,14 @@ export type CacheView = {
   readonly blob: CacheCountView;
   readonly ref_memo: CacheCountView;
 };
+
+/**
+ * Reads someone asked for (jobs, the approval gate, the explorer) at the top level; the
+ * warm-up after each landing under `prefetch`, where a miss is an object fetched ahead of any
+ * reader and a hit one already held. Gateways before 2026-10-14 counted the warm-up as demand
+ * and had no `prefetch`.
+ */
+export type CacheView = CacheKindsView & { readonly prefetch?: CacheKindsView };
 
 /** `runEvents`: one page of `events.jsonl` lines (parse each as a `RaceEvent`). */
 export type RunEventsPage = {

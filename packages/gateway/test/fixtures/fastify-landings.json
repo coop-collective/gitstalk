@@ -1,0 +1,497 @@
+[
+ {
+  "task": "t001",
+  "title": "fix: handle web stream payload in HEAD route",
+  "kind": "bug",
+  "files": [
+   "lib/head-route.js",
+   "test/route.6.test.js",
+   "test/route.7.test.js"
+  ],
+  "additions": 31,
+  "deletions": 1
+ },
+ {
+  "task": "t002",
+  "title": "fix: consistent error handling for custom validators in async validation contexts",
+  "kind": "bug",
+  "files": [
+   "lib/validation.js",
+   "test/validation-error-handling.test.js"
+  ],
+  "additions": 10,
+  "deletions": 2
+ },
+ {
+  "task": "t003",
+  "title": "feat: speed up loading with custom compiler",
+  "kind": "feature",
+  "files": [
+   "lib/schema-controller.js"
+  ],
+  "additions": 2,
+  "deletions": 2
+ },
+ {
+  "task": "t004",
+  "title": "fix: set status code before publishing diagnostics error channel",
+  "kind": "bug",
+  "files": [
+   "lib/error-handler.js",
+   "lib/error-status.js",
+   "lib/handle-request.js",
+   "lib/wrap-thenable.js"
+  ],
+  "additions": 25,
+  "deletions": 6
+ },
+ {
+  "task": "t005",
+  "title": "fix(ts): Align routerOptions defaultRoute types with runtime",
+  "kind": "bug",
+  "files": [
+   "build/build-validation.js",
+   "docs/Reference/Server.md",
+   "fastify.d.ts",
+   "lib/config-validator.js",
+   "test/issue-4959.test.js",
+   "test/types/instance.test-d.ts"
+  ],
+  "additions": 89,
+  "deletions": 57
+ },
+ {
+  "task": "t006",
+  "title": "feat: implement conditional request logging",
+  "kind": "feature",
+  "files": [
+   "README.md",
+   "build/build-validation.js",
+   "docs/Guides/Ecosystem.md",
+   "docs/Guides/Migration-Guide-V4.md",
+   "docs/Guides/Testing.md",
+   "docs/Reference/Decorators.md",
+   "docs/Reference/Encapsulation.md",
+   "docs/Reference/Plugins.md",
+   "docs/Reference/Principles.md",
+   "docs/Reference/Reply.md",
+   "docs/Reference/Server.md",
+   "docs/Reference/TypeScript.md",
+   "fastify.d.ts",
+   "fastify.js",
+   "lib/config-validator.js",
+   "lib/four-oh-four.js",
+   "lib/route.js",
+   "test/logger/logging.test.js",
+   "test/types/fastify.test-d.ts",
+   "test/types/instance.test-d.ts",
+   "types/instance.d.ts"
+  ],
+  "additions": 296,
+  "deletions": 249
+ },
+ {
+  "task": "t007",
+  "title": "chore: Updated content-type header parsing",
+  "kind": "chore",
+  "files": [
+   "lib/content-type-parser.js",
+   "lib/content-type.js",
+   "lib/handle-request.js",
+   "test/content-parser.test.js",
+   "test/content-type.test.js",
+   "test/custom-parser.0.test.js",
+   "test/custom-parser.1.test.js",
+   "test/custom-parser.3.test.js",
+   "test/schema-validation.test.js"
+  ],
+  "additions": 286,
+  "deletions": 200
+ },
+ {
+  "task": "t008",
+  "title": "fix: avoid mutating shared routerOptions across instances",
+  "kind": "bug",
+  "files": [
+   "lib/route.js"
+  ],
+  "additions": 3,
+  "deletions": 1
+ },
+ {
+  "task": "t009",
+  "title": "feat: First-class support for handler-level timeouts",
+  "kind": "feature",
+  "files": [
+   "build/build-validation.js",
+   "docs/Reference/Errors.md",
+   "docs/Reference/Hooks.md",
+   "docs/Reference/Lifecycle.md",
+   "docs/Reference/Request.md",
+   "docs/Reference/Routes.md",
+   "docs/Reference/Server.md",
+   "fastify.d.ts",
+   "fastify.js",
+   "lib/config-validator.js",
+   "lib/context.js",
+   "lib/errors.js",
+   "lib/reply.js",
+   "lib/request.js",
+   "lib/route.js",
+   "lib/symbols.js",
+   "test/internals/errors.test.js",
+   "test/internals/initial-config.test.js",
+   "test/types/fastify.test-d.ts",
+   "test/types/request.test-d.ts",
+   "types/errors.d.ts",
+   "types/request.d.ts",
+   "types/route.d.ts"
+  ],
+  "additions": 539,
+  "deletions": 305
+ },
+ {
+  "task": "t010",
+  "title": "fix: remove format placeholder from FST_ERR_CTP_INVALID_MEDIA_TYPE message",
+  "kind": "bug",
+  "files": [
+   "lib/content-type-parser.js",
+   "lib/errors.js",
+   "test/content-parser.test.js",
+   "test/internals/errors.test.js"
+  ],
+  "additions": 4,
+  "deletions": 4
+ },
+ {
+  "task": "t011",
+  "title": "chore: Fix port parsing",
+  "kind": "chore",
+  "files": [
+   "lib/request.js"
+  ],
+  "additions": 6,
+  "deletions": 12
+ },
+ {
+  "task": "t012",
+  "title": "fix: restore trustProxy function for number and string types, add null check for socketAddr",
+  "kind": "bug",
+  "files": [
+   "lib/request.js",
+   "test/server.test.js",
+   "test/trust-proxy.test.js"
+  ],
+  "additions": 93,
+  "deletions": 7
+ },
+ {
+  "task": "t013",
+  "title": "feat: add request.mediaType",
+  "kind": "feature",
+  "files": [
+   "docs/Reference/Request.md",
+   "lib/handle-request.js",
+   "lib/request.js",
+   "lib/symbols.js",
+   "lib/validation.js",
+   "test/schema-validation.test.js",
+   "types/request.d.ts"
+  ],
+  "additions": 45,
+  "deletions": 17
+ },
+ {
+  "task": "t014",
+  "title": "fix: prevent duplicate res.end in sendTrailer with sync callbacks",
+  "kind": "bug",
+  "files": [
+   "lib/reply.js"
+  ],
+  "additions": 3,
+  "deletions": 1
+ },
+ {
+  "task": "t015",
+  "title": "fix: error.code not present on some routing errors",
+  "kind": "bug",
+  "files": [
+   "lib/route.js"
+  ],
+  "additions": 2,
+  "deletions": 1
+ },
+ {
+  "task": "t016",
+  "title": "fix: correct isCustomSerializerCompiler flag check",
+  "kind": "bug",
+  "files": [
+   "lib/schema-controller.js",
+   "test/internals/schema-controller-perf.test.js"
+  ],
+  "additions": 2,
+  "deletions": 1
+ },
+ {
+  "task": "t017",
+  "title": "fix: validate invalid route logLevel at registration",
+  "kind": "bug",
+  "files": [
+   "docs/Reference/Errors.md",
+   "lib/errors.js",
+   "lib/route.js",
+   "test/internals/errors.test.js",
+   "test/logger/options.test.js",
+   "types/errors.d.ts"
+  ],
+  "additions": 59,
+  "deletions": 2
+ },
+ {
+  "task": "t018",
+  "title": "fix: use ContentType parser for response schema lookup",
+  "kind": "bug",
+  "files": [
+   "lib/schemas.js"
+  ],
+  "additions": 13,
+  "deletions": 12
+ },
+ {
+  "task": "t019",
+  "title": "fix: do not trust forwarded host/proto when socket is missing",
+  "kind": "bug",
+  "files": [
+   "lib/request.js",
+   "test/client-timeout.test.js",
+   "test/close.test.js",
+   "test/constrained-routes.test.js",
+   "test/hooks.test.js",
+   "test/http-methods/get.test.js",
+   "test/http-methods/lock.test.js",
+   "test/http-methods/propfind.test.js",
+   "test/http-methods/proppatch.test.js",
+   "test/https/https.test.js",
+   "test/internals/reply.test.js",
+   "test/internals/request.test.js",
+   "test/max-requests-per-socket.test.js",
+   "test/request-error.test.js",
+   "test/schema-examples.test.js",
+   "test/schema-feature.test.js",
+   "test/schema-serialization.test.js",
+   "test/schema-special-usage.test.js",
+   "test/schema-validation.test.js",
+   "test/skip-reply-send.test.js",
+   "test/trust-proxy.test.js",
+   "test/types/logger.test-d.ts",
+   "test/types/register.test-d.ts",
+   "test/types/reply.test-d.ts",
+   "test/types/request.test-d.ts",
+   "test/types/route.test-d.ts",
+   "types/logger.d.ts"
+  ],
+  "additions": 151,
+  "deletions": 170
+ },
+ {
+  "task": "t020",
+  "title": "fix: enable diagnostics tracking for async error handlers",
+  "kind": "bug",
+  "files": [
+   "lib/error-handler.js",
+   "lib/handle-request.js",
+   "lib/symbols.js"
+  ],
+  "additions": 9,
+  "deletions": 5
+ },
+ {
+  "task": "t021",
+  "title": "fix: ignore duplicate trailer completions",
+  "kind": "bug",
+  "files": [
+   "lib/reply.js"
+  ],
+  "additions": 3,
+  "deletions": 2
+ },
+ {
+  "task": "t022",
+  "title": "fix: chunk large HTTP/2 buffer replies",
+  "kind": "bug",
+  "files": [
+   "docs/Reference/Reply.md",
+   "lib/reply.js",
+   "test/http2/plain.test.js"
+  ],
+  "additions": 53,
+  "deletions": 3
+ },
+ {
+  "task": "t023",
+  "title": "fix: clear socket._meta after response to prevent keep-alive leaks",
+  "kind": "bug",
+  "files": [
+   "lib/reply.js"
+  ],
+  "additions": 7,
+  "deletions": 0
+ },
+ {
+  "task": "t024",
+  "title": "fix: avoid double slash when joining nested prefixes",
+  "kind": "bug",
+  "files": [
+   "lib/plugin-override.js"
+  ],
+  "additions": 2,
+  "deletions": 1
+ },
+ {
+  "task": "t025",
+  "title": "fix: hasRequestDecorator/hasReplyDecorator misses constructor-assigned built-in properties",
+  "kind": "bug",
+  "files": [
+   "lib/decorate.js",
+   "lib/reply.js",
+   "lib/request.js"
+  ],
+  "additions": 14,
+  "deletions": 1
+ },
+ {
+  "task": "t026",
+  "title": "fix: derive request.port from request.host",
+  "kind": "bug",
+  "files": [
+   "lib/request.js",
+   "test/internals/request.test.js",
+   "test/trust-proxy.test.js"
+  ],
+  "additions": 43,
+  "deletions": 39
+ },
+ {
+  "task": "t027",
+  "title": "fix: normalize method in findRoute",
+  "kind": "bug",
+  "files": [
+   "lib/route.js"
+  ],
+  "additions": 1,
+  "deletions": 1
+ },
+ {
+  "task": "t028",
+  "title": "fix(validation): correctly update falsy values from validator",
+  "kind": "bug",
+  "files": [
+   "lib/validation.js"
+  ],
+  "additions": 1,
+  "deletions": 1
+ },
+ {
+  "task": "t029",
+  "title": "fix: uncatchable throws in writeHead when using async hook",
+  "kind": "bug",
+  "files": [
+   "lib/hooks.js",
+   "test/reply-error.test.js"
+  ],
+  "additions": 5,
+  "deletions": 47
+ },
+ {
+  "task": "t030",
+  "title": "fix: clear trailer state when removing all trailers",
+  "kind": "bug",
+  "files": [
+   "lib/reply.js",
+   "test/reply-trailers.test.js"
+  ],
+  "additions": 11,
+  "deletions": 7
+ },
+ {
+  "task": "t031",
+  "title": "fix: recognize constructor-assigned built-in properties as decorator …",
+  "kind": "bug",
+  "files": [
+   "lib/decorate.js"
+  ],
+  "additions": 1,
+  "deletions": 1
+ },
+ {
+  "task": "t032",
+  "title": "fix: reset lastIndex before testing global/sticky content-type RegExp parsers",
+  "kind": "bug",
+  "files": [
+   "lib/content-type-parser.js"
+  ],
+  "additions": 4,
+  "deletions": 0
+ },
+ {
+  "task": "t033",
+  "title": "fix: run preClose hook exactly once per declaring instance",
+  "kind": "bug",
+  "files": [
+   "fastify.js"
+  ],
+  "additions": 1,
+  "deletions": 1
+ },
+ {
+  "task": "t034",
+  "title": "fix: report canonical route url for hidden prefix slash route",
+  "kind": "bug",
+  "files": [
+   "lib/route.js"
+  ],
+  "additions": 2,
+  "deletions": 1
+ },
+ {
+  "task": "t035",
+  "title": "fix: callNotFound should run not-found preHandler regardless of registration order",
+  "kind": "bug",
+  "files": [
+   "lib/four-oh-four.js",
+   "test/404s.test.js"
+  ],
+  "additions": 42,
+  "deletions": 2
+ },
+ {
+  "task": "t036",
+  "title": "perf: read the merged headers once in the trust proxy getters",
+  "kind": "perf",
+  "files": [
+   "lib/request.js"
+  ],
+  "additions": 9,
+  "deletions": 5
+ },
+ {
+  "task": "t037",
+  "title": "perf: decode string bodies once instead of per chunk",
+  "kind": "perf",
+  "files": [
+   "lib/content-type-parser.js"
+  ],
+  "additions": 21,
+  "deletions": 12
+ },
+ {
+  "task": "t038",
+  "title": "fix: omit absent compileSerializationSchema metadata instead of passing null",
+  "kind": "bug",
+  "files": [
+   "lib/reply.js"
+  ],
+  "additions": 1,
+  "deletions": 1
+ }
+]
