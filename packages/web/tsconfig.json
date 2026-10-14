@@ -3,8 +3,22 @@
   "compilerOptions": {
     "lib": ["es2024", "esnext.disposable", "dom", "dom.iterable"],
     "jsx": "react-jsx",
-    "types": ["./worker-configuration.d.ts", "vinext/types", "vite/client"],
+    "types": [
+      "./worker-configuration.d.ts",
+      "vinext/types",
+      "vite/client",
+      "@cloudflare/vitest-pool-workers/types"
+    ],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["app", "components", "src", "scripts", "worker", "*.ts", "worker-configuration.d.ts"]
+  "include": [
+    "app",
+    "components",
+    "src",
+    "scripts",
+    "test",
+    "worker",
+    "*.ts",
+    "worker-configuration.d.ts"
+  ]
 }

@@ -449,6 +449,9 @@ importers:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
         version: 1.62.5(@types/node@26.6.4)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.1)(terser@5.51.2)(yaml@2.9.1))(wrangler@4.147.0(@types/node@26.6.4))
+      '@cloudflare/vitest-pool-workers':
+        specifier: 'catalog:'
+        version: 0.22.0(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.6.4)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.1)(terser@5.51.2)(yaml@2.9.1)))
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0

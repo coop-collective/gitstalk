@@ -1,0 +1,13 @@
+{
+  // Test-only Worker for the web app's edge cache (vitest.workers.config.ts): the real KV and
+  // Cache API on Miniflare, without vinext or the app's other bindings. The OBJECTS binding
+  // matches ../../wrangler.jsonc.
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "gitstalk-web-edge-test",
+  "main": "./test-worker.ts",
+  "compatibility_date": "2026-10-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "traces": { "enabled": true } },
+  "kv_namespaces": [{ "binding": "OBJECTS", "id": "local-gitstalk-objects" }],
+  "vars": { "WEB_URL": "https://gitstalk.test" },
+}

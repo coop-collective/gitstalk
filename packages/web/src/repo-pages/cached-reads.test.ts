@@ -2,16 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RunId, Sha } from '@gitstalk/shared-race/ids';
 
-import { commitTags, fileAtCommit, sharedReadsFor, treeAtCommit } from './cached-reads';
+import { sharedReadsFor } from './cached-reads';
 
 /**
- * The Workers runtime and vinext's cache exist only inside the built Worker; under plain vitest
- * they are stood in for: the GATEWAY binding answers any RPC method through `answer`, and the
- * cache calls are recorded (a `"use cache"` function then runs on every call).
+ * The Workers runtime exists only inside the built Worker; under plain vitest it is stood in
+ * for: the GATEWAY binding answers any RPC method through `answer`, KV is a map and there is no
+ * Cache API (the colo layer reads as absent). The edge cache's own layers are tested on
+ * Miniflare (src/edge/object-cache.workers.test.ts).
  */
 const platform = vi.hoisted(() => {
   const calls: { readonly method: string; readonly args: readonly unknown[] }[] = [];
-  const cache: { life: unknown[]; tags: string[][] } = { life: [], tags: [] };
   const answers: { file: () => unknown } = { file: () => ({ ok: true, value: {} }) };
   const answer = (method: string, args: readonly unknown[]): Promise<unknown> => {
     calls.push({ method, args });
@@ -34,22 +34,31 @@ const platform = vi.hoisted(() => {
           answer(String(method), args),
     },
   );
-  return { calls, cache, answers, gateway };
+  const stored = new Map<string, string>();
+  const kv = {
+    get: (key: string) => Promise.resolve(stored.get(key) ?? null),
+    put: (key: string, value: string) => {
+      stored.set(key, value);
+      return Promise.resolve();
+    },
+  };
+  const pending: Promise<unknown>[] = [];
+  return { calls, answers, gateway, kv, stored, pending };
 });
 
-vi.mock('cloudflare:workers', () => ({ env: { GATEWAY: platform.gateway } }));
-vi.mock('next/cache', () => ({
-  cacheLife: (profile: unknown) => platform.cache.life.push(profile),
-  cacheTag: (...tags: string[]) => platform.cache.tags.push(tags),
+vi.mock('cloudflare:workers', () => ({
+  env: { GATEWAY: platform.gateway, OBJECTS: platform.kv, WEB_URL: 'https://gitstalk.test' },
+  waitUntil: (promise: Promise<unknown>) => platform.pending.push(promise),
 }));
 
-const ENGINE = RunId.parse('enginepublic');
 const SHA = Sha.parse('c'.repeat(40));
+let engines = 0;
+/** A fresh engine per test: the isolate layer is module state, shared across tests. */
+const freshEngine = () => RunId.parse(`enginepublic${(engines += 1)}`);
 
 beforeEach(() => {
   platform.calls.length = 0;
-  platform.cache.life = [];
-  platform.cache.tags = [];
+  platform.stored.clear();
   platform.answers.file = () => ({
     ok: true,
     value: { path: 'a.ts', size: 1, binary: false, content: 'a', truncated: false, commit: SHA },
@@ -58,46 +67,57 @@ beforeEach(() => {
 
 describe('which repositories share reads', () => {
   it('shares nothing for a private or an internal repository', () => {
-    expect(sharedReadsFor({ visibility: 'private' }, ENGINE)).toBeNull();
-    expect(sharedReadsFor({ visibility: 'internal' }, ENGINE)).toBeNull();
+    expect(sharedReadsFor({ visibility: 'private' }, freshEngine())).toBeNull();
+    expect(sharedReadsFor({ visibility: 'internal' }, freshEngine())).toBeNull();
   });
 
   it('shares a public repository’s reads', () => {
-    expect(sharedReadsFor({ visibility: 'public' }, ENGINE)).not.toBeNull();
+    expect(sharedReadsFor({ visibility: 'public' }, freshEngine())).not.toBeNull();
   });
 });
 
 describe('reads at a commit', () => {
-  it('keys a tree by the engine and the commit, kept for the longest life', async () => {
-    const tree = await treeAtCommit(ENGINE, SHA);
-    expect(tree).toEqual({ ref: SHA, sha: SHA, files: [{ path: 'a.ts', size: 0 }] });
-    expect(platform.calls).toEqual([{ method: 'repoTree', args: [ENGINE, SHA, '', true] }]);
-    expect(platform.cache.life).toEqual(['max']);
-    expect(platform.cache.tags).toEqual([[`engine:${ENGINE}`, `commit:${ENGINE}:${SHA}`]]);
-    expect(commitTags(ENGINE, SHA)).toEqual([`engine:${ENGINE}`, `commit:${ENGINE}:${SHA}`]);
+  it('reads a tree from the gateway once, then from this isolate on a later request', async () => {
+    const engine = freshEngine();
+    // Two requests: each builds its shared reads from the record, as `repositoryTab` does.
+    const first = await sharedReadsFor({ visibility: 'public' }, engine)?.tree(SHA);
+    const second = await sharedReadsFor({ visibility: 'public' }, engine)?.tree(SHA);
+    expect(first).toEqual({ ref: SHA, sha: SHA, files: [{ path: 'a.ts', size: 0 }] });
+    expect(second).toEqual(first);
+    expect(platform.calls).toEqual([{ method: 'repoTree', args: [engine, SHA, '', true] }]);
+    await Promise.all(platform.pending);
+    expect([...platform.stored.keys()]).toEqual([`v1:${engine}:tree:${SHA}`]);
   });
 
-  it('answers a file the commit does not have as null, which may be kept', async () => {
+  it('answers a file the commit does not have as null, and does not keep it', async () => {
     platform.answers.file = () => ({
       ok: false,
       error: { code: 'not_found', status: 404, message: 'missing' },
     });
-    expect(await fileAtCommit(ENGINE, SHA, 'nope.ts')).toBeNull();
-    expect(platform.calls).toEqual([{ method: 'repoFile', args: [ENGINE, SHA, 'nope.ts'] }]);
+    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
+    expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
+    expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
+    expect(platform.calls.map((call) => call.method)).toEqual(['repoFile', 'repoFile']);
+    await Promise.all(platform.pending);
+    expect(platform.stored.size).toBe(0);
   });
 
-  it('throws on a failed read, so the cache never keeps it', async () => {
+  it('throws on a failed read, so no layer keeps it', async () => {
     platform.answers.file = () => ({
       ok: false,
       error: { code: 'unavailable', status: 503, message: 'busy' },
     });
-    await expect(fileAtCommit(ENGINE, SHA, 'a.ts')).rejects.toThrow(/busy/);
+    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
+    await expect(shared?.file(SHA, 'a.ts')).rejects.toThrow(/busy/);
+    await Promise.all(platform.pending);
+    expect(platform.stored.size).toBe(0);
   });
 
-  it('goes through the shared reads of a public repository', async () => {
-    const shared = sharedReadsFor({ visibility: 'public' }, ENGINE);
+  it('keeps a file a public repository has, by commit and path', async () => {
+    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
     expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
-    expect(platform.cache.tags).toEqual([[`engine:${ENGINE}`, `commit:${ENGINE}:${SHA}`]]);
+    expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
+    expect(platform.calls).toHaveLength(1);
   });
 });
 
