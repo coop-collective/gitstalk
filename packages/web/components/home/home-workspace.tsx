@@ -47,7 +47,8 @@ export type HomeWorkspaceProps = {
   readonly questions: readonly string[];
   readonly suggestReceipt: PickReceipt | null;
   readonly receipts: readonly PickReceipt[];
-  readonly picker: 'jev' | 'rules';
+  /** The model that orders the lists (`Clef Flash`); null when fixed rules do. */
+  readonly pickerModel: string | null;
   /** The server-rendered explorer for a question or a bean; the defaults when absent. */
   readonly children?: ReactNode;
 };
@@ -149,7 +150,7 @@ export function HomeWorkspace(props: HomeWorkspaceProps) {
         mode={props.mode}
         liveStatus={live.status}
         receipts={props.receipts}
-        picker={props.picker}
+        pickerModel={props.pickerModel}
       />
     </LiveStreamsProvider>
   );
@@ -204,7 +205,8 @@ function StatusLine(props: {
   readonly mode: 'replay' | 'live';
   readonly liveStatus: LiveStatus;
   readonly receipts: readonly PickReceipt[];
-  readonly picker: 'jev' | 'rules';
+  /** The model that orders the lists (`Clef Flash`); null when fixed rules do. */
+  readonly pickerModel: string | null;
 }) {
   const { state } = props;
   const sprout = state.line.commits.filter((commit) => commit.t <= props.now).length - 1;
@@ -240,7 +242,7 @@ function StatusLine(props: {
           : lastPushLine(state, props.pushers)}
       </span>
       <span className={styles.slsp} />
-      <PicksDrawer receipts={props.receipts} picker={props.picker} />
+      <PicksDrawer receipts={props.receipts} pickerModel={props.pickerModel} />
       <span className={styles.sl} style={{ borderLeft: '1px solid var(--rule)' }}>
         {props.mode === 'live' ? props.liveStatus : 'replay'}
       </span>

@@ -1,6 +1,7 @@
 {
   "name": "@gitstalk/shared-race",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "exports": {
     "./task": "./src/task.ts",
@@ -11,6 +12,7 @@
     "./ids": "./src/ids.ts",
     "./rpc": "./src/rpc.ts",
     "./collaboration": "./src/collaboration.ts",
+    "./bean-commit": "./src/bean-commit.ts",
     "./repos": "./src/repos.ts",
     "./accounts": "./src/accounts.ts",
     "./deploy-tokens": "./src/deploy-tokens.ts",
@@ -20,14 +22,20 @@
     "./collaborators": "./src/collaborators.ts",
     "./engine-feed": "./src/engine-feed.ts",
     "./repo-events": "./src/repo-events.ts",
+    "./derived": "./src/derived.ts",
     "./config-dir": "./src/config-dir.ts",
     "./plugin": "./src/plugin.ts",
     "./checks-config": "./src/checks-config.ts",
+    "./approval-policy": "./src/approval-policy.ts",
+    "./policy-file": "./src/policy-file.ts",
+    "./rules-editor": "./src/rules-editor.ts",
+    "./code-tokens": "./src/code-tokens.ts",
     "./actions": "./src/actions.ts",
     "./actions-secrets": "./src/actions-secrets.ts",
     "./cron": "./src/cron.ts",
     "./automation-models": "./src/automation-models.ts",
     "./automation-file": "./src/automation-file.ts",
+    "./automation-templates": "./src/automation-templates.ts",
     "./automation-editor": "./src/automation-editor.ts"
   },
   "scripts": {

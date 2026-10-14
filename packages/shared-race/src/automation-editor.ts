@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { AUTOMATIONS_DIR } from './actions';
+import { IdempotencyKey } from './bean-commit';
 import type { ViewerRole } from './collaborators';
 import type { Viewer } from './repos';
 import type { RpcResult } from './rpc';
@@ -70,6 +71,8 @@ export const SaveAutomationInput = z.object({
     .nullable(),
   /** The commit message's subject; a default names the change. */
   message: z.string().max(200).optional(),
+  /** One per save attempt: a double click or a retried request replays the first bean. */
+  idempotencyKey: IdempotencyKey.optional(),
 });
 export type SaveAutomationInput = z.input<typeof SaveAutomationInput>;
 

@@ -6,7 +6,7 @@
  */
 import type { GitstalkEvent } from '@gitstalk/shared-race/actions';
 import { GITSTALK_EVENTS } from '@gitstalk/shared-race/actions';
-import { Document, LineCounter, isMap, isScalar, isSeq, parseDocument } from 'yaml';
+import { Document, LineCounter, isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml';
 import type { Node, YAMLMap } from 'yaml';
 
 import { minimalEdit } from './minimal-edit';
@@ -21,11 +21,15 @@ export type ParsedDraft =
 
 export type SyntaxProblem = { readonly line: number; readonly message: string };
 
-/** One Gitstalk event's filters (empty lists: every bean, every author). */
+/** One Gitstalk event's filters (empty lists: every bean, every author, any files). */
 export type EventFilter = {
   readonly beans: readonly string[];
   readonly authors: readonly string[];
+  /** Changed-file globs; only landings and reverts take them (`PATH_FILTERED_EVENTS`). */
+  readonly paths: readonly string[];
 };
+
+export const NO_FILTER: EventFilter = { beans: [], authors: [], paths: [] };
 
 /** What the form shows, read leniently: the validator reports what is wrong. */
 export type DraftForm = {
@@ -99,6 +103,8 @@ export function formOf(value: Readonly<Record<string, unknown>>): DraftForm {
 export function setField(source: string, path: FieldPath, value: unknown): string {
   const parsed = parseDocument(source);
   if (parsed.errors.length > 0) return source;
+  // Setting a field to the value it has already is no edit: the bytes, comments included, stay.
+  if (isSameValue(parsed, path, value)) return source;
   // An empty file (or one that is not a mapping) starts as an empty mapping.
   const document: Document = isMap(parsed.contents) ? parsed : new Document({});
   if (path[0] === 'on') normaliseOn(document);
@@ -118,6 +124,7 @@ export function setEventFilter(source: string, event: GitstalkEvent, filter: Eve
   const value: Record<string, readonly string[]> = {};
   if (filter.beans.length > 0) value['beans'] = filter.beans;
   if (filter.authors.length > 0) value['authors'] = filter.authors;
+  if (filter.paths.length > 0) value['paths'] = filter.paths;
   return setField(source, ['on', event], Object.keys(value).length === 0 ? null : value);
 }
 
@@ -210,11 +217,28 @@ function render(document: Document): string {
   return document.toString({ nullStr: '', lineWidth: 0 });
 }
 
+/**
+ * Whether the field at `path` already holds `value` (`undefined`: it is absent). A bare key
+ * (`workflow_dispatch:`) is present with a null value, so it never matches `undefined`.
+ */
+function isSameValue(document: Document, path: FieldPath, value: unknown): boolean {
+  if (!isMap(document.contents)) return false;
+  if (!document.hasIn(path)) return value === undefined;
+  if (value === undefined) return false;
+  const node: unknown = document.getIn(path, true);
+  const current: unknown = isNode(node) ? node.toJSON() : node;
+  return JSON.stringify(current ?? null) === JSON.stringify(value);
+}
+
 // Reading -----------------------------------------------------------------------------------
 
 function filterOf(value: unknown): EventFilter {
-  if (!isRecord(value)) return { beans: [], authors: [] };
-  return { beans: strings(value['beans']), authors: strings(value['authors']) };
+  if (!isRecord(value)) return NO_FILTER;
+  return {
+    beans: strings(value['beans']),
+    authors: strings(value['authors']),
+    paths: strings(value['paths']),
+  };
 }
 
 function strings(value: unknown): string[] {

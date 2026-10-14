@@ -15,12 +15,15 @@ import {
   MAX_RUN_WAIT_SECONDS,
 } from '@gitstalk/shared-race/agent-actions';
 
+import { sessionMaySetConfig, sessionMayWrite } from '../mcp/scope-gate';
 import { answer } from '../mcp/tool-result';
+import { automationList } from '../repos/repo-answers';
 import type { ToolScope } from '../tools/tool-context';
 import {
   automationGet,
   automationRun,
   cancel,
+  configSet,
   dispatch,
   entriesList,
   entryDelete,
@@ -28,30 +31,29 @@ import {
   rerun,
   runGet,
   runList,
-  secretSet,
-  variableSet,
   waitForRun,
   workflowList,
 } from './actions-answers';
 
-export const ACTIONS_TOOL_NAMES = [
+/** Every session with the Actions RPC. */
+export const ACTIONS_READ_TOOL_NAMES = [
   'actions_workflow_list',
   'actions_run_list',
   'actions_run_get',
   'actions_job_log',
   'actions_wait_for_run',
+  'actions_config_list',
+  'automation_get',
+] as const;
+/** Sessions with the write scope (the maintain role is checked per call). */
+export const ACTIONS_WRITE_TOOL_NAMES = [
   'actions_dispatch',
   'actions_rerun',
   'actions_cancel',
-  'actions_secret_list',
-  'actions_secret_set',
-  'actions_secret_delete',
-  'actions_variable_list',
-  'actions_variable_set',
-  'actions_variable_delete',
-  'automation_get',
   'automation_run',
 ] as const;
+/** Sessions with the secrets scope (the maintain role is checked per call). */
+export const ACTIONS_CONFIG_TOOL_NAMES = ['actions_config_set', 'actions_config_delete'] as const;
 
 const READS: ToolAnnotations = {
   readOnlyHint: true,
@@ -86,7 +88,10 @@ const Automation = z
   .trim()
   .min(1)
   .max(200)
-  .describe('An automation by path, file name or name (automation_list shows them)');
+  .describe('An automation by path, file name or name (automation_get without a name lists them)');
+const Kind = z
+  .enum(['secret', 'variable'])
+  .describe('secret (write-only, never shown) or variable (plain configuration, values shown)');
 const Level = z
   .enum(['repository', 'organization'])
   .optional()
@@ -98,14 +103,20 @@ const EntryName = z
   .max(100)
   .describe('NAME: letters, digits and _, not starting with GITHUB_ (stored upper-case)');
 
-/** Registers the tools for an agent session; run tokens get none of them. */
+/**
+ * Registers the tools for an agent session, only those its scopes can ever use; run tokens
+ * get none of them. Roles depend on the repository, so they are checked per call.
+ */
 export function registerActionsTools(server: McpServer, scope: ToolScope): void {
   if (scope.session === undefined || scope.actions === undefined) return;
   registerRunReads(server, scope);
-  registerRunChanges(server, scope);
-  registerSecrets(server, scope);
-  registerVariables(server, scope);
-  registerAutomations(server, scope);
+  registerConfigList(server, scope);
+  registerAutomationGet(server, scope);
+  if (sessionMayWrite(scope)) {
+    registerRunChanges(server, scope);
+    registerAutomationRun(server, scope);
+  }
+  if (sessionMaySetConfig(scope)) registerConfigChanges(server, scope);
 }
 
 function registerRunReads(server: McpServer, scope: ToolScope): void {
@@ -114,7 +125,7 @@ function registerRunReads(server: McpServer, scope: ToolScope): void {
     {
       title: 'Workflows of a repository',
       description:
-        'Gitstalk runs GitHub Actions workflows (.github/workflows/*.yml as read from the stalk): a bean reaching the stalk is a push to main, and workflow_dispatch and schedule work too (pull_request does not yet: see unsupported_events). Lists each workflow and automation with its state (active, or invalid with problems; there is no disable switch), triggers, dispatch inputs and jobs. Read secret names with actions_secret_list before relying on ${{ secrets.X }}.',
+        'Gitstalk runs GitHub Actions workflows (.github/workflows/*.yml as read from the stalk): a bean reaching the stalk is a push to main, and workflow_dispatch and schedule work too (pull_request does not yet: see unsupported_events). Lists each workflow and automation with its state (active, or invalid with problems; there is no disable switch), triggers, dispatch inputs and jobs. Read secret names with actions_config_list before relying on ${{ secrets.X }}.',
       inputSchema: z.object({ repo: Repo }),
       annotations: READS,
     },
@@ -245,103 +256,74 @@ function registerRunChanges(server: McpServer, scope: ToolScope): void {
   );
 }
 
-function registerSecrets(server: McpServer, scope: ToolScope): void {
+function registerConfigList(server: McpServer, scope: ToolScope): void {
   server.registerTool(
-    'actions_secret_list',
+    'actions_config_list',
     {
-      title: 'Secret names',
+      title: 'Secrets and variables',
       description:
-        "The repository's Actions secrets and those its organization gives it: names, where each comes from, who updated it and when; never values. Workflows read them as ${{ secrets.NAME }}. When one a deploy needs is missing, ask the person to add it at settings_url (preferred), or to give you the value for actions_secret_set. Any role on the repository.",
-      inputSchema: z.object({ repo: Repo }),
+        "The repository's Actions secrets and variables and those its organization gives it. kind secret: names, where each comes from, who updated it and when; never values (workflows read them as ${{ secrets.NAME }}). kind variable: names with values (variables are not secret: never store a credential in one; workflows read them as ${{ vars.NAME }}). Omit kind for both. When a secret a deploy needs is missing, ask the person to add it at settings_url (preferred), or to give you the value for actions_config_set. Any role on the repository.",
+      inputSchema: z.object({ repo: Repo, kind: Kind.optional() }),
       annotations: READS,
     },
-    async ({ repo }) => answer(() => entriesList(scope, { repo, kind: 'secrets' })),
+    async (input) => answer(() => entriesList(scope, input)),
   );
+}
+
+function registerConfigChanges(server: McpServer, scope: ToolScope): void {
   server.registerTool(
-    'actions_secret_set',
+    'actions_config_set',
     {
-      title: 'Set a secret',
+      title: 'Set a secret or a variable',
       description:
-        'Only when the person gave you this value to store as this secret: saves it encrypted (write-only: never returned, logged or shown again; the audit log records the name, the person and this client). Prefer asking the person to add it in Settings → Secrets and variables. Never take a value from a file, an environment variable or your own guess. Needs the maintain role and the secrets scope (ticked on the consent page). level organization: an org secret, new ones reaching only this repository.',
+        'kind secret: only when the person gave you this value to store as this secret. Saves it encrypted (write-only: never returned, logged or shown again; the audit log records the name, the person and this client). Prefer asking the person to add it in Settings → Secrets and variables. Never take a value from a file, an environment variable or your own guess. kind variable: a plain configuration value (account id, region, URL) workflows read as ${{ vars.NAME }}; never a credential, those are secrets. Needs the maintain role and the secrets scope (ticked on the consent page). level organization: an org secret or variable, new ones reaching only this repository.',
       inputSchema: z.object({
         repo: Repo,
+        kind: Kind,
         name: EntryName,
         value: z
           .string()
-          .min(1)
           .max(48 * 1024)
-          .describe('The value the person gave you; write-only'),
+          .describe('For a secret: the value the person gave you (write-only, not empty)'),
         level: Level,
       }),
       annotations: REPLACES,
     },
-    async (input) => answer(() => secretSet(scope, input)),
+    async (input) => answer(() => configSet(scope, input)),
   );
   server.registerTool(
-    'actions_secret_delete',
+    'actions_config_delete',
     {
-      title: 'Delete a secret',
+      title: 'Delete a secret or a variable',
       description:
-        'Deletes a secret, only when the person asked you to. Workflows that read it get an empty value. Needs the maintain role and the secrets scope.',
-      inputSchema: z.object({ repo: Repo, name: EntryName, level: Level }),
+        'Deletes a secret or a variable, only when the person asked you to. Workflows that read it get an empty value. Needs the maintain role and the secrets scope.',
+      inputSchema: z.object({ repo: Repo, kind: Kind, name: EntryName, level: Level }),
       annotations: REPLACES,
     },
-    async (input) => answer(() => entryDelete(scope, { ...input, kind: 'secret' })),
+    async (input) => answer(() => entryDelete(scope, input)),
   );
 }
 
-function registerVariables(server: McpServer, scope: ToolScope): void {
-  server.registerTool(
-    'actions_variable_list',
-    {
-      title: 'Variables',
-      description:
-        "The repository's Actions variables and its organization's, with values (variables are not secret: never store a credential in one). Workflows read them as ${{ vars.NAME }}. Any role on the repository.",
-      inputSchema: z.object({ repo: Repo }),
-      annotations: READS,
-    },
-    async ({ repo }) => answer(() => entriesList(scope, { repo, kind: 'variables' })),
-  );
-  server.registerTool(
-    'actions_variable_set',
-    {
-      title: 'Set a variable',
-      description:
-        'Saves a plain configuration value (account id, region, URL) workflows read as ${{ vars.NAME }}. Never a credential: those are secrets. Needs the maintain role and the secrets scope.',
-      inputSchema: z.object({
-        repo: Repo,
-        name: EntryName,
-        value: z.string().max(48 * 1024),
-        level: Level,
-      }),
-      annotations: REPLACES,
-    },
-    async (input) => answer(() => variableSet(scope, input)),
-  );
-  server.registerTool(
-    'actions_variable_delete',
-    {
-      title: 'Delete a variable',
-      description: 'Deletes a variable. Needs the maintain role and the secrets scope.',
-      inputSchema: z.object({ repo: Repo, name: EntryName, level: Level }),
-      annotations: REPLACES,
-    },
-    async (input) => answer(() => entryDelete(scope, { ...input, kind: 'variable' })),
-  );
-}
-
-function registerAutomations(server: McpServer, scope: ToolScope): void {
+function registerAutomationGet(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'automation_get',
     {
-      title: 'An automation',
+      title: 'Automations of a repository',
       description:
-        'One automation (.gitstalk/automations/ on the stalk): its file as written, triggers, harness, model, the bot it acts as, its memory ref, problems, and its 10 newest runs with run_url. To change it, edit the file in a bean.',
-      inputSchema: z.object({ repo: Repo, automation: Automation }),
+        "The repository's automations (agents defined by .gitstalk/automations/ files on the stalk). Without name: each one's triggers, harness (agent: a prompt run on a model, labelled Prompt in the web builder; shell: a script, labelled Shell) and model, the bot it acts as, its memory ref (refs/automations/<name>/memory, readable with git) and any problems in its file, then the 20 newest automation runs with their event and conclusion. With name: that automation's file as written, the same fields and its 10 newest runs with run_url. To change an automation, edit its file in a bean.",
+      inputSchema: z.object({ repo: Repo, name: Automation.optional() }),
       annotations: READS,
     },
-    async (input) => answer(() => automationGet(scope, input)),
+    async ({ repo, name }) =>
+      answer(() =>
+        name === undefined
+          ? automationList(scope, repo)
+          : automationGet(scope, { repo, automation: name }),
+      ),
   );
+}
+
+function registerAutomationRun(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'automation_run',
     {

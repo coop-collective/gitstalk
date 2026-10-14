@@ -74,7 +74,8 @@ export async function planAnswer(input: AskInput): Promise<Answer> {
     question: input.question,
     spec,
     view: CATALOG[spec.class].view,
-    classifiedBy: routed?.receipt.by === 'jev' ? 'jev' : classification.by,
+    classifiedBy:
+      routed === null || routed.receipt.by === 'rules' ? classification.by : routed.receipt.by,
     chips: chipsFor(spec, set.ranked, set.files),
     ref: { name: ctx.state.meta?.policy === 'queue' ? 'stalk' : ctx.refName, sha: ctx.tree.sha },
     policy: ctx.state.meta?.policy ?? null,

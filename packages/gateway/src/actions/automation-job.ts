@@ -41,7 +41,7 @@ export function compileAutomation(input: {
       permissions: { contents: info.permissions.beans === 'write' ? 'write' : 'read' },
       jobs: {
         [AUTOMATION_JOB]: {
-          name: info.harness === 'agent' ? `agent (${info.model ?? 'model'})` : 'agent (shell)',
+          name: info.harness === 'agent' ? `prompt (${info.model ?? 'model'})` : 'shell',
           'runs-on': 'ubuntu-latest',
           'timeout-minutes': info.timeoutMinutes,
           outputs: {

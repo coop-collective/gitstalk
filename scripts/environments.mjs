@@ -292,14 +292,14 @@ function secretsToGithub(env, repo) {
 
 /**
  * Automations call Workers AI through the AI Gateway named in AUTOMATIONS_AI_GATEWAY (and the
- * Jev picker through JEV_GATEWAY). Creates it when an API token can (CLOUDFLARE_API_TOKEN with
+ * Clef picker through DECISION_GATEWAY). Creates it when an API token can (CLOUDFLARE_API_TOKEN with
  * AI Gateway edit); otherwise says so, as Wrangler has no AI Gateway command.
  */
 async function ensureAiGateway(env) {
   const names = new Set();
   for (const pkg of env.packages) {
     const vars = generateConfig(env, pkg, { allowMissingIds: true }).vars ?? {};
-    for (const key of ['AUTOMATIONS_AI_GATEWAY', 'JEV_GATEWAY'])
+    for (const key of ['AUTOMATIONS_AI_GATEWAY', 'DECISION_GATEWAY'])
       if (vars[key]) names.add(vars[key]);
   }
   if (names.size === 0) return;

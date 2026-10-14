@@ -101,15 +101,15 @@ GitHub's official MCP server loaded 101 tools (about 64.6k tokens) by default un
 | `task_next` / `task_claim` | Get placed work from the scheduler, with its slice, footprint, repair ticket if any, and budget |
 | `context_read` | File at SHA, symbol, references, search, merge base (logged to the read set; carries markers and "being modified by" notes) |
 | `change_submit` | Mark the fork's head as done. The committer takes over |
-| `change_status` | Landed / suspect / repaired / in green, with evidence |
-| `checks_get` | Structured failures (file, line, test, message), not log dumps |
+| `bean_status` | Landed / suspect / repaired / in green, with evidence (was `change_status`) |
+| `bean_status` with `checks: true` | Structured failures (file, line, test, message), not log dumps (was `checks_get`) |
 | `preview_ensure`, `preview_http`, `preview_browse`, `preview_compare`, `preview_logs` | §5 |
 | `decision_request` | Ask a human. It becomes a card on the canvas |
 | `marker_drop` | Leave a decaying note on a symbol (idea #10) |
 | `ask_repo` | Run a canvas view as JSON: the same query layer humans see (`04` §5.2) |
 | `execute` | Code mode: the agent writes TypeScript against the full typed API, for the long tail |
 
-**Built so far (2026-10-04, `packages/mcp`):** the read-only slice, stateless over `createMcpHandler`, behind a run-scoped view token the gateway verifies (`verifyViewToken`): `ask_repo`, `change_status`, `checks_get`, plus `work_overlaps` (beans in flight or recently landed on given paths, with their intents), `run_status` and `preview_link`. **Code mode (`execute`) is deferred: the owner tested it and judged it highly experimental**, so the surface stays plain task-shaped tools. `packages/claude-plugin` wires the server into Claude Code with a `beanstalk` skill.
+**Built so far (2026-10-04, `packages/mcp`):** the read-only slice, stateless over `createMcpHandler`, behind a run-scoped view token the gateway verifies (`verifyViewToken`): `ask_repo`, `change_status`, `checks_get`, plus `work_overlaps` (beans in flight or recently landed on given paths, with their intents), `run_status` and `preview_link` (on 2026-10-14 merged into `bean_status` and `repo_status`, with the links in their answers; `23` §6). **Code mode (`execute`) is deferred: the owner tested it and judged it highly experimental**, so the surface stays plain task-shaped tools. `packages/claude-plugin` wires the server into Claude Code with a `beanstalk` skill.
 
 **Rules:**
 - Return **handles plus short summaries**. Screenshots, traces and logs go to R2, and the agent fetches them only if it needs them.

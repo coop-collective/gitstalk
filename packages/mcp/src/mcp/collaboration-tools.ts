@@ -8,8 +8,10 @@ import {
   BeanThreadPostInput,
   BeanUpdateInput,
 } from '@gitstalk/shared-race/collaboration';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 
 import {
+  beanCommit,
   beanInboxAck,
   beanInboxRead,
   beanThreadPost,
@@ -23,6 +25,7 @@ import { answer } from './tool-result';
 export const COLLABORATION_TOOL_NAMES = [
   'bean_context',
   'bean_update',
+  'bean_commit',
   'bean_thread_post',
   'bean_inbox_read',
   'bean_inbox_ack',
@@ -41,6 +44,7 @@ function acceptingBranch<S extends z.ZodType>(schema: S) {
 const ContextToolInput = acceptingBranch(BeanContextInput);
 const UpdateToolInput = acceptingBranch(BeanUpdateInput);
 const ThreadToolInput = acceptingBranch(BeanThreadPostInput);
+const CommitToolInput = acceptingBranch(BeanCommitInput);
 
 const READ: ToolAnnotations = {
   readOnlyHint: true,
@@ -72,6 +76,7 @@ export function registerCollaboration(server: McpServer, ctx: ToolContext): void
   }
   if (ctx.contributor === undefined) return;
   registerUpdate(server, ctx);
+  registerCommit(server, ctx);
   registerThread(server, ctx);
   registerInbox(server, ctx);
 }
@@ -88,6 +93,21 @@ function registerUpdate(server: McpServer, ctx: ToolContext): void {
       annotations: WRITE,
     },
     async (input) => answer(() => beanUpdate(ctx, input)),
+  );
+}
+
+function registerCommit(server: McpServer, ctx: ToolContext): void {
+  if (typeof ctx.gateway.beanCommit !== 'function') return;
+  server.registerTool(
+    'bean_commit',
+    {
+      title: 'Commit files to your bean without a checkout',
+      description:
+        'Write or delete files on your own bean branch (beans/<bean>) as one commit the gateway builds; no clone, no push. For small edits by agents without a checkout; with a checkout, keep using git. expected_head is the branch head you read (null creates the branch from the sprout); if the branch moved you get kind "conflict" with current_head, nothing is overwritten. changes: [{path, content} | {path, delete: true}], at most 64 paths and 192 KiB. Reuse idempotency_key only for an exact retry.',
+      inputSchema: CommitToolInput,
+      annotations: WRITE,
+    },
+    async (input) => answer(() => beanCommit(ctx, input)),
   );
 }
 

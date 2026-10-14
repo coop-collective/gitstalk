@@ -31,6 +31,7 @@ describe('repository settings pages', () => {
       'visibility',
       'branches',
       'checks',
+      'rules',
       'actions',
       'collaborators',
       'secrets',
@@ -42,13 +43,25 @@ describe('repository settings pages', () => {
 
   it('gives a maintainer the shared sections, Actions and deploy tokens, never the owner’s', () => {
     const sections = slugs(repoSections(facts({ role: 'maintain' })));
-    expect(sections).toEqual(['branches', 'checks', 'actions', 'secrets', 'deploy-tokens']);
+    expect(sections).toEqual([
+      'branches',
+      'checks',
+      'rules',
+      'actions',
+      'secrets',
+      'deploy-tokens',
+    ]);
     expect(firstRepoSection(facts({ role: 'maintain' }))).toBe('branches');
   });
 
   it('gives write and read collaborators only what they may read', () => {
     for (const role of ['write', 'read'] as const)
-      expect(slugs(repoSections(facts({ role })))).toEqual(['branches', 'checks', 'secrets']);
+      expect(slugs(repoSections(facts({ role })))).toEqual([
+        'branches',
+        'checks',
+        'rules',
+        'secrets',
+      ]);
   });
 
   it('hides editing and deploy tokens while archived, and keeps the Danger zone to unarchive', () => {

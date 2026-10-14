@@ -176,6 +176,54 @@ describe('saving is a bean', () => {
   });
 });
 
+const RETRY = '.gitstalk/automations/retry.yml';
+const RETRY_FILE = HEARTBEAT_FILE.replace('name: Heartbeat', 'name: Retry');
+
+describe('a save goes through the server-side commit flow', () => {
+  it('makes one bean of a double-clicked save, and answers a retry after it landed with it', async () => {
+    const source = value(await gateway.automationSource(coop.id, repo.id, RETRY));
+    const save = { path: RETRY, base: source.base, content: RETRY_FILE, idempotencyKey: 'retry-1' };
+    const [first, second] = await Promise.all([
+      gateway.saveAutomation(coop.id, repo.id, save),
+      gateway.saveAutomation(coop.id, repo.id, save),
+    ]);
+    const saved = value(first);
+    if (saved.kind !== 'pushed') throw new Error('expected a pushed bean');
+    expect(value(second)).toEqual(saved);
+    await waitForBean(repo, saved.bean);
+    await waitForLanded(repo, RETRY, RETRY_FILE);
+    expect(value(await gateway.saveAutomation(coop.id, repo.id, save))).toEqual(saved);
+  }, 60_000);
+
+  it('refuses a key used before with other text', async () => {
+    const source = value(await gateway.automationSource(coop.id, repo.id, RETRY));
+    const refused = await gateway.saveAutomation(coop.id, repo.id, {
+      path: RETRY,
+      base: source.base,
+      content: RETRY_FILE.replace('Retry', 'Retried'),
+      idempotencyKey: 'retry-1',
+    });
+    expect(refused).toMatchObject({
+      ok: false,
+      error: { code: 'conflict', message: expect.stringContaining('idempotency key') },
+    });
+  });
+
+  it("applies bean_commit's size cap to an editor's file", async () => {
+    const source = value(await gateway.automationSource(coop.id, repo.id, RETRY));
+    const refused = await gateway.saveAutomation(coop.id, repo.id, {
+      path: RETRY,
+      base: source.base,
+      // 50,000 characters, 150,000 bytes: within the editor's length, over the commit's cap.
+      content: `${RETRY_FILE}# ${'€'.repeat(50_000)}\n`,
+    });
+    expect(refused).toMatchObject({
+      ok: false,
+      error: { status: 400, message: expect.stringContaining('at most') },
+    });
+  });
+});
+
 describe('who may save', () => {
   it('refuses a reader: saving pushes a bean, which needs write', async () => {
     const source = value(await gateway.automationSource(dana.id, repo.id, HEARTBEAT));
@@ -244,6 +292,66 @@ describe('a test run of a draft', () => {
 });
 
 // Helpers ----------------------------------------------------------------------------------
+
+const RULES = `# yaml-language-server: $schema=https://gitstalk.dev/schemas/policy.json
+classes:
+  - name: auth
+    match: { paths: ["src/auth/**"] }
+    route: card
+`;
+
+describe('Settings → Rules', () => {
+  it('saves the rules as a bean authored by the owner, which lands without a card', async () => {
+    const source = value(await gateway.rulesSource(coop.id, repo.id));
+    expect(source).toMatchObject({
+      path: '.gitstalk/policy.yml',
+      content: null,
+      save: { kind: 'allowed' },
+    });
+    const saved = value(
+      await gateway.saveRules(coop.id, repo.id, { base: source.base, content: RULES }),
+    );
+    if (saved.kind !== 'pushed') throw new Error('expected a pushed bean');
+    expect(saved.bean).toMatch(/^rules-[0-9a-f]{6}$/);
+    const status = await waitForBean(repo, saved.bean);
+    expect(['landed', 'green']).toContain(status.phase);
+    const route = value(await gateway.beanRoute(repo.engine_id, saved.bean));
+    expect(route?.route).toBe('auto');
+  });
+
+  it('refuses rules the engine would reject, with the line', async () => {
+    const source = value(await gateway.rulesSource(coop.id, repo.id));
+    const refused = await gateway.saveRules(coop.id, repo.id, {
+      base: source.base,
+      content: 'classes:\n  - name: x\n    route: later\n    match: { paths: [a] }\n',
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error.message).toBe('.gitstalk/policy.yml:3: must be auto, triage or card');
+  });
+
+  it('makes one bean of a rules save sent twice with the same key', async () => {
+    const source = value(await gateway.rulesSource(coop.id, repo.id));
+    const save = {
+      base: source.base,
+      content: RULES.replace('route: card', 'route: triage'),
+      idempotencyKey: 'rules-twice',
+    };
+    const first = value(await gateway.saveRules(coop.id, repo.id, save));
+    expect(first.kind).toBe('pushed');
+    expect(value(await gateway.saveRules(coop.id, repo.id, save))).toEqual(first);
+  });
+
+  it('lets a writer read the rules but not save them', async () => {
+    const source = value(await gateway.rulesSource(erin.id, repo.id));
+    expect(source.save).toMatchObject({ kind: 'refused' });
+    const refused = await gateway.saveRules(erin.id, repo.id, {
+      base: source.base,
+      content: RULES,
+    });
+    expect(refused.ok === false && refused.error.status).toBe(403);
+  });
+});
 
 async function waitForBean(on: RepositoryRecord, bean: string): Promise<AutomationBeanStatus> {
   return vi.waitFor(

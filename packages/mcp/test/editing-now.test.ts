@@ -47,7 +47,7 @@ describe('the observed footprint (stream_diffs)', () => {
     expect(answer.beans).toMatchObject([{ bean: 't005', overlap: [PATH], editing_now: [PATH] }]);
   });
 
-  it('change_status says what the agent is editing right now', async () => {
+  it('bean_status says what the agent is editing right now', async () => {
     const answer = await changeStatus(context([STREAM]), TaskId.parse('t005'));
 
     expect(answer?.editing_now).toEqual({

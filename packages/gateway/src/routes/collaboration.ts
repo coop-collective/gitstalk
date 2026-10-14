@@ -11,6 +11,7 @@ import {
   BeanThreadPostInput,
   BeanUpdateInput,
 } from '@gitstalk/shared-race/collaboration';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 import { TaskId } from '@gitstalk/shared-race/ids';
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
 
@@ -114,6 +115,21 @@ export const collaborationRoutes = new Hono<AppEnv>()
       if (input.bean !== bean)
         throw new GatewayError('body bean must match path', 'invalid_request', 400);
       return c.json(rpcValue(await collaborationRpc(c.var.deps).beanUpdate(token, input)));
+    },
+  )
+  .post(
+    '/:run/beans/:bean/commits',
+    requireContributor,
+    validate('param', BeanParam),
+    validate('json', BeanCommitInput),
+    async (c) => {
+      const { bean } = c.req.valid('param');
+      const token = presentedContributorToken(c);
+      const input = c.req.valid('json');
+      if (input.bean !== bean)
+        throw new GatewayError('body bean must match path', 'invalid_request', 400);
+      const result = rpcValue(await collaborationRpc(c.var.deps).beanCommit(token, input));
+      return c.json(result, result.kind === 'committed' ? 201 : 409);
     },
   )
   .post(

@@ -11,6 +11,7 @@
  */
 import { z } from 'zod';
 
+import type { BeanCommitInput, BeanCommitResult } from './bean-commit';
 import type { AgentPrincipal, ViewerRole } from './collaborators';
 import type { PushedBeanStatus, RpcResult } from './rpc';
 
@@ -157,7 +158,7 @@ export type Backlog = {
 
 export type TaskClaimed = { readonly repo: string; readonly task: BacklogTask };
 
-/** A repository's automations and their recent runs, for `automation_list` (doc 25 §7). */
+/** A repository's automations and their recent runs, for `automation_get` without a name (doc 25 §7). */
 export type AgentAutomations = {
   readonly repo: string;
   readonly automations: readonly {
@@ -222,4 +223,13 @@ export type AgentReposRpc = {
   ): Promise<RpcResult<TaskClaimed>>;
   /** The automations the stalk's files define, and their 20 newest runs (read). */
   agentAutomations?(principal: AgentPrincipal, repo: string): Promise<RpcResult<AgentAutomations>>;
+  /**
+   * `bean_commit` (doc 33): the changes as a commit on `bean/<name>`, built by the gateway and
+   * submitted as a push of that branch is; needs `write`. A moved branch answers `conflict`.
+   */
+  agentCommitBean?(
+    principal: AgentPrincipal,
+    repo: string,
+    input: BeanCommitInput,
+  ): Promise<RpcResult<BeanCommitResult>>;
 };

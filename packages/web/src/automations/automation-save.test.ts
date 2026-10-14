@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { templateOf } from './templates';
+import { templateOf } from '@gitstalk/shared-race/automation-templates';
 import type { SaveBase } from './automation-save';
-import { saveBaseOf, staleAnswerOf } from './automation-save';
+import { saveBaseOf, saveKeys, staleAnswerOf } from './automation-save';
 
 const COMMIT = 'c'.repeat(40);
 const BLOB = 'b'.repeat(40);
@@ -55,5 +55,16 @@ describe('a stale answer', () => {
   it('still offers recreate or keep-deleted when an edited file was deleted meanwhile', () => {
     const answer = staleAnswerOf({ mode: 'edit', base: TAKEN_OPEN, theirs: null, ours: OTHER });
     expect(answer).toEqual({ kind: 'merge', view: { kind: 'deleted', oursChanged: false } });
+  });
+});
+
+describe('the key a save sends', () => {
+  it('is the same for the same save sent twice, and new for anything else', () => {
+    let made = 0;
+    const keyOf = saveKeys(() => `key-${(made += 1)}`);
+    expect(keyOf('a')).toBe('key-1');
+    expect(keyOf('a')).toBe('key-1');
+    expect(keyOf('b')).toBe('key-2');
+    expect(keyOf('a')).toBe('key-3');
   });
 });

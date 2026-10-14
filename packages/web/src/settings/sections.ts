@@ -13,6 +13,7 @@ export type RepoSection =
   | 'visibility'
   | 'branches'
   | 'checks'
+  | 'rules'
   | 'actions'
   | 'collaborators'
   | 'secrets'
@@ -49,6 +50,7 @@ const REPO_RULES: readonly RepoSectionRule[] = [
   rule('visibility', 'Visibility', 'Repository', canEdit),
   rule('branches', 'Branches', 'Code and automation', always),
   rule('checks', 'Checks', 'Code and automation', always),
+  rule('rules', 'Approval rules', 'Code and automation', always),
   rule('actions', 'Actions', 'Code and automation', maintains),
   rule('collaborators', 'Collaborators', 'Access', isOwner),
   rule('secrets', 'Secrets and variables', 'Access', (facts) => facts.hasActions),

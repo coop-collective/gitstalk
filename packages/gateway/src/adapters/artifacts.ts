@@ -171,6 +171,25 @@ export async function changedPathsIn(
   return selected === null ? null : selected.map((blob) => blob.path);
 }
 
+/** Every changed path of a range (with blob ids), and the contents of the first 200. */
+export type RangeChanges = {
+  readonly blobs: readonly ChangedBlob[];
+  readonly files: readonly FileChange[];
+};
+
+/**
+ * One tree walk for both: every path that differs between two commits, and the contents of
+ * the first 200 by path (the derived-data store reads both); null when a commit is missing.
+ */
+export async function changesIn(
+  handle: RepoReader,
+  range: CommitRange,
+): Promise<RangeChanges | null> {
+  const blobs = await changedBlobsIn(handle, range);
+  if (blobs === null) return null;
+  return { blobs, files: await readContents(handle, blobs.slice(0, MAX_DIFF_FILES)) };
+}
+
 async function changedBlobsIn(
   handle: RepoReader,
   range: CommitRange,
@@ -208,7 +227,8 @@ async function listMatching(
   return names.toSorted();
 }
 
-type ChangedBlob = { path: string; beforeId: string | null; afterId: string | null };
+/** A path that differs between two trees, with its blob ids (null: absent on that side). */
+export type ChangedBlob = { path: string; beforeId: string | null; afterId: string | null };
 type TreePair = { before: string | null; after: string | null; prefix: string };
 
 /** Walks two trees together, descending only where they differ. */

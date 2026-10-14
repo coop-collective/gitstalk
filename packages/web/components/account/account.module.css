@@ -145,6 +145,12 @@
   background: var(--bad-wash);
 }
 
+/* A danger button in a row with a secondary one (Remove beside Change picture): same height. */
+.danger.besideSecondary {
+  padding: 10px 18px;
+  font-size: var(--step-0);
+}
+
 .quiet {
   background: none;
   padding: 6px 0;
@@ -205,24 +211,49 @@
   border-top: 1px solid var(--rule);
 }
 
-/* /signup/agent: one block per harness. Commands wrap so the page never scrolls sideways. */
-.installs {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* /signup/agent: tabs, one per harness (agent-install-tabs.tsx). A long command scrolls
+   inside its own block, so the page never scrolls sideways. */
+.installTabs {
   display: grid;
-  gap: 18px;
+  gap: 12px;
+  min-width: 0;
+}
+.harnessTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--rule);
+}
+.harnessTab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--step--1);
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.harnessTab:hover {
+  color: var(--ink);
+}
+.harnessTab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--good-fill);
+}
+.harnessTab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .install {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
-.installHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+.install[hidden] {
+  display: none;
 }
 .installCode {
   display: grid;
@@ -236,8 +267,13 @@
 }
 .installCode code {
   font: 13px/1.6 var(--font-mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.installCode code:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* The Turnstile widget: 300 px wide, 65 px tall; keeps its place while it loads. */
@@ -523,21 +559,6 @@ textarea.input {
   border-color: var(--bad-fill);
 }
 
-.preview {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px var(--rule);
-}
-
-.file {
-  max-width: 100%;
-  min-width: 0;
-  font-size: var(--step--1);
-  color: var(--ink-2);
-}
-
 .file::file-selector-button {
   border-radius: 999px;
   border: 1.5px solid var(--rule-strong);
@@ -564,13 +585,6 @@ textarea.input {
 .renameRow .secondary {
   padding: 6px 14px;
   font-size: var(--step--1);
-}
-
-.pictureRow {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  flex-wrap: wrap;
 }
 
 .consequences {

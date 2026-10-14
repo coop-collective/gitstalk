@@ -19,8 +19,12 @@ import type { RunConfig } from '@gitstalk/shared-race/run-config';
 import {
   CONTINUOUS_SETTINGS,
   RunConfig as RunConfigSchema,
+  approvalRulesOf,
   checksSourceOf,
 } from '@gitstalk/shared-race/run-config';
+import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
+import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
+import { policyView, resolvePolicyFile } from '@gitstalk/shared-race/policy-file';
 import { CHECKS_PATHS } from '@gitstalk/shared-race/checks-config';
 import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
 
@@ -63,6 +67,11 @@ import type {
   ReadMapTree,
 } from '@gitstalk/shared-race/read-maps';
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
+import type {
+  BeanCommitInput,
+  BeanCommitResult,
+  BeanCommitted,
+} from '@gitstalk/shared-race/bean-commit';
 
 import {
   readBeanContext,
@@ -79,7 +88,13 @@ import type { RunnerCapacity } from '../capacity/runner-capacity';
 import { DEFAULT_PRELAND_SANDBOXES, RUNNER_POOL_NAME } from '../capacity/runner-capacity';
 import { leaseSandbox, needsSandboxLease, releaseSandbox } from '../capacity/sandbox-lease';
 import type { ArtifactsPort, RepoRemote } from '../adapters/artifacts';
-import { artifactsPort, selectedArtifactsPort } from '../adapters/artifacts';
+import { artifactsPort, selectedArtifactsPort, withRepo } from '../adapters/artifacts';
+import type { SessionCommit } from '../commit/bean-commit';
+import { commitToBean, commitToRepoBean } from '../commit/bean-commit';
+import type { FileSave } from '../commit/file-save';
+import { commitFileSave, earlierSave } from '../commit/file-save';
+import { keyQueue } from '../commit/key-queue';
+import type { CommitDeps } from '../commit/server-commit';
 import type { RepoExplorer } from '../adapters/repo-explorer';
 import { repoExplorer } from '../adapters/repo-explorer';
 import type { EngineEnv } from '../engine/catalog';
@@ -100,7 +115,8 @@ import { buildSummary } from '../engine/summary';
 import { runView } from '../engine/view';
 import { readConfig } from '../config';
 import { GatewayError, UpstreamError } from '../errors';
-import type { ObjectStore, RefMemo } from '../repo/object-cache';
+import type { ObjectStore, ReadCache, RefMemo } from '../repo/object-cache';
+import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
 import type { Logger } from '../log';
 import { createLogger } from '../log';
@@ -116,6 +132,13 @@ import {
 import { NO_PROTECTED_ACCESS } from '../checks/protected-access';
 import type { ProtectedAccess } from '../checks/protected-access';
 import type { RepositoryChecksHost } from '../checks/repository-checks';
+import {
+  POLICY_BRANCH,
+  approvalJobHost,
+  optionalAi,
+  readStalkPolicy,
+} from '../approval/approval-host';
+import { migrateApprovalStore, readRoute, saveApproval } from '../approval/approval-store';
 import type { Refusable, Reservation, TaskStanding } from '../agent/agent-store';
 import {
   claimTask,
@@ -135,7 +158,7 @@ import { listPushBeans, migratePushBeans, readPushBean, savePushBean } from '../
 import type { Submitted } from '../push/push-driver';
 import { PushDriver } from '../push/push-driver';
 import type { PushIntent, PushOptions } from '../push/push-intent';
-import { pushIntent } from '../push/push-intent';
+import { parsePushOptions, pushIntent } from '../push/push-intent';
 import type { OpenRepoEngineInput, RepoEngineRecord } from '../push/repo-engine';
 import { RepoEngineRecord as RepoEngineSchema, beanLink } from '../push/repo-engine';
 import { prepareRepoLines } from '../push/repo-lines';
@@ -151,6 +174,7 @@ import {
   countRequest,
   emptyMeter,
   infraReport,
+  recordCacheRead,
   recordRunnerCall,
   recordWarmStart,
 } from './infra-meter';
@@ -274,6 +298,8 @@ export class RunDO extends DurableObject<Env> {
   #creating = false;
   #alarmAt: number | null = null;
   readonly #waiters = new Map<string, Waiter>();
+  /** Server-side commits run one idempotency key at a time (`commit/key-queue.ts`). */
+  readonly #commitQueue = keyQueue();
   readonly #log: Logger;
   readonly #artifacts: ArtifactsPort;
   /**
@@ -323,7 +349,7 @@ export class RunDO extends DurableObject<Env> {
     super(ctx, env);
     const config = readConfig(env);
     this.#log = createLogger(config.logLevel, { component: 'run' });
-    this.#meter = loadMeter(ctx.storage) ?? emptyMeter(Date.now());
+    this.#meter = loadMeter(ctx.storage, Date.now()) ?? emptyMeter(Date.now());
     this.#drivesRepository = ctx.storage.kv.get(REPO_ENGINE_KEY) !== undefined;
     const races = artifactsPort(env.ARTIFACTS);
     const repositories = artifactsPort(env.REPOS);
@@ -736,6 +762,102 @@ export class RunDO extends DurableObject<Env> {
       : failure('invalid_request', 400, 'invalid bean update input');
   }
 
+  /**
+   * `bean_commit` (doc 33): the contributor's changes as a commit on its own bean branch,
+   * built here from the changed paths' trees and pushed with the gateway's own token.
+   */
+  async beanCommit(
+    claims: ContributorTokenClaims,
+    input: BeanCommitInput,
+  ): Promise<RpcResult<BeanCommitResult>> {
+    this.#countRequest();
+    const grant = this.#collaborationGrant(claims);
+    if (!grant.ok) return grant;
+    const loaded = this.#requireLoaded();
+    if (this.#repoEngine() !== null || loaded.stored.state.phase === 'done')
+      return failure('invalid_state', 409, 'bean_commit writes the beans of a running race only');
+    return commitToBean(this.#commitDeps(loaded.stored.repos.repo), grant.value, input);
+  }
+
+  /**
+   * `bean_commit` for a person's agent session (doc 33): the changes as a commit on
+   * `bean/<name>`, then submitted to this engine exactly as a `git push` of that branch is.
+   * The caller (`agent-repos-rpc.ts`) has checked the person's write access.
+   */
+  async repoBeanCommit(
+    request: SessionCommit & { readonly protectedAccess: ProtectedAccess },
+  ): Promise<RpcResult<BeanCommitResult>> {
+    this.#countRequest();
+    const loaded = this.#loaded;
+    if (loaded === null || this.#repoEngine() === null)
+      return failure('not_found', 404, 'no such repository');
+    const { actor } = request;
+    return commitToRepoBean(this.#commitDeps(loaded.stored.repos.repo), request, {
+      refusal: (bean) => this.pushRefusal(bean, actor),
+      afterPush: (bean, head) => this.#submitCommitted({ bean, head, actor, request }),
+    });
+  }
+
+  /**
+   * A web editor's save (the automation builder, Settings → Approval rules): one file as a new
+   * bean through the same server-side commit flow as `bean_commit`, then submitted as a push.
+   * The caller (`automations/editor-rpc.ts`) has checked the person's access and staleness.
+   */
+  async repoSaveFile(save: FileSave): Promise<RpcResult<BeanCommitResult>> {
+    this.#countRequest();
+    const loaded = this.#loaded;
+    if (loaded === null || this.#repoEngine() === null)
+      return failure('not_found', 404, 'no such repository');
+    const { actor } = save;
+    return commitFileSave(this.#commitDeps(loaded.stored.repos.repo), save, {
+      refusal: (bean) => this.pushRefusal(bean, actor),
+      afterPush: (bean, head) => this.#submitCommitted({ bean, head, actor, request: save }),
+    });
+  }
+
+  /** The bean an earlier try of `save` (the same key and input) made, or null. */
+  async repoEarlierSave(save: FileSave): Promise<BeanCommitted | null> {
+    this.#countRequest();
+    const loaded = this.#loaded;
+    if (loaded === null || this.#repoEngine() === null) return null;
+    return earlierSave(this.#commitDeps(loaded.stored.repos.repo), save);
+  }
+
+  /** Submits a server-side commit's head as a push of its bean; why not, or null. */
+  async #submitCommitted(pushed: {
+    readonly bean: TaskId;
+    readonly head: Sha;
+    readonly actor: string;
+    readonly request: { readonly protectedAccess: ProtectedAccess };
+  }): Promise<string | null> {
+    const submitted = await this.submitPush({
+      bean: pushed.bean,
+      head: pushed.head,
+      actor: pushed.actor,
+      protectedAccess: pushed.request.protectedAccess,
+      options: parsePushOptions([]),
+    });
+    return submitted.ok ? null : `the engine refused it: ${submitted.reason}`;
+  }
+
+  /** How server-side commits read and write this object's repo: the cached reader, a minted token. */
+  #commitDeps(repo: RepoRemote): CommitDeps {
+    const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
+    return {
+      sql: this.ctx.storage.sql,
+      read: (use) =>
+        withRepo(binding, repo.name, (handle) => use(cachedReader(handle, this.#readCache()))),
+      target: async () => ({
+        remote: repo.remote,
+        token: await this.#tokens.token(repo.name, 'write'),
+      }),
+      queue: this.#commitQueue,
+      now: Date.now,
+      emailHost: new URL(readConfig(this.env).webUrl).hostname,
+      log: this.#log,
+    };
+  }
+
   beanThreadPost(
     claims: ContributorTokenClaims,
     input: BeanThreadPostInput,
@@ -942,7 +1064,12 @@ export class RunDO extends DurableObject<Env> {
     const { meta, repos, state } = loaded.stored;
     return {
       ok: true,
-      value: { run: meta.run, repo: repos.repo.name, ...runView(state, loaded.env) },
+      value: {
+        run: meta.run,
+        repo: repos.repo.name,
+        ...runView(state, loaded.env),
+        cache: cacheReport(this.#meter.cache),
+      },
     };
   }
 
@@ -961,7 +1088,68 @@ export class RunDO extends DurableObject<Env> {
     const detail = beanDetail(input, id);
     return detail === null
       ? failure('not_found', 404, `no bean ${id}`)
-      : { ok: true, value: detail };
+      : {
+          ok: true,
+          value: { ...detail, route: readRoute(this.ctx.storage.sql, id)?.receipt ?? null },
+        };
+  }
+
+  /** The approval rules' receipt of a bean's last pre-land check; null when none was routed. */
+  beanRoute(bean: string): RouteReceipt | null {
+    this.#countRequest();
+    return readRoute(this.ctx.storage.sql, bean)?.receipt ?? null;
+  }
+
+  /** The approval policy on `ref` (the stalk by default), its commit and its problems. */
+  async policy(ref: string | null): Promise<RunResult<ApprovalPolicyView>> {
+    this.#countRequest();
+    const loaded = this.#loaded;
+    if (loaded === null) return notFound();
+    const at = ref === null ? POLICY_BRANCH : this.#repoRef(ref);
+    try {
+      const read = await readStalkPolicy(this.#artifacts, loaded.stored.repos.repo.name, at);
+      return {
+        ok: true,
+        value: policyView(resolvePolicyFile(read.file), { ref: at, sha: read.sha }),
+      };
+    } catch (error: unknown) {
+      if (error instanceof UpstreamError) return failure('not_found', 404, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * A person approves a bean held by a `card` route, for its current revision (its pushed
+   * head). A repository's bean waiting for its author is re-submitted at that head, so its
+   * check runs again and passes the gate; a race's bean passes at its next submission. Who may
+   * approve is the caller's decision (the web asks `mayUseEngine`'s `decide`).
+   */
+  approveBean(bean: string, actor: string): RunResult<{ approved: true; resubmitted: boolean }> {
+    this.#countRequest();
+    const loaded = this.#loaded;
+    if (loaded === null) return notFound();
+    const sql = this.ctx.storage.sql;
+    const route = readRoute(sql, bean)?.receipt ?? null;
+    if (route === null || route.route !== 'card')
+      return failure('invalid_state', 409, `bean ${bean} is not waiting for an approval`);
+    const pushed = loaded.stored.config.continuous ? readPushBean(sql, bean) : null;
+    const revision = pushed?.head ?? null;
+    saveApproval(sql, { bean, revision, approval: { actor, atMs: Date.now() } });
+    this.#log.info('bean approved', { bean, actor, revision });
+    if (pushed === null || pushed.awaiting === null)
+      return { ok: true, value: { approved: true, resubmitted: false } };
+    const submitted = this.#push.submit({
+      bean: pushed.bean,
+      head: pushed.head,
+      intent: { title: pushed.title, intent: pushed.intent, task: pushed.task },
+      actor: pushed.actor,
+      protectedAccess: pushed.protectedAccess,
+      history: [],
+      files: pushed.files,
+    });
+    if (!submitted.ok)
+      this.#log.warn('re-submitting an approved bean failed', { bean, reason: submitted.reason });
+    return { ok: true, value: { approved: true, resubmitted: submitted.ok } };
   }
 
   /** Decision cards, optionally only those touching `paths`. */
@@ -1342,6 +1530,16 @@ export class RunDO extends DurableObject<Env> {
     this.#setMeter(countRequest(this.#meter, Date.now()));
   }
 
+  /** The read index for a cached reader, its hits and misses counted on the meter. */
+  #readCache(): ReadCache {
+    return {
+      store: this.#objects,
+      refs: this.#refs,
+      now: Date.now,
+      count: (read) => this.#setMeter(recordCacheRead(this.#meter, read)),
+    };
+  }
+
   #recordRunner(call: RunnerCall): void {
     this.#setMeter(recordRunnerCall(this.#meter, call));
   }
@@ -1393,6 +1591,7 @@ export class RunDO extends DurableObject<Env> {
     migrateCollaboration(sql);
     migrateReadMaps(sql);
     migrateCheckStore(sql);
+    migrateApprovalStore(sql);
     // The first design's snapshots lived here; the run's RunStreamDO holds them now.
     sql.exec('DROP TABLE IF EXISTS bean_streams');
     return sqlObjectStore(sql);
@@ -1460,9 +1659,7 @@ export class RunDO extends DurableObject<Env> {
   /** The run repo's explorer, reading through the read index. */
   #explorer(repo: string): RepoExplorer {
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return repoExplorer(binding, repo, (handle) =>
-      cachedReader(handle, { store: this.#objects, refs: this.#refs, now: () => Date.now() }),
-    );
+    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache()));
   }
 
   /** A read of the run repo for the web app: expected failures become values. */
@@ -1595,6 +1792,19 @@ export class RunDO extends DurableObject<Env> {
         onSuiteTimeout: () => this.ctx.waitUntil(this.#noteTimeout(run)),
         ...(checksSourceOf(loaded.stored.config) === 'repository'
           ? { checks: this.#repositoryChecks(loaded.stored.repos.repo.name) }
+          : {}),
+        ...(approvalRulesOf(loaded.stored.config)
+          ? {
+              approval: approvalJobHost({
+                sql: this.ctx.storage.sql,
+                artifacts: this.#artifacts,
+                repo: loaded.stored.repos.repo.name,
+                engine: config.continuous ? 'continuous' : 'race',
+                ai: optionalAi(this.env),
+                aiGateway: this.env.AUTOMATIONS_AI_GATEWAY,
+                now: () => Date.now(),
+              }),
+            }
           : {}),
       });
     } finally {

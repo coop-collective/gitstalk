@@ -1,11 +1,13 @@
 /**
  * The automation builder's RPC (`AutomationEditorRpc`, doc 25 §7.13). A save is a bean, never a
- * push to a line: the gateway builds the commit from the file's new text, pushes it as
- * `bean/automation-<slug>-<short>` with the person's identity and hands it to the engine as any
- * push, so it lands only through the pre-land check. When the file changed on the latest landed
- * commit since the editor opened it, the save is refused as `stale` with that version, for the
- * editor to merge. Access: read to open, write to save (maintain when the checks file
- * protects it), maintain to start a test run.
+ * push to a line: the engine commits the file's new text through the one server-side commit
+ * flow `bean_commit` uses (`commit/server-commit.ts`, by way of `commit/file-save.ts`), as
+ * `bean/automation-<slug>-<short>` with the person's identity, and submits it as any push, so
+ * it lands only through the pre-land check. When the file changed on the latest landed commit
+ * since the editor opened it, the save is refused as `stale` with that version, for the editor
+ * to merge, unless an earlier try of the same save (its idempotency key) made the bean that
+ * changed it. Access: read to open, write to save (maintain when the checks file protects it),
+ * maintain to start a test run.
  */
 import type {
   AutomationBase,
@@ -20,7 +22,6 @@ import {
   AutomationPath,
   SaveAutomationInput,
   TestAutomationInput,
-  automationBeanName,
 } from '@gitstalk/shared-race/automation-editor';
 import { readAutomationFile } from '@gitstalk/shared-race/automation-file';
 import {
@@ -39,21 +40,17 @@ import { handleOf } from '../actions/actions-audit';
 import { readActionsConfig } from '../actions/actions-config';
 import { compileAutomation } from '../actions/automation-job';
 import type { ProtectedAccess } from '../checks/protected-access';
+import type { FileSave, SaveEditor } from '../commit/file-save';
 import type { Deps } from '../deps';
-import { ZERO_SHA, pushRefs } from '../git/remote-client';
-import { pushedBeanRef } from '../push/bean-refs';
-import { parsePushOptions } from '../push/push-intent';
 import { accessResult, viewerPrincipal } from '../repos/access';
 import type { RunDO } from '../run/run-do';
-import { buildFileCommit } from './file-commit';
 
-type Engine = DurableObjectStub<RunDO>;
+export type Engine = DurableObjectStub<RunDO>;
 type Opened = { readonly repo: RepositoryForViewer; readonly engine: Engine };
 
 /** The line a save starts from and lands on: the latest landed commit. */
 const LANDED = 'sprout';
-const SHORT = 6;
-const DECIDING: ReadonlySet<ViewerRole> = new Set(['owner', 'maintain']);
+export const DECIDING: ReadonlySet<ViewerRole> = new Set(['owner', 'maintain']);
 /** The runner's commit names: today's, and the one from before the rename in older history. */
 const RUNNER_NAMES: ReadonlySet<string> = new Set(['gitstalk-runner', 'gitstalk-runner']);
 
@@ -126,24 +123,24 @@ export function automationEditorRpc(env: Env, deps: Deps): AutomationEditorRpc {
             );
         }
         const current = await currentFile(engine, path);
+        const save = fileSaveOf(
+          { kind: 'automation' },
+          {
+            handle: await handleOf(env, viewer),
+            role: repo.viewer_role,
+            base: current.base,
+            path,
+            content,
+            message: input.data.message ?? defaultMessage(path, content, input.data.base),
+            idempotencyKey: input.data.idempotencyKey,
+          },
+        );
         if (current.base.blob !== input.data.base.blob)
-          return ok<SaveAutomationResult>({
-            kind: 'stale',
-            theirs: await theirsOf(engine, path, current),
-          });
+          return staleOrEarlier(engine, save, () => theirsOf(engine, path, current));
         if (content === null && current.base.blob === null)
           return invalid(`${path} does not exist on the latest landed commit`);
         if (content !== null && content === current.content) return invalid('nothing changed');
-        const handle = await handleOf(env, viewer);
-        return pushSave(deps, {
-          engine,
-          base: current.base,
-          path,
-          content,
-          handle,
-          message: input.data.message ?? defaultMessage(path, content, current.content),
-          protectedAccess: protectedAccessOf(handle, repo.viewer_role),
-        });
+        return pushSave(deps, engine, save);
       }),
     automationBean: (viewer, repoId, bean) =>
       guarded(async () => {
@@ -217,10 +214,10 @@ export function protectedAccessOf(handle: string, role: ViewerRole | null): Prot
   };
 }
 
-type Current = { readonly base: AutomationBase; readonly content: string | null };
+export type Current = { readonly base: AutomationBase; readonly content: string | null };
 
 /** The file on the latest landed commit: that commit, its blob there and its text. */
-async function currentFile(engine: Engine, path: string): Promise<Current> {
+export async function currentFile(engine: Engine, path: string): Promise<Current> {
   const directory = path.slice(0, path.lastIndexOf('/'));
   const listed = await engine.repoTree(LANDED, directory, false);
   if (!listed.ok) {
@@ -272,77 +269,74 @@ async function protectionOf(engine: Engine, path: string): Promise<string | null
   return patterns.find((pattern) => matchesPattern(path, pattern)) ?? null;
 }
 
-async function pushSave(
-  deps: Deps,
+/** A save from an editor: the person, the file's new text on `base`, and the attempt's key. */
+export function fileSaveOf(
+  editor: SaveEditor,
   save: {
-    readonly engine: Engine;
+    readonly handle: string;
+    readonly role: ViewerRole | null;
     readonly base: AutomationBase;
     readonly path: string;
     readonly content: string | null;
-    readonly handle: string;
     readonly message: string;
-    readonly protectedAccess: ProtectedAccess;
+    /** The web's key for this attempt; a request without one is its own attempt. */
+    readonly idempotencyKey: string | undefined;
   },
-): Promise<RpcResult<SaveAutomationResult>> {
-  const { engine } = save;
-  const built = await buildFileCommit(
-    async (directory) => {
-      const listed = await engine.repoTree(save.base.commit, directory, false);
-      if (listed.ok) return listed.value.truncated ? tooLarge(directory) : listed.value.entries;
-      if (listed.error.status === 404) return null;
-      throw new Error(listed.error.message);
-    },
-    {
-      base: save.base,
-      path: save.path,
-      content: save.content,
-      author: { name: save.handle, email: emailOf(deps, save.handle), atMs: deps.now() },
-      message: save.message,
-    },
-  );
-  const bean = TaskId.parse(automationBeanName(save.path, built.commit.slice(0, SHORT)));
-  const refusal = await engine.pushRefusal(bean, save.handle);
-  if (refusal !== null) return failed({ code: 'conflict', status: 409, message: refusal });
-  const grant = await engine.repoGitGrant('write');
-  if (!grant.ok)
-    return failed({ code: 'upstream_failed', status: grant.status, message: grant.message });
-  const report = await pushRefs(
-    { remote: grant.upstream, token: grant.token },
-    [{ ref: pushedBeanRef(bean), oldSha: ZERO_SHA, newSha: built.commit }],
-    built.objects,
-  );
-  const refused = report.refs.find((status) => !status.ok);
-  if (!report.unpackOk || refused !== undefined)
-    return failed({
-      code: 'upstream_failed',
-      status: 502,
-      message: `the repository refused the bean: ${refused?.reason ?? 'unpack failed'}`,
-    });
-  const submitted = await engine.submitPush({
-    bean,
-    head: Sha.parse(built.commit),
+): FileSave {
+  return {
+    editor,
     actor: save.handle,
-    protectedAccess: save.protectedAccess,
-    options: parsePushOptions([]),
-  });
-  if (!submitted.ok)
-    return failed({ code: 'invalid_state', status: 409, message: submitted.reason });
-  deps.log.info('automation saved as a bean', { bean, path: save.path });
-  return ok<SaveAutomationResult>({ kind: 'pushed', bean, commit: built.commit });
+    protectedAccess: protectedAccessOf(save.handle, save.role),
+    base: Sha.parse(save.base.commit),
+    path: save.path,
+    content: save.content,
+    message: save.message,
+    idempotencyKey: save.idempotencyKey ?? crypto.randomUUID(),
+  };
 }
 
-function tooLarge(directory: string): never {
-  throw new Error(`${directory || 'the root'} has more than 1,000 entries; save with git instead`);
+/**
+ * Saves one file as a bean: the engine commits it through the server-side commit flow
+ * (validation, caps, idempotency, a new bean's compare-and-swap) and submits it.
+ */
+export async function pushSave(
+  deps: Deps,
+  engine: Engine,
+  save: FileSave,
+): Promise<RpcResult<SaveAutomationResult>> {
+  const committed = await engine.repoSaveFile(save);
+  if (!committed.ok) return committed;
+  const result = committed.value;
+  if (result.kind === 'conflict')
+    return failed({
+      code: 'conflict',
+      status: 409,
+      message: `${result.branch} exists already; save again to push a new bean`,
+    });
+  deps.log.info('file saved as a bean', { bean: result.bean, path: save.path });
+  return ok<SaveAutomationResult>({ kind: 'pushed', bean: result.bean, commit: result.commit });
 }
 
-function emailOf(deps: Deps, handle: string): string {
-  return `${handle}@users.${new URL(deps.config.webUrl).hostname}`;
+/**
+ * The file changed since the editor opened it: an earlier try of this very save (a retry after
+ * its bean landed) answers with that bean; anything else is `stale`, with the newer version.
+ */
+export async function staleOrEarlier(
+  engine: Engine,
+  save: FileSave,
+  theirs: () => Promise<AutomationTheirs>,
+): Promise<RpcResult<SaveAutomationResult>> {
+  const earlier = await engine.repoEarlierSave(save);
+  if (earlier !== null)
+    return ok<SaveAutomationResult>({ kind: 'pushed', bean: earlier.bean, commit: earlier.commit });
+  return ok<SaveAutomationResult>({ kind: 'stale', theirs: await theirs() });
 }
 
-function defaultMessage(path: string, content: string | null, before: string | null): string {
+/** Named from the version the editor opened, so a retry of the save is the same save. */
+function defaultMessage(path: string, content: string | null, opened: AutomationBase): string {
   const file = path.split('/').at(-1) ?? path;
   if (content === null) return `Delete automation ${file}`;
-  return before === null ? `Add automation ${file}` : `Edit automation ${file}`;
+  return opened.blob === null ? `Add automation ${file}` : `Edit automation ${file}`;
 }
 
 function ok<T>(value: T): RpcResult<T> {

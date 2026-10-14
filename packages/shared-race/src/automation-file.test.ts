@@ -42,7 +42,13 @@ describe('reading an automation file', () => {
       memoryRef: 'refs/automations/fix-red/memory',
       actor: 'fix-red[automation]',
     });
-    expect(file.notes).toEqual(['timeout-minutes is capped at 60']);
+    expect(file.notes).toEqual([
+      {
+        feature: 'timeout-minutes',
+        verdict: 'runs-differently',
+        detail: 'timeout-minutes is capped at 60',
+      },
+    ]);
   });
 
   it('takes the prompt from the body of a .md file with front matter', () => {
@@ -108,6 +114,42 @@ describe('reading an automation file', () => {
       'prompt: an agent automation needs a prompt',
     ]);
     expect(file.problems[0]?.line).toBe(1);
+  });
+
+  it('filters a landing by the files it changed, and says how in the compatibility report', () => {
+    const file = readAutomationFile(
+      '.gitstalk/automations/billing-watcher.yml',
+      "on:\n  bean_landed:\n    paths: ['src/billing/**', '!src/billing/**/*.md']\nprompt: Review it.\n",
+      LIMITS,
+    );
+    expect(file.problems).toEqual([]);
+    expect(file.triggers[0]).toEqual({
+      kind: 'beanstalk',
+      event: 'bean_landed',
+      beans: [],
+      authors: [],
+      paths: ['src/billing/**', '!src/billing/**/*.md'],
+    });
+    expect(file.notes).toEqual([
+      expect.objectContaining({ feature: 'bean_landed paths', verdict: 'runs-differently' }),
+    ]);
+  });
+
+  it('refuses paths: on an event that names no single commit, and a paths list of only !', () => {
+    const red = readAutomationFile(
+      '.gitstalk/automations/x.yml',
+      "on:\n  bean_red:\n    paths: ['src/**']\nprompt: x\n",
+      LIMITS,
+    );
+    expect(red.problems.map((problem) => problem.message)).toEqual([
+      expect.stringContaining('bean_red has no single commit to filter by paths:'),
+    ]);
+    const negated = readAutomationFile(
+      '.gitstalk/automations/x.yml',
+      "on:\n  bean_landed:\n    paths: ['!docs/**']\nprompt: x\n",
+      LIMITS,
+    );
+    expect(negated.problems[0]?.message).toContain('a filter of only ! patterns matches nothing');
   });
 
   it('reports YAML syntax errors with a line', () => {

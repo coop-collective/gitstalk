@@ -269,6 +269,7 @@ function workflowOf(workflow: WorkflowSummary, lastRun: RunSummary | null): Work
             name: trigger.event,
             beans: [...trigger.beans],
             authors: [...trigger.authors],
+            paths: [...(trigger.paths ?? [])],
           };
         default:
           return assertNever(trigger);

@@ -1,6 +1,7 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
+import type { CacheRead } from './cache-stats';
 import type { RepoReader } from './object-cache';
 import { REF_MEMO_MS, cachedReader, memoryObjectStore, sqlObjectStore } from './object-cache';
 
@@ -198,5 +199,66 @@ describe('the read index', () => {
     });
 
     expect(held).toEqual({ before: false, after: true, other: false });
+  });
+});
+
+/** A cached reader that records every hit and miss it counts. */
+function countedReader(now: () => number = () => 0) {
+  const repo = countingRepo();
+  const reads: CacheRead[] = [];
+  const cached = cachedReader(repo.reader, {
+    store: memoryObjectStore(),
+    refs: new Map(),
+    now,
+    count: (read) => reads.push(read),
+  });
+  return { cached, reads };
+}
+
+describe('the read index’s hit and miss counts', () => {
+  it('counts a first read as a miss and a repeated read as a hit, by kind', async () => {
+    const { cached, reads } = countedReader();
+
+    await cached.readTree(ROOT);
+    await cached.readTree(ROOT);
+    await cached.readBlob(BLOB);
+    await cached.readBlob(BLOB);
+    await cached.readCommit(NEXT);
+    await cached.readCommit(NEXT);
+
+    expect(reads).toEqual([
+      { kind: 'tree', outcome: 'miss' },
+      { kind: 'tree', outcome: 'hit' },
+      { kind: 'blob', outcome: 'miss' },
+      { kind: 'blob', outcome: 'hit' },
+      { kind: 'commit', outcome: 'miss' },
+      { kind: 'commit', outcome: 'hit' },
+    ]);
+  });
+
+  it('counts the ref memo apart from objects, a miss again once the memo expires', async () => {
+    const time = clock();
+    const { cached, reads } = countedReader(time.now);
+
+    await cached.log({ ref: 'sprout', limit: 1 });
+    await cached.log({ ref: 'sprout', limit: 1 });
+    time.advance(REF_MEMO_MS);
+    await cached.log({ ref: 'sprout', limit: 1 });
+
+    expect(reads).toEqual([
+      { kind: 'ref', outcome: 'miss' },
+      { kind: 'ref', outcome: 'hit' },
+      { kind: 'ref', outcome: 'miss' },
+    ]);
+  });
+
+  it('counts nothing for reads that bypass the cache', async () => {
+    const { cached, reads } = countedReader();
+
+    await cached.log({ ref: 'sprout', limit: 100 });
+    await cached.log({ ref: COMMIT, limit: 1 });
+    cached.hasBlob?.(BLOB);
+
+    expect(reads).toEqual([]);
   });
 });

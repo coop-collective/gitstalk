@@ -4,21 +4,22 @@ Built 2026-10-07 (lane B of persistent repositories, from `prototype` at `f9a229
 
 ## 1. What a session can do
 
-An OAuth session (or a personal `bsu_` token as a bearer) addresses any repository its person may use, named `owner/name`. Access is the git rule (merged with the collaborators lane at `b58cf65`): the session is its person's credential, the person's role (owner, maintain, write, read, or none on a public repository) capped by the session's scopes, and `mayUseEngine` decides through `repos/access.ts`. Read tools need the read role; `bean_open`, `task_claim`, `task_release` and a pushing `git_credentials` need the write role and the `write` scope (a read role gets a read-only credential). A repository the person may not see answers "repository … not found", like git's 404; every use is recorded in the repository's sessions list as the MCP client. `repository_access(repository)` (from the collaborators lane) tells an agent its role. Deploy tokens (`bsd_`) and repository-bound git credentials never open `/mcp` (401).
+An OAuth session (or a personal `bsu_` token as a bearer) addresses any repository its person may use, named `owner/name`. Access is the git rule (merged with the collaborators lane at `b58cf65`): the session is its person's credential, the person's role (owner, maintain, write, read, or none on a public repository) capped by the session's scopes, and `mayUseEngine` decides through `repos/access.ts`. Read tools need the read role; `bean_open`, `task_claim`, `task_release` and a pushing `git_credentials` need the write role and the `write` scope (a read role gets a read-only credential). A repository the person may not see answers "repository … not found", like git's 404; every use is recorded in the repository's sessions list as the MCP client. `whoami(repo)` (until 2026-10-14 `repository_access`, from the collaborators lane) tells an agent its role. Since 2026-10-14 a session is offered only the tools its scopes allow (§6). Deploy tokens (`bsd_`) and repository-bound git credentials never open `/mcp` (401).
 
 | Tool | Scope | What it does |
 |---|---|---|
 | `repo_list()` | read | The repositories the person owns or collaborates on: role, access (`write` when the role and the session's scope both allow pushing), visibility, clone URL |
-| `repo_status(repo)` | read | Stalk and sprout heads, unvalidated window, beans in flight and sent back (who, phase, task), recent red validations, open cards |
+| `repo_status(repo?)` | read | Stalk and sprout heads, unvalidated window, beans in flight and sent back (who, phase, task), recent red validations, open cards, `preview_urls` for both lines; without `repo`, the caller's run (§6) |
 | `bean_open(repo, bean, intent, task?)` | write | Reserves `bean/<name>` for a day with its intent; claims `task`; returns the branch, `start` and `push` commands and the sprout head |
-| `bean_status(repo, bean)` | read | Phase (`open` while reserved), the pushed bean (actor, intent, verdict lines), rework (failing tests, conflicts, the collided-with beans with title, intent, landed sha and files changed), the journey (every line the pushes printed), `next` |
+| `bean_status(bean, repo?, checks?)` | read | Phase (`open` while reserved), the pushed bean (actor, intent, verdict lines), rework (failing tests, conflicts, the collided-with beans with title, intent, landed sha and files changed), the journey (every line the pushes printed), `next`, the engine's view under `engine`, `preview_url`; `checks: true` adds the structured failures (§6) |
 | `bean_wait(repo, bean, until?, timeout_s?)` | read | The twin of `git push -o bean=<bean> origin HEAD:refs/wait/any`: holds until the check ends (`until: "stalk"`: until validated), default 300 s, at most 1,800; the verdict wakes it (no polling); `waited_s`, `timed_out` |
 | `task_list(repo)` | read | The backlog with each task's state: open, claimed (by, until), in_progress (whose bean), done |
 | `task_claim(repo, task)` | write | Two-hour claim, renewed by claiming again or `bean_open` with it; refused with who holds it |
 | `task_release(repo, task)` | write | Gives a task back: the person's claim and the names they reserved for it (added after the first real session, where the agent found its task already done and had no way to free it) |
 | `git_credentials(repo, ttl_minutes?)` | read (push needs write) | A `bss_` token bound to that one repository, at most an hour, as `git credential approve` input with the commands to store it |
+| `repo_read(repo?, ref?, path? / paths?, glob?, grep?, start?, end?, cursor?)` | read | Files (at most 20, optional line range), a tree listing for a directory or glob, or a search shaped like `rg --json` with context, about 8k tokens a page (§6) |
 
-The existing read tools (`ask_repo`, `work_overlaps`, `change_status`, `checks_get`, `run_status`, `preview_link`) take an optional `repo` in a session; without it they read `DEMO_RUN` or the newest run, as before. Sessions no longer get a 404 when no run exists. The old `git_credential` (an unbound session token) is replaced by `git_credentials`.
+The existing read tools (`ask_repo`, `work_overlaps`, `why_lines`, and since 2026-10-14 `bean_status`, `repo_status` and `repo_read`, which replaced `change_status`, `checks_get`, `run_status` and `preview_link`) take an optional `repo` in a session; without it they read `DEMO_RUN` or the newest run, as before. Sessions no longer get a 404 when no run exists. The old `git_credential` (an unbound session token) is replaced by `git_credentials`.
 
 ## 2. How it works
 
@@ -81,14 +82,13 @@ MCP (packages/mcp)                         gateway (packages/gateway)
 | `actions_dispatch(repo, workflow, inputs?, ref?)` | write, maintain | `workflow_dispatch` on the stalk head |
 | `actions_rerun(repo, run)` | write, maintain | The whole run again as a new run: same workflow source, commit, event, payload, inputs, origin (so D4 gives it the same secrets) and beans. Re-running only failed jobs is not supported. Automations re-run with `automation_run` |
 | `actions_cancel(repo, run)` | write, maintain | Cancels a queued or running run |
-| `actions_secret_list(repo)` | read, any role | Names (never values), source (repository or org), who and when, `preland_allowed`, `overridden`; `settings_url` |
-| `actions_secret_set(repo, name, value, level?)` | secrets, maintain (org: owner or admin) | Write-only: the value is never in an answer, an error or a log. Keeps a repository secret's pre-land toggle. A new org secret reaches only this repository (`selected`); an existing one keeps its reach |
-| `actions_secret_delete(repo, name, level?)` | secrets, maintain | |
-| `actions_variable_list` / `_set` / `_delete` | read (any role) / secrets, maintain | Values readable; same levels and reach rules |
-| `automation_get(repo, automation)` | read | The file on the stalk, triggers, harness, model, bot, memory ref, problems, its 10 newest runs |
+| `actions_config_list(repo, kind?)` | read, any role | `kind: secret`: names (never values), source (repository or org), who and when, `preland_allowed`, `overridden`; `kind: variable`: values readable; no kind: both; `settings_url` |
+| `actions_config_set(repo, kind, name, value, level?)` | secrets, maintain (org: owner or admin) | A secret only when the person gave the value; write-only: the value is never in an answer, an error or a log. Keeps a repository secret's pre-land toggle. A new org secret reaches only this repository (`selected`); an existing one keeps its reach. A variable is plain configuration, never a credential |
+| `actions_config_delete(repo, kind, name, level?)` | secrets, maintain | Only when the person asked |
+| `automation_get(repo, name?)` | read | Without `name`: every automation and the 20 newest automation runs. With it: the file on the stalk, triggers, harness, model, bot, memory ref, problems, its 10 newest runs |
 | `automation_run(repo, automation)` | write, maintain | A manual run (every automation takes `workflow_dispatch`); one at a time |
 
-`repo_status` gained `stalk_runs` (the runs at the stalk head: "what happened to my last landing"), `bean_status`'s `next` for `landed` and `green` points at `actions_wait_for_run`, and `repository_access` answers `may.run_workflows` and `may.set_secrets`. Every tool takes `repo: "owner/name"`; a run of another repository is not found.
+`repo_status` gained `stalk_runs` (the runs at the stalk head: "what happened to my last landing"), `bean_status`'s `next` for `landed` and `green` points at `actions_wait_for_run`, and `whoami(repo)` (then `repository_access`) answers `may.run_workflows` and `may.set_secrets`. Until 2026-10-14 the secret and variable tools were six (`actions_secret_list`, `_set`, `_delete` and the same for variables) and `automation_list` was separate; §6 merged them. Every tool takes `repo: "owner/name"`; a run of another repository is not found.
 
 ### 5.3 How it works
 
@@ -119,3 +119,21 @@ MCP src/actions/actions-tools.ts ── RPC ──▶ AgentActionsRpc (gateway s
 - No re-run of failed jobs only, and no workflow enable/disable (the product has neither).
 - Runs have no completion watch, so `actions_wait_for_run` reads run rows every few seconds inside the gateway (one RPC for the agent).
 - Doc 25 §4.4's always-protected workflow paths are still a design (§7.13): today an agent session can land a workflow change on a repository whose `checks.toml` does not protect `.github/**`.
+
+## 6. One tool surface per caller (2026-10-14)
+
+A signed-in session saw about 36 tools whatever its scopes. The owner approved breaking renames (the plugin was unpublished), and the surface became:
+
+- **Merged:** `change_status` + `checks_get` → `bean_status(bean, repo?, checks?)`, for run tokens (no repo) and sessions (repo); with `repo` it leads with the pushed verdict and keeps the engine's view under `engine`; `checks: true` adds the failures with the inherited and protected flags. `run_status` → `repo_status(repo?)`, which without `repo` reads the caller's run; both give `preview_urls` for the sprout and the stalk. `whoami` + `repository_access` → `whoami(repo?)`. `preview_link` was removed: `bean_status`, `repo_status` and `ask_repo` carry the links. `automation_list` + `automation_get` → `automation_get(repo, name?)`. The six secret and variable tools → `actions_config_list`, `actions_config_set`, `actions_config_delete` with `kind: secret | variable`, keeping every rule (write-only values, set only a value the person gave, maintain role plus the `secrets` scope).
+- **Registered by scope** (`packages/mcp/src/mcp/scope-gate.ts`): a tool is listed only if the token's kind and scopes can ever use it. Without `write` a session gets no `bean_open`, `bean_commit`, `task_claim`, `task_release`, `actions_dispatch`, `actions_rerun`, `actions_cancel` or `automation_run`; `actions_config_set` and `actions_config_delete` need `secrets`. Roles depend on the repository and stay checked per call. Contributor-only collaboration tools are unchanged.
+- **New read:** `repo_read` lets an agent without a checkout read code over the gateway's existing `repoFile`, `repoTree` and `repoGrep` (the safe-subset regex of `gateway/src/repo/grep-pattern.ts`): files with a line range (cut near 25k tokens, `next_start`), a tree for a directory or a glob, or `grep` answered as `rg --json` messages with two context lines, about 8k tokens a page with a `cursor` pinned to the commit. Access is `ask_repo`'s.
+
+| Caller | Tools | Count |
+|---|---|---|
+| Run view token | `ask_repo`, `work_overlaps`, `why_lines`, `bean_status`, `repo_status`, `repo_read`, `bean_context` | 7 |
+| Run contributor token | the above plus `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | 12 |
+| Session, `read` | the view token's seven, `whoami`, `repo_list`, `bean_wait`, `task_list`, `git_credentials`, `actions_workflow_list`, `actions_run_list`, `actions_run_get`, `actions_job_log`, `actions_wait_for_run`, `actions_config_list`, `automation_get` | 19 |
+| Session, `write` | the above plus `bean_open`, `bean_commit`, `task_claim`, `task_release`, `actions_dispatch`, `actions_rerun`, `actions_cancel`, `automation_run` | 27 |
+| Session, `write` and `secrets` | the above plus `actions_config_set`, `actions_config_delete` | 29 |
+
+`bean_context` reaches a session only when the deployment has a run to read (`DEMO_RUN`). `packages/mcp/test/tool-surface.test.ts` asserts these exact sets. The verification notes in §3 and §5.4 keep the tool names of their day.

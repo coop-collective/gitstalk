@@ -1,10 +1,10 @@
 import { AUTOMATIONS_DIR } from '@gitstalk/shared-race/actions';
+import { AUTOMATION_TEMPLATES, templateOf } from '@gitstalk/shared-race/automation-templates';
 import { IntentLink as Link } from '../../../../../../components/shell/intent-link';
 
 import { ActionsShell } from '../../../../../../components/actions/actions-shell';
 import { AutomationBuilder } from '../../../../../../components/automations/automation-builder';
 import styles from '../../../../../../components/automations/builder.module.css';
-import { AUTOMATION_TEMPLATES, templateOf } from '../../../../../../src/automations/templates';
 import { actionsPage } from '../../../../../../src/server/actions-page';
 import { builderStart } from '../../../../../../src/server/automation-builder-page';
 import type { RepositoryParams } from '../../../../../../src/server/repository-page';

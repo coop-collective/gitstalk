@@ -115,7 +115,9 @@ export function triggerText(trigger: WorkflowTrigger): string {
     case 'schedule':
       return `schedule (${trigger.crons.join('; ')})`;
     case 'beanstalk':
-      return trigger.event;
+      return trigger.paths === undefined || trigger.paths.length === 0
+        ? trigger.event
+        : `${trigger.event} (paths ${trigger.paths.join(', ')})`;
     default:
       return assertNever(trigger);
   }

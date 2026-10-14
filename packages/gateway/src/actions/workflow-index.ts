@@ -94,11 +94,7 @@ async function readAutomation(
     unsupportedEvents: [],
     jobs: compiled?.jobs ?? [],
     problems: [...automation.problems, ...(compiled?.problems ?? [])],
-    compatibility: automation.notes.map((detail) => ({
-      feature: 'timeout-minutes',
-      verdict: 'runs-differently' as const,
-      detail,
-    })),
+    compatibility: automation.notes,
   };
   return {
     summary: summaryOf(file, { sha: at.sha, indexedAt: at.indexedAt }, automation.info),

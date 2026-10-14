@@ -111,9 +111,9 @@ function newContext(input: Parameters<typeof serveMcp>[1], run: RunId): ToolCont
     picker: pickerFrom({
       name: env.PICKER,
       ai: Reflect.get(env, 'AI'),
-      gateway: env.JEV_GATEWAY,
+      gateway: env.DECISION_GATEWAY,
       onError: (decision, error) =>
-        log.warn('jev pick fell back to the rule', { run, decision, error }),
+        log.warn('decision model pick fell back to the rule', { run, decision, error }),
     }),
     webUrl: env.WEB_URL,
   });

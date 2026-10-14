@@ -5,9 +5,12 @@
 import { z } from 'zod';
 
 import type { AgentPrincipal, AgentReposRpc } from '@gitstalk/shared-race/agent-repos';
+import { BeanCommitResult } from '@gitstalk/shared-race/bean-commit';
+import type { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 import type { PushedBeanStatus } from '@gitstalk/shared-race/rpc';
 
 import { ToolError } from '../mcp/tool-result';
+import { withInbox } from '../tools/collaboration';
 import { runStatus } from '../tools/run-status';
 import type { ToolScope } from '../tools/tool-context';
 import { RepositoryAnswer, parsed, valueOf } from './agent-gateway';
@@ -56,7 +59,15 @@ export async function repoList(scope: ToolScope): Promise<object> {
   };
 }
 
-export async function repoStatus(scope: ToolScope, repo: string): Promise<object> {
+/**
+ * `repo_status`: a repository's lines and beans for a session naming one; without a
+ * repository, the caller's own run (a run token's, with a contributor's inbox).
+ */
+export async function repoStatus(scope: ToolScope, repo: string | undefined): Promise<object> {
+  if (repo === undefined) {
+    const own = await scope.context(undefined);
+    return withInbox(own, () => runStatus(own));
+  }
   const { agents, principal } = sessionOf(scope);
   const ctx = await scope.context(repo);
   const [lines, pushed] = await Promise.all([
@@ -78,7 +89,7 @@ export async function repoStatus(scope: ToolScope, repo: string): Promise<object
     open_cards: lines.open_cards,
     stalk_runs: stalkRuns,
     landed: beans.filter((bean) => bean.phase === 'landed' || bean.phase === 'green').length,
-    preview_url: lines.preview_url,
+    preview_urls: lines.preview_urls,
     summary: [
       `${inFlight.length} in flight`,
       `${sentBack.length} sent back`,
@@ -151,13 +162,25 @@ export async function openBean(
   };
 }
 
-export async function beanStatus(
+/** `bean_commit` for a session: a commit on `bean/<name>` that the engine checks as a push. */
+export async function commitBean(
   scope: ToolScope,
-  input: { readonly repo: string; readonly bean: string },
+  input: { readonly repo: string } & BeanCommitInput,
 ): Promise<object> {
   const { agents, principal } = sessionOf(scope);
-  const bean = valueOf(await agents.agentBean(principal, input.repo, input.bean));
-  return withNext(bean, input.bean);
+  if (agents.agentCommitBean === undefined)
+    throw new ToolError('this Gitstalk deployment does not commit on the server yet');
+  const { repo, ...commit } = input;
+  const result = parsed(await agents.agentCommitBean(principal, repo, commit), BeanCommitResult);
+  if (result.kind === 'conflict')
+    return {
+      ...result,
+      summary: `${result.branch} is at ${result.current_head ?? 'nothing (it does not exist)'}, not ${result.expected_head ?? 'nothing'}: nothing was written. Read it there and commit again with that expected_head.`,
+    };
+  return {
+    ...result,
+    summary: `Committed ${result.commit} on ${result.branch} (${result.files} files) and submitted it as a push: its pre-land check runs now. bean_wait when you are out of other work.`,
+  };
 }
 
 export async function beanWait(
@@ -236,7 +259,7 @@ function beanLine(bean: PushedBeanStatus) {
 }
 
 /** The answer with the one next step its phase calls for. */
-function withNext<T extends { readonly phase: string }>(
+export function withNext<T extends { readonly phase: string }>(
   bean: T,
   name: string,
 ): T & { next: string } {

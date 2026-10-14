@@ -174,8 +174,22 @@
             carries their name.
           </p>
 
+          <div class="install" data-agent-tabs id="install">
+            <section class="cmd" data-agent="claude-code" data-name="Claude Code">
+              <header><span>Claude Code: paste in your terminal</span></header>
+              <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
+              <p class="cmd-note">
+                Installs the plugin and runs <code>/gitstalk:setup</code> (below).
+              </p>
+            </section>
+            <section class="cmd" data-agent="codex" data-name="Codex">
+              <header><span>Codex: paste in your terminal</span></header>
+              <pre><code>codex plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
+              <p class="cmd-note">For git, ask Codex to run the setup script (below).</p>
+            </section>
+          </div>
+
           <h2 id="plugin">Claude Code: the plugin</h2>
-          <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
           <p>The plugin adds:</p>
           <ul>
             <li>
@@ -215,7 +229,6 @@
           </p>
 
           <h2 id="codex">Codex and other agents</h2>
-          <pre><code>codex plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
           <p>
             For git, ask the agent to run the setup script (<code>setup.sh</code>, or
             <code>setup.ps1</code> on Windows) from the web app, which does what
@@ -361,20 +374,22 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
                 <tr>
                   <td>
                     <code>whoami</code>, <code>ask_repo</code>, <code>work_overlaps</code>,
-                    <code>change_status</code>, <code>checks_get</code>, <code>run_status</code>,
-                    <code>preview_link</code>
+                    <code>why_lines</code>, <code>bean_status</code>, <code>repo_status</code>,
+                    <code>repo_read</code>
                   </td>
                   <td>
-                    Who you are; ask the repository a question; who is editing these files; a
-                    change's state and checks.
+                    Who you are and what you may do in a repository; ask the repository a question;
+                    who is editing these files; which bean last changed these lines, and why; a
+                    bean's state, verdict and checks; a repository's lines and beans; read files,
+                    list trees and grep code without a checkout. Answers link to the explorer.
                   </td>
                   <td><span class="pill live">live</span></td>
                 </tr>
                 <tr>
                   <td>
-                    <code>repo_list</code>, <code>repo_status</code>, <code>bean_open</code>,
-                    <code>bean_status</code>, <code>bean_wait</code>, <code>task_list</code>,
-                    <code>task_claim</code>, <code>task_release</code>, <code>git_credentials</code>
+                    <code>repo_list</code>, <code>bean_open</code>, <code>bean_commit</code>,
+                    <code>bean_wait</code>, <code>task_list</code>, <code>task_claim</code>,
+                    <code>task_release</code>, <code>git_credentials</code>
                   </td>
                   <td>
                     Work on any repository you may use: reserve a bean name, claim a task from
@@ -389,8 +404,7 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
                     <code>actions_run_get</code>, <code>actions_job_log</code>,
                     <code>actions_wait_for_run</code>, <code>actions_dispatch</code>,
                     <code>actions_rerun</code>, <code>actions_cancel</code>,
-                    <code>automation_list</code>, <code>automation_get</code>,
-                    <code>automation_run</code>
+                    <code>automation_get</code>, <code>automation_run</code>
                   </td>
                   <td>
                     Follow <a href="/docs/actions">Actions</a>: wait for the runs a landing started
@@ -401,13 +415,13 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
                 </tr>
                 <tr>
                   <td>
-                    <code>actions_secret_list</code>, <code>actions_secret_set</code>,
-                    <code>actions_secret_delete</code>, <code>actions_variable_list</code>,
-                    <code>actions_variable_set</code>, <code>actions_variable_delete</code>
+                    <code>actions_config_list</code>, <code>actions_config_set</code>,
+                    <code>actions_config_delete</code>
                   </td>
                   <td>
-                    Secret names and variables for the repository and its organization. Setting one
-                    needs the <code>secrets</code> scope and the maintain role; a value is
+                    Secret names and variables for the repository and its organization
+                    (<code>kind</code>: <code>secret</code> or <code>variable</code>). Setting one
+                    needs the <code>secrets</code> scope and the maintain role; a secret's value is
                     write-only and audited.
                   </td>
                   <td><span class="pill live">live</span></td>
@@ -421,8 +435,15 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             </table>
           </div>
           <p>
-            The tools are plain and task-shaped. None of them moves code: a change only ever arrives
-            as a git push, through the same checks.
+            An agent is offered only the tools its scopes allow: without <code>write</code> it sees
+            no tool that opens beans, claims tasks or starts runs, and without
+            <code>secrets</code> it cannot set or delete secrets and variables. Your role in each
+            repository is checked when a tool is used.
+          </p>
+          <p>
+            The tools are plain and task-shaped. None of them lands code: a change only ever arrives
+            as a bean (a git push, or <code>bean_commit</code> submitted as one), through the same
+            checks.
           </p>
 
           <h2 id="cloud">
@@ -504,8 +525,13 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             <h2 id="f-legal">Legal</h2>
             <ul>
               <li>
-                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE.md"
-                  >Licence (FSL → Apache-2.0)</a
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
                 >
               </li>
               <li><a href="/privacy">Privacy</a></li>
@@ -515,7 +541,7 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
         </div>
         <div class="base">
           <span>© 2026 Gitstalk</span>
-          <span>Source available (FSL). Each release becomes Apache-2.0 after two years.</span>
+          <span>Open source under the Apache License 2.0.</span>
         </div>
       </div>
     </footer>

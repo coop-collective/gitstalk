@@ -109,7 +109,7 @@ export async function RepositoryHome(props: {
         ]}
         suggestReceipt={suggest}
         receipts={[suggest, ...(explorer?.receipts ?? [])]}
-        picker={picker.name}
+        pickerModel={picker.model}
       >
         {explorer?.node}
       </HomeWorkspace>

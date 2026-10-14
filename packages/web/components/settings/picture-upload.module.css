@@ -1,0 +1,353 @@
+/* One uploaded picture in settings, and the crop dialog it opens. */
+
+.picture {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* A social image is wide: the picture above, the buttons under it. */
+.social {
+  flex-direction: column;
+  gap: 14px;
+}
+
+.avatar,
+.icon {
+  align-items: center;
+}
+
+.current {
+  position: relative;
+  display: inline-grid;
+  max-width: 100%;
+  border-radius: var(--radius);
+}
+
+.avatar .current {
+  border-radius: 50%;
+}
+
+.social .current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 420px;
+}
+
+.current > :first-child {
+  grid-area: 1 / 1;
+}
+
+.dropLabel {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--sheet) 78%, transparent);
+  color: var(--ink);
+  font-size: var(--step--1);
+  font-weight: 650;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.current[data-dropping] {
+  outline: 2px dashed var(--focus);
+  outline-offset: 4px;
+}
+
+.current[data-dropping] .dropLabel {
+  opacity: 1;
+}
+
+.preview {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: var(--wash);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
+.avatar .preview {
+  border-radius: 50%;
+}
+
+.icon .preview,
+.social .preview {
+  border-radius: var(--radius);
+}
+
+.side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.social .side {
+  flex: none;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form {
+  display: contents;
+}
+
+.choose {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chooseIcon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The plain form's own controls, for when scripts are off (scoped to outrank button styles). */
+.form .file,
+.form .plainSubmit {
+  display: none;
+}
+
+@media (scripting: none) {
+  .form .file {
+    display: inline-block;
+    max-width: 100%;
+    font-size: var(--step--1);
+    color: var(--ink-2);
+  }
+
+  .form .plainSubmit {
+    display: inline-flex;
+  }
+
+  .form .choose,
+  .current .dropLabel {
+    display: none;
+  }
+}
+
+.hint {
+  color: var(--ink-3);
+  font-size: var(--step--1);
+}
+
+.error,
+.saved {
+  font-size: var(--step--1);
+}
+
+.error {
+  color: var(--bad);
+}
+
+.saved {
+  color: var(--good);
+}
+
+/* ---------- The crop dialog ---------- */
+
+.dialog {
+  width: min(520px, calc(100vw - 2 * var(--gutter)));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow:
+    var(--shadow),
+    0 24px 60px -24px rgba(0, 0, 0, 0.5);
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--paper) 55%, rgba(0, 0, 0, 0.55));
+  backdrop-filter: blur(2px);
+}
+
+.dialogTitle {
+  font-size: var(--step-1);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dialogHint {
+  color: var(--ink-3);
+  font-size: var(--step--1);
+}
+
+.stage {
+  margin: 14px 0 12px;
+  border-radius: var(--radius-small);
+  overflow: hidden;
+  background: repeating-conic-gradient(var(--wash) 0 25%, var(--sheet-2) 0 50%) 0 0 / 16px 16px;
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.canvas[data-moving] {
+  cursor: grabbing;
+}
+
+.canvas:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.zoomRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--focus);
+}
+
+.zoomStep,
+.reset,
+.cancel {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--sheet-2);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.zoomStep {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 0;
+}
+
+.zoomStep svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.reset {
+  padding: 5px 12px;
+  font-size: var(--step--1);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.zoomStep:hover:not(:disabled),
+.reset:hover:not(:disabled),
+.cancel:hover {
+  background: var(--wash);
+}
+
+.zoomStep:disabled,
+.reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.progress progress {
+  flex: 1;
+  height: 6px;
+  accent-color: var(--good-fill);
+}
+
+.dialogError {
+  margin-top: 12px;
+  color: var(--bad);
+  font-size: var(--step--1);
+}
+
+.dialogButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.cancel {
+  padding: 7px 14px;
+  font-weight: 600;
+}
+
+.save {
+  padding: 7px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  background: var(--good-fill);
+  color: var(--good-fill-ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.save:hover:not(:disabled) {
+  box-shadow: 0 0 14px -2px var(--glow);
+}
+
+.save:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.zoomStep:focus-visible,
+.reset:focus-visible,
+.cancel:focus-visible,
+.save:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .dialog {
+    padding: 16px;
+  }
+
+  .dialogButtons > * {
+    flex: 1;
+  }
+}

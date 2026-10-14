@@ -1,6 +1,5 @@
 import { AccountSettings } from '../../components/account/account-settings';
 import { AvatarForm, ProfileForm } from '../../components/account/account-forms';
-import styles from '../../components/account/account.module.css';
 import { Avatar } from '../../components/account/avatar';
 import { SettingsSection } from '../../components/settings/settings-shell';
 import { pictureNote } from '../../src/account/picture-notes';
@@ -35,14 +34,12 @@ export default async function ProfileSettingsPage({ searchParams }: PageProps) {
         title="Picture"
         lede="Shown next to your handle on repositories, beans and decisions. Without one you get a generated picture with your initials."
       >
-        <div className={styles.pictureRow}>
-          <Avatar seed={profile.id} label={name} imageKey={profile.avatarKey} size={96} />
-          <AvatarForm
-            csrf={session.csrfToken}
-            hasPicture={profile.avatarKey !== null}
-            note={note}
-          />
-        </div>
+        <AvatarForm
+          csrf={session.csrfToken}
+          current={<Avatar seed={profile.id} label={name} imageKey={profile.avatarKey} size={96} />}
+          hasPicture={profile.avatarKey !== null}
+          note={note}
+        />
       </SettingsSection>
       <SettingsSection id="profile" title="Profile">
         <ProfileForm

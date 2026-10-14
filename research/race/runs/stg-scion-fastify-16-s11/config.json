@@ -1,0 +1,68 @@
+{
+  "forge": "beanstalk",
+  "out": "runs/stg-scion-fastify-16-s11",
+  "arena": "<snapshot>/research/real-arena/fastify",
+  "repo": null,
+  "tasks": null,
+  "workers": 16,
+  "seed": 11,
+  "mode": "standalone",
+  "schedule": "closed",
+  "hold": "integrate",
+  "fit_runs": [
+    "runs/pair-fastify-codex-4-s7-github",
+    "runs/pair-fastify-codex-4-s7-beanstalk"
+  ],
+  "think_median": null,
+  "fix_median": null,
+  "time_scale": 1.0,
+  "rate": 0.0,
+  "fixed": false,
+  "record": null,
+  "speed": 1.0,
+  "max_attempts": 8,
+  "max_wall_minutes": 120.0,
+  "ci_slots": 2,
+  "batch": 4,
+  "no_final_check": false,
+  "final_in": "auto",
+  "label": "staging scion snapshot 44129d8+uncommitted (A, no policy)",
+  "gh_owner": "kintohubtest",
+  "gh_repo": null,
+  "gh_poll": 3.0,
+  "gh_push_interval": 2.0,
+  "gateway": "https://api.gitstalk.dev",
+  "bs_owner": "loadgen",
+  "bs_repo": null,
+  "keep_repo": false,
+  "bs_engine": [
+    "preland_sandboxes=20",
+    "ci_slots=2"
+  ],
+  "bs_policy": null,
+  "bs_evidence": false,
+  "schedule_resolved": {
+    "kind": "closed",
+    "seed": 11,
+    "think": {
+      "median": 88.25,
+      "sigma": 0.462,
+      "n": 76,
+      "source": "fitted: pair-fastify-codex-4-s7-github, pair-fastify-codex-4-s7-beanstalk"
+    },
+    "fix": {
+      "median": 65.07,
+      "sigma": 0.311,
+      "n": 10,
+      "source": "fitted: pair-fastify-codex-4-s7-github, pair-fastify-codex-4-s7-beanstalk"
+    },
+    "time_scale": 1.0,
+    "hold": "integrate"
+  },
+  "beanstalk_repo": "loadgen/lg-fastify-16-11-e61e",
+  "beanstalk_engine_settings": {
+    "preland_sandboxes": 20,
+    "ci_slots": 2
+  },
+  "beanstalk_engine": "rce5381bb6bcc9a30784"
+}

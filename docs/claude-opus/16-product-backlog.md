@@ -2,7 +2,7 @@
 
 > **Decisions taken (Coop, 2026-10-06):**
 > - **Automations connect through direct MCP only:** apps' own MCP servers, no Composio. Every Composio item in this plan is dropped.
-> - **Licence:** ask the organisers in writing whether FSL qualifies (draft email sent to Coop); switch the submission snapshot only if they say no.
+> - **Licence (Coop, 2026-10-14):** Apache-2.0, as the competition rules require (`LICENSE`, `NOTICE`, `TRADEMARKS.md`). The repository was under FSL-1.1-ALv2 until then.
 > - **Demo engine:** decided after the real races. v2.5 with dependency starts and the tail fix is racing now.
 > - **Sign-up (Coop, 2026-10-07):** passkeys are the primary sign-up path; email magic links are built and tested but switched off and hidden until a sender domain is configured (`19-accounts-and-auth.md` §6).
 > - **Name and domain:** decided 2026-10-10: the product is **Gitstalk** (the growing-beanstalk metaphor stays). "Beanstalk" collided with the existing Beanstalk git hosting service (beanstalkapp.com) and AWS Elastic Beanstalk, and beanstalk.ai was taken. Production will be gitstalk.io and staging gitstalk.dev; until they are set up the hosted service keeps its workers.dev addresses (`30-environments.md` §12).
@@ -320,7 +320,7 @@ People push with a personal token from Settings (scoped like a session, labelled
 | RunDO keyed by run id; one `RunConfig` | **RepoDO** keyed by repo id; `RunConfig` splits into repo settings (policy, window, checks, isolation) and per-bean options |
 | Tasks come from the arena and the driver's long poll | Beans come from sessions (`bean_open {intent}`), placed work (`task_next`), people (web "New bean"), and automations |
 | Agent "done" = the driver posts an invocation result | `change_submit {bean}` over MCP (or a push with `Gitstalk-Submit: true` trailer later) marks the bean's head ready; the engine takes over exactly as now |
-| Rework = the driver resumes the session | Rework = `change_status` returns `next: rework` with the ticket; the connected session picks it up (the plugin's skill already polls). Cloud sessions are resumed by `beanstalk-agents` |
+| Rework = the driver resumes the session | Rework = `bean_status` returns `next: rework` with the ticket; the connected session picks it up (the plugin's skill already polls). Cloud sessions are resumed by `beanstalk-agents` |
 | Checks = the arena's test command, emulated CI | Checks from `.gitstalk/checks.toml` in the repo (command, image, timeout, protected paths), run in the Runner container on the exact merged tree |
 | Decision cards to `DEMO_PASSWORD` holders | Cards routed to the owners of the clashing specs (the people whose sessions opened the beans), then repo admins; answered in web, inbox, or email reply (Email Routing) |
 | `events.jsonl` per run | `events` table per repo, compacted; daily segments in R2; races still export `events.jsonl` byte-for-byte so `research/race` tools keep working |
@@ -392,7 +392,7 @@ Rule of Two: reading app data (PostHog errors) sets **U**; reading private repo 
 
 **The PostHog example, end to end.** Schedule fires hourly → Workflow step 1 calls PostHog's `error_tracking` list tool (direct MCP or Composio) → step 2 filters to active issues with five or more occurrences in 24 h → step 3 drops issues whose PostHog id is in `dedupe` → step 4 asks Jev, per issue, "bug, noise, or duplicate of one of these open beans?" over the issue title, top frame and the open beans' intents → step 5 for each bug calls `bean_open {intent, area_hint, evidence_url, source: automation}` → the bean appears at the tip of the stalk as queued; a connected session can take it with `task_next`, or the owner's cloud session does if the automation says so → step 6 records the PostHog id → bean mapping and posts a summary to the run log.
 
-**MCP verbs** (P1): `automation_list`, `automation_create` (from a template or a definition JSON), `automation_run`, `automation_runs`. So "automatically look at bugs in PostHog and post them as beans" can be said to an agent and becomes this definition.
+**MCP verbs** (P1): `automation_get` (lists without a name), `automation_create` (from a template or a definition JSON), `automation_run`, `automation_runs`. So "automatically look at bugs in PostHog and post them as beans" can be said to an agent and becomes this definition.
 
 ---
 
@@ -432,7 +432,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 
 | # | Item | Acceptance | Size | Lane |
 |---|---|---|---|---|
-| 0.1 | **Licence notice** (FSL is decided; D1 only reconfirms) | `LICENSE.md` matches the decision; README, site footer and video close say the same thing; if FSL stays, a plain paragraph in the README says the rules list MIT/Apache/BSD and why we chose FSL | S + Coop | A |
+| 0.1 | **Licence notice** (D1) | `LICENSE` matches the decision; README, site footer and video close say the same thing. **Done 2026-10-14:** Apache-2.0 with `NOTICE` and `TRADEMARKS.md`; README, site, `AGENTS.md` and every manifest say Apache-2.0 | S + Coop | A |
 | 0.2 | **Pin the engine for the demo** | Gateway defaults now run v2.5 rules, which have **no real-agent Cloudflare run**. Either pin the demo and README numbers to `V24_SETTINGS`, or run v2.5 for real (0.3). The README, site and script quote only measured versions. **Done 2026-10-06:** `demo` pins v2.5 + dependency starts + the tail fix (`DEMO_SETTINGS`), measured in 0.3; `v24` keeps `V24_SETTINGS` | S | B |
 | 0.3 | **2–3 more real-agent seeds on Cloudflare** (v2.4 or v2.5 vs queue) | `research/race/runs/cf-*` added; `kth_green.py` table in README and `15` updated; site's "1.6–2.3×, three runs" claim matches the runs exactly. **Done 2026-10-06 (runs, README, `11`, `15`):** seeds 7/11/13 for the queue, v2.4 and every v2.5 phase (`11`, "CF v2.5 phase matrix"); the site's claim is the marketing pass's to align | M (+ ~$15–25 agent spend) | B |
 | 0.4 | **Live Ask fast enough to show** | Per-request memoisation in `ForgeSource` (`14` §11 fix 1); the coupons question on a live run under 5 s, recorded runs unchanged | S | C |
@@ -479,7 +479,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 | 2.2 | Repo lifecycle: `repos.create` (empty, import from a public git URL via Artifacts `.import()`, demo template), rename, archive, delete; D1 `forge` **(built 10-07; archive 10-07: `20` §8)** | Create in under 5 s; import of a 50 MB public repo completes and the stalk equals its default branch; delete reaps Artifacts and the DO | M |
 | 2.3 | Checks config: `.gitstalk/checks.toml` (command, image, timeout, protected paths) run by the Runner on the exact merged tree | A Node repo and a Rust repo each get correct pre-land checks; a missing file means "no checks, land on clean merge" with a warning | M |
 | 2.4 | Git auth for principals: bean-scoped git tokens from identity; proxy checks principal + bean ownership; people's personal tokens | Push to own bean works; push to another's bean, `sprout`, `stalk` or a deletion is refused (403); compressed pushes supported (today 415) | M |
-| 2.5 | MCP write verbs: `bean_open`, `task_next`/`task_claim`, `change_submit`, `decision_request`, heartbeat; `change_status.next` drives rework; plugin skill updated | A stock Claude Code session with the plugin and no driver takes a bean from open to stalk, including one red-and-rework cycle | L (4) |
+| 2.5 | MCP write verbs: `bean_open`, `task_next`/`task_claim`, `change_submit`, `decision_request`, heartbeat; `bean_status.next` drives rework; plugin skill updated | A stock Claude Code session with the plugin and no driver takes a bean from open to stalk, including one red-and-rework cycle | L (4) |
 | 2.6 | Repo event Queue: RepoDO → `repo-events` → D1 indexes (`beans`, `decisions`, `repo_daily`) **(built 10-07: `20` §7; staging lag median ~3 s, worst 7 s)** | Lists in web are under 200 ms from D1; indexes catch up within 5 s of an event | M |
 | 2.7 | Web: `/:org/:repo` shell and tabs Code, Beans, Stalk, Decisions, Checks, Settings (general, access, engine policy, checks); `/new`; repository list on Home and org page **(10-07: `/:owner/:repo` with Code, Changes, History (validated versus landed), Ask, People, Settings (general, visibility, collaborators, archive, delete); `/new`; Home; `20`)** | Tabs work live on a real repo; Files folds into Code; Engine view under Stalk; decision answering by repo admins and spec owners | L (4) |
 | 2.8 | Live Ask at product speed: term index (D1 FTS5) and test import closures computed on landing, answer cache keyed by sprout sha | Under 2 s for a live answer, under 300 ms repeated (`14` §11 target) | M |
@@ -513,7 +513,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 | 4.4 | Typed outputs: create bean, comment, decision card, notify; external writes behind per-run approval; Rule-of-Two enforcement | The PostHog recipe opens beans unattended; a Slack post after reading private code is queued as a card | M |
 | 4.5 | 4b **Composio connector** (decision D4): org-level enable with notice, connections, triggers via webhook | A Composio-backed Sentry trigger opens a bean; disabling Composio stops only those automations | M |
 | 4.6 | Web: Automations tab (list, editor, runs), templates (PostHog errors, Sentry issue, daily digest, red too long, webhook, email-in) | The §2.5 editor round-trips to the same JSON as `automation_create` | M–L |
-| 4.7 | MCP verbs: `automation_list/create/run/runs` | "Automatically look at bugs in PostHog and post them as beans" said to Claude Code creates a working automation | S |
+| 4.7 | MCP verbs: `automation_get/create/run/runs` | "Automatically look at bugs in PostHog and post them as beans" said to Claude Code creates a working automation | S |
 
 ---
 
@@ -554,7 +554,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| **Licence vs. rules**: the rules list MIT, Apache-2.0 or BSD; we ship FSL-1.1-ALv2 | Possible ineligibility (owner's informed choice, `AGENTS.md`) | D1 reconfirms by 10-08; 0.1 states it plainly |
+| **Licence vs. rules**: the rules require MIT, Apache-2.0 or BSD | Ineligibility if the repository is under anything else | Resolved 2026-10-14: Apache-2.0 (D1, 0.1) |
 | **Demo numbers vs. shipping defaults**: gateway defaults to v2.5 rules, which are simulated only | A judge reruns and gets different behaviour from what the video shows | 0.2 pins or 0.3 measures; README states which |
 | **Artifacts billing starts ~10-14/15**, and the shared account caps containers at 48 | Surprise cost; races fail at scale | 0.5 spend guard and reap before 10-14 |
 | **Email Sending is in beta**, needs Workers Paid and an onboarded domain, and new accounts start with conservative daily quotas | Magic links throttled on a launch spike | Onboard the domain in Phase 0 (0.8 exercises it); request a limit increase early; the six-digit code and passkeys reduce sends; queue and retry |
@@ -572,7 +572,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 
 | # | Decision | Options | My recommendation | Needed by |
 |---|---|---|---|---|
-| D1 | **Licence for the submission: reconfirm** | `AGENTS.md` records FSL-1.1-ALv2 as your informed choice (2026-10-04), knowingly risking eligibility. Options: (a) keep FSL; (b) MIT/Apache-2.0 for the submitted snapshot, FSL for later product code; (c) ask the organisers in writing whether FSL qualifies | Keep your decision unless you want (c) as a cheap check; whatever stands, the README must say it plainly (0.1) | 10-08 |
+| D1 | **Licence for the submission** | **Decided 2026-10-14 (Coop): Apache-2.0**, as the rules require. From 2026-10-04 to 2026-10-14 the repository was under FSL-1.1-ALv2 | — | Done |
 | D2 | **Demo engine version** | pin v2.4 (measured) or run v2.5 for real seeds and ship it | Run 2 seeds of v2.5 vs queue if budget allows; otherwise pin v2.4 | 10-08 |
 | D3 | **Domain and naming** | which domain for app, MCP, git and email (`beanstalk.dev`? the site's command uses `beanstalkdev`); GitHub org for the plugin marketplace | One apex domain, same origin for app, MCP and git | 10-08 (Email Service onboarding needs it) |
 | D4 | **Composio** | (a) direct MCP only; (b) direct MCP first, Composio as optional per-org broker; (c) Composio first | (b) | Phase 4 start |
@@ -654,7 +654,7 @@ Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `
 | "Cloud agents" | No | Phase 5 |
 | "Bring your Anthropic, Google or Grok keys" | No | 5.2; Grok per D9 |
 | Footer: Docs, Pricing, Changelog, About, Blog, Careers, Contact, Privacy, Terms | 14 links go to `#` | 0.7 (remove or minimal pages; Privacy and Terms required before 0.8) |
-| "Source available (FSL)" | True; conflicts with the competition's licence list | D1 |
+| "Open source under the Apache License 2.0" | True since 2026-10-14 | D1 |
 
 ## Appendix B: Cloudflare product map
 

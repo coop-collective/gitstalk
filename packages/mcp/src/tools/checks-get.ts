@@ -1,5 +1,5 @@
 /**
- * `checks_get`: a bean's pre-land checks as structured failures, not log dumps. Each failure
+ * `bean_status` with `checks: true`: a bean's pre-land checks as structured failures, not log dumps. Each failure
  * names its test file and test, says whether the red was inherited from the sprout (not this
  * bean's fault: no rework is spent) and whether the test is protected (an acceptance test a
  * bean owns: fix the code, never the test).

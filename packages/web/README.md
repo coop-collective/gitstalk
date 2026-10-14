@@ -61,9 +61,11 @@ Ask in [14](../../docs/claude-opus/14-repository-experience.md) and
   authenticate RPC calls; the binding is the trust boundary, so this app checks the session
   and the viewer's role before every call.
 - **Ask** is shared with the MCP server through `@gitstalk/shared-ask`. A deterministic keyword
-  router classifies questions by default. A picker orders what a page shows: `"rules"`, or
-  `"jev"`, which asks Jev (a classifier model on Workers AI) and falls back to the rules when it
-  is slow or off-catalog. Every pick leaves a receipt on the page.
+  router classifies questions by default. A picker orders what a page shows: `"clef"` (the
+  default: Cloudflare's Clef Flash decision model on Workers AI, through the AI Gateway in
+  `DECISION_GATEWAY`), `"clef-27b"`, `"jev"` (TypeSafe's Jev) or `"rules"`. A model that is
+  slow or off-catalog falls back to the rules. Every pick leaves a receipt naming the model
+  that answered.
 - **Live updates.** vinext cannot hold a WebSocket upgrade, so the `/api/.../live` routes open
   the gateway's WebSocket feed through the binding and stream Server-Sent Events to the browser.
 
@@ -188,7 +190,7 @@ entrypoint) and `MCP`; D1 `IDENTITY_DB` (schema in `packages/shared-identity/mig
 R2 `MEDIA`; `IMAGES`; rate limit `SIGNIN_RATE_LIMIT`; Analytics Engine `PRODUCT_EVENTS`;
 `AI`; Email Service `EMAIL` (`send_email`, sign-in codes); static `ASSETS`. Environments that serve the site on this origin add `SITE`.
 
-Vars: `LOG_LEVEL`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `JEV_GATEWAY`,
+Vars: `LOG_LEVEL`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `DECISION_GATEWAY`,
 `EMAIL_SENDER_DOMAIN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_HOSTNAMES`, `TURNSTILE_TEST_KEYS`,
 `GIT_ORIGIN`, `MCP_URL`, `DOCS_URL`, `WEB_URL`, `SEARCH_INDEXING`, `SSH_HOST`,
 `SSH_HOST_KEY_FINGERPRINT`, `ACTIONS_SOURCE`, `PLATFORM_ADMINS`. Each is explained in

@@ -118,7 +118,7 @@ Then the honest line, on the same card:
 
 > "Agents connect through a plugin and an MCP server. Today the tools are read-only: run status, work overlaps, check results, change status, and Ask. Connecting takes a token from your deployment. One-command install with browser sign-in, Codex subscriptions, cloud agents and your own model keys are next, and the site says so."
 
-Tools shown must be among `run_status`, `work_overlaps`, `checks_get`, `change_status`, `ask_repo`, `preview_link` (`packages/mcp/src/tools/`). Don't show a write.
+Tools shown must be among `repo_status`, `work_overlaps`, `bean_status` (with `checks: true` for failures), `ask_repo`, `repo_read` (`packages/mcp/src/tools/`); the explorer links come in their `preview_url` and `preview_urls`. Don't show a write.
 
 ### 7:20–7:40 Underneath, and receipts
 
@@ -134,7 +134,7 @@ agent sessions → MCP + gateway Worker → run Durable Object (SQLite) → runn
 
 **On screen:** the repository home, stalk fully grown.
 
-> "Beanstalk ships more of the work, and gets most of it done about twice as fast as a merge queue. Agents land without waiting, the stalk stays honest, and people decide what the product means. Source available under FSL; each release becomes Apache-2.0 after two years."
+> "Beanstalk ships more of the work, and gets most of it done about twice as fast as a merge queue. Agents land without waiting, the stalk stays honest, and people decide what the product means. Open source under the Apache License 2.0."
 
 ## Shot list
 

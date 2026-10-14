@@ -86,7 +86,7 @@ pnpm env:deploy <env>               # deploy every package (--dry-run, --only <p
 pnpm env:smoke <env>                # smoke-test the deployed stack
 ```
 
-The `wrangler.jsonc` files in `packages/` are templates: never `wrangler deploy` one directly (each package's `deploy` script refuses on purpose). The full guide is [`docs/claude-opus/30-environments.md`](docs/claude-opus/30-environments.md), with a shorter public version at [self-hosting](packages/site/public/docs/self-hosting.html). Mind the [license](#license): self-hosting for your own use is permitted; offering Gitstalk as a competing service is not.
+The `wrangler.jsonc` files in `packages/` are templates: never `wrangler deploy` one directly (each package's `deploy` script refuses on purpose). The full guide is [`docs/claude-opus/30-environments.md`](docs/claude-opus/30-environments.md), with a shorter public version at [self-hosting](packages/site/public/docs/self-hosting.html). The code is Apache-2.0 (see [License](#license)); if you run your own copy for others, give it your own name and logo ([TRADEMARKS.md](TRADEMARKS.md)).
 
 ## Benchmark results
 
@@ -100,9 +100,27 @@ The same 38 real changes from fastify's history (merged upstream pull requests, 
 
 Every run landed all 38 changes correctly on both forges. The 4- and 8-worker rows are one seed each, and CI minutes are not like for like. Method, caveats, the synthetic 30-agent arena and every recorded run: [`research/README.md`](research/README.md), [`research/race/loadgen/README.md`](research/race/loadgen/README.md) and [`docs/claude-opus/11-experiments-summary.md`](docs/claude-opus/11-experiments-summary.md).
 
+## Scaling to thousands of agents
+
+Anthropic's source-control team reached a conclusion close to the one Gitstalk is built on: at agent scale, a merge queue with a global lock doesn't work. They [test after merge, accept that concurrent changes conflict, and let Claude fix the conflicts](https://www.anthropic.com/engineering/redesigning-source-control), at 30,000 merges a day. Their other rule is that global ref state is the scaling problem, so it should be kept small.
+
+Gitstalk's target shape follows from both rules. Every Artifacts repository is its own Durable Object, so each bean gets its own fork and only the engine writes the sprout and the stalk. Writes then grow with the number of forks, not with one object's throughput. Today every bean is a `bean/<name>` branch of the repository, a workaround for fork bugs. By our estimate from Artifacts' published limits, that holds to roughly 1,000 active agents and one fork per bean to 10,000; the largest run we have measured is 30 agents.
+
+We are asking the Artifacts team for:
+
+| Ask | Why |
+|---|---|
+| Fix forks created after the parent has new pushes (`delta base is missing`, upload-pack 500) and make new forks readable at once | Unblocks one fork per bean |
+| Forks share objects with their parent (copy-on-write), billed on unique objects | 10,000 forks of a 10 GB repository must not cost 100 TB |
+| Control plane 2,000 → 20,000 requests per 10 s per namespace, or one binding across several namespaces | 10,000 agents and burst starts |
+| A higher git rate for a busy repository, 10 GB repositories, more account storage | Real monorepos |
+| Server-side calls: ref list and compare-and-swap, `createCommit`, `diff` and merge-base, changed paths in push events | Each one removes traffic instead of needing a higher limit |
+
+The reasoning, the load estimates at 1,000 and 10,000 agents, and the message for the Artifacts team are in [`docs/claude-18-lessons-from-scion.md`](docs/claude-18-lessons-from-scion.md).
+
 ## License
 
-Gitstalk is source-available (not OSI open source until each version converts) under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2), copyright 2026 Coop. You may use, copy, modify and redistribute the code for any purpose other than a Competing Use, meaning a commercial product or service that substitutes for Gitstalk or for another product the licensor offers with it. Internal use, non-commercial education and research, and professional services for a licensee are permitted. Each version also becomes available under the Apache License 2.0 two years after it is released. Read [LICENSE.md](LICENSE.md) for the exact terms.
+Gitstalk is licensed under the [Apache License, Version 2.0](LICENSE) (Apache-2.0), copyright 2026 Coop. See [LICENSE](LICENSE) for the terms and [NOTICE](NOTICE) for attributions. The Apache License does not cover the Gitstalk name or logos; [TRADEMARKS.md](TRADEMARKS.md) explains how you may use them.
 
 ## Community
 

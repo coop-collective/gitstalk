@@ -276,7 +276,7 @@ async function agentAccess(
   },
 ): Promise<RpcResult<RepositoryForViewer>> {
   const { agent } = input;
-  // The same principal the MCP repository tools use, so `repository_access` answers as they do.
+  // The same principal the MCP repository tools use, so `whoami` with a repo answers as they do.
   const principal = agentRepositoryPrincipal(agent);
   const record = await deps.registry.resolve(input.ownerHandle, input.name);
   const decided = await accessResult(deps.collaborators, record, {

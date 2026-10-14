@@ -18,19 +18,38 @@ export type ConsumerDeps = {
   readonly stalkMoved?: (move: StalkMoved) => Promise<void>;
   /** Told of every event once indexed, for the automations they trigger (doc 25 §7.2). */
   readonly repoEvents?: (input: RepoEventsForAutomations) => Promise<void>;
+  /**
+   * Told of every indexed batch, with the repository's Artifacts repo, for derived history
+   * (`derive/`). Fire and forget: derived history catches up on its own reads, so its
+   * failures never retry the message.
+   */
+  readonly derived?: (input: DerivedFeed) => void;
   readonly registry: Pick<Registry, 'byEngine'>;
   readonly log: Logger;
 };
 
+/** One engine's indexed events, for derived history. */
+export type DerivedFeed = {
+  readonly engine: string;
+  readonly repo: string;
+  readonly events: readonly RepoEvent[];
+};
+
+type Owner = { id: string; ownerId: string; artifactsRepo: string };
+
 /** Handles one batch; every message is acked or retried on its own. */
 export async function consumeRepoEvents(batch: MessageBatch, deps: ConsumerDeps): Promise<void> {
-  const owners = new Map<string, Promise<{ id: string; ownerId: string } | null>>();
+  const owners = new Map<string, Promise<Owner | null>>();
   const ownerOf = (engine: string) => {
     const known = owners.get(engine);
     if (known !== undefined) return known;
     const found = deps.registry
       .byEngine(engine)
-      .then((record) => (record === null ? null : { id: record.id, ownerId: record.owner.id }));
+      .then((record) =>
+        record === null
+          ? null
+          : { id: record.id, ownerId: record.owner.id, artifactsRepo: record.artifacts_repo },
+      );
     owners.set(engine, found);
     return found;
   };
@@ -55,11 +74,11 @@ async function applyInOrder(
   messages: readonly Message[],
   context: {
     readonly deps: ConsumerDeps;
-    readonly ownerOf: (engine: string) => Promise<{ id: string; ownerId: string } | null>;
+    readonly ownerOf: (engine: string) => Promise<Owner | null>;
   },
 ): Promise<void> {
   const { deps } = context;
-  let repo: { id: string; ownerId: string } | null;
+  let repo: Owner | null;
   try {
     repo = await context.ownerOf(engine);
   } catch (error: unknown) {
@@ -75,12 +94,17 @@ async function applyInOrder(
     }
     try {
       // oxlint-disable-next-line no-await-in-loop -- one engine's messages apply in order
-      await applyRepoEvents(deps.db, { ...repo, engineId: engine }, parsed.events);
+      await applyRepoEvents(
+        deps.db,
+        { id: repo.id, ownerId: repo.ownerId, engineId: engine },
+        parsed.events,
+      );
       // oxlint-disable-next-line no-await-in-loop -- one engine's messages apply in order
       await notifyStalkMoves(deps, repo.id, parsed.events);
       // oxlint-disable-next-line no-await-in-loop -- one engine's messages apply in order
       await deps.repoEvents?.({ repoId: repo.id, events: parsed.events });
       message.ack();
+      deps.derived?.({ engine, repo: repo.artifactsRepo, events: parsed.events });
       // How far behind the engine the index is: the 2.6 target is under 5 s.
       const last = parsed.events.at(-1);
       deps.log.info('repo events indexed', {

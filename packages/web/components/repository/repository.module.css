@@ -439,10 +439,6 @@
   text-align: center;
   padding: 12px;
 }
-.fileInput {
-  max-width: 100%;
-  font-size: var(--step--1);
-}
 .toggles {
   display: grid;
   gap: 8px;

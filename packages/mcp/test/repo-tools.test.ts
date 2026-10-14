@@ -76,10 +76,12 @@ describe('repository tools', () => {
       expect.arrayContaining([
         'repo_list',
         'repo_status',
-        'automation_list',
+        'repo_read',
+        'automation_get',
         'bean_open',
         'bean_status',
         'bean_wait',
+        'bean_commit',
         'task_list',
         'task_claim',
         'task_release',
@@ -88,6 +90,8 @@ describe('repository tools', () => {
       ]),
     );
     expect(names).not.toContain('execute');
+    for (const merged of ['change_status', 'checks_get', 'run_status', 'preview_link'])
+      expect(names).not.toContain(merged);
     expect(names).not.toContain('git_credential');
   });
 
@@ -105,17 +109,17 @@ describe('repository tools', () => {
     });
   });
 
-  it("automation_list reads a repository's automations and runs; a stranger's is not there", async () => {
+  it("automation_get without a name lists a repository's automations and runs; a stranger's is not there", async () => {
     const { user, client } = await session(['read']);
     const repo = await repository(user);
-    expect(await tool(client, 'automation_list', { repo: slug(repo) })).toEqual({
+    expect(await tool(client, 'automation_get', { repo: slug(repo) })).toEqual({
       repo: slug(repo),
       automations: [],
       runs: [],
       summary: '0 automations (0 with problems), 0 recent runs',
     });
     const stranger = await session();
-    expect(await tool(stranger.client, 'automation_list', { repo: slug(repo) })).toEqual({
+    expect(await tool(stranger.client, 'automation_get', { repo: slug(repo) })).toEqual({
       error: `repository ${slug(repo)} not found`,
     });
   });
@@ -133,9 +137,15 @@ describe('repository tools', () => {
     expect(await tool(stranger.client, 'repo_status', { repo: slug(repo) })).toEqual({
       error: `repository ${slug(repo)} not found`,
     });
+    expect(await tool(client, 'repo_status', { repo: slug(repo) })).toHaveProperty(
+      'preview_urls.stalk',
+      expect.stringContaining('ref=stalk'),
+    );
     // The read tools take the repository too.
-    expect(await tool(client, 'run_status', { repo: slug(repo) })).toMatchObject({
-      run: repo.engine_id,
+    expect(
+      await tool(stranger.client, 'repo_read', { path: 'README.md', repo: slug(repo) }),
+    ).toEqual({
+      error: `repository ${slug(repo)} not found`,
     });
     expect(
       await tool(stranger.client, 'work_overlaps', { paths: ['src'], repo: slug(repo) }),
@@ -146,10 +156,8 @@ describe('repository tools', () => {
 
   it('bean_open needs the write scope, then reserves the name and says how to push', async () => {
     const reader = await session(['read', 'collaborate']);
-    const theirs = await repository(reader.user);
-    expect(
-      await tool(reader.client, 'bean_open', { repo: slug(theirs), bean: 'x', intent: 'Try' }),
-    ).toEqual({ error: expect.stringContaining('needs the write scope') });
+    const readerTools = (await reader.client.listTools()).tools.map((listed) => listed.name);
+    expect(readerTools).not.toContain('bean_open');
     const { user, client } = await session();
     const repo = await repository(user);
     const opened = await tool(client, 'bean_open', {
@@ -207,9 +215,9 @@ describe('repository tools', () => {
       error: expect.stringContaining('has no task nope'),
     });
     const readOnly = await connect(await personalToken(user, ['read']));
-    expect(await tool(readOnly, 'task_claim', { repo: slug(repo), task: 'add-total' })).toEqual({
-      error: expect.stringContaining('needs the write scope'),
-    });
+    const readOnlyTools = (await readOnly.listTools()).tools.map((listed) => listed.name);
+    expect(readOnlyTools).not.toContain('task_claim');
+    expect(readOnlyTools).toContain('task_list');
   });
 
   it('git_credentials: a repository-bound credential that pushes; bean_wait reads the verdict', async () => {
@@ -253,6 +261,145 @@ describe('repository tools', () => {
     expect(asBearer.status).toBe(401);
   });
 
+  it('repo_read reads files, ranges, trees, globs and greps a repository without a checkout', async () => {
+    const { user, token } = await session();
+    const repo = await repository(user);
+    await plantOnSprout(
+      repo,
+      {
+        'README.md': '# app\n',
+        'src/total.ts':
+          'import { tax } from "./tax";\n\nexport function total(n: number) {\n  return n + tax(n);\n}\n',
+        'src/tax.ts': 'export const tax = (n: number) => n / 10;\n',
+      },
+      token,
+    );
+    // Reading needs only the read scope.
+    const client = await connect(await personalToken(user, ['read']));
+    expect(
+      await tool(client, 'repo_read', { repo: slug(repo), path: 'src/total.ts', start: 3, end: 4 }),
+    ).toMatchObject({
+      mode: 'files',
+      files: [
+        {
+          path: 'src/total.ts',
+          start: 3,
+          end: 4,
+          content: 'export function total(n: number) {\n  return n + tax(n);',
+          next_start: null,
+        },
+      ],
+    });
+    expect(await tool(client, 'repo_read', { repo: slug(repo), path: 'src' })).toMatchObject({
+      mode: 'tree',
+      entries: expect.arrayContaining([expect.objectContaining({ path: 'src/tax.ts' })]),
+    });
+    const globbed = await tool(client, 'repo_read', { repo: slug(repo), glob: '**/*.ts' });
+    expect(globbed['entries']).toEqual([
+      { path: 'src/tax.ts', type: expect.any(String) },
+      { path: 'src/total.ts', type: expect.any(String) },
+    ]);
+    const grep = await tool(client, 'repo_read', {
+      repo: slug(repo),
+      grep: 'tax(',
+      glob: 'src/*.ts',
+    });
+    expect(grep).toMatchObject({ mode: 'grep', matches: 1, next_cursor: null });
+    expect(grep['messages']).toEqual([
+      { type: 'begin', data: { path: { text: 'src/total.ts' } } },
+      expect.objectContaining({
+        type: 'context',
+        data: expect.objectContaining({ line_number: 2 }),
+      }),
+      expect.objectContaining({
+        type: 'context',
+        data: expect.objectContaining({ line_number: 3 }),
+      }),
+      {
+        type: 'match',
+        data: {
+          path: { text: 'src/total.ts' },
+          lines: { text: '  return n + tax(n);' },
+          line_number: 4,
+          submatches: [{ match: { text: 'tax(' }, start: 13, end: 17 }],
+        },
+      },
+      expect.objectContaining({
+        type: 'context',
+        data: expect.objectContaining({ line_number: 5 }),
+      }),
+      { type: 'end', data: { path: { text: 'src/total.ts' }, stats: { matched_lines: 1 } } },
+    ]);
+    const regex = await tool(client, 'repo_read', {
+      repo: slug(repo),
+      grep: '/export (const|function)/',
+    });
+    expect(regex).toMatchObject({ regex: true, matches: 2 });
+  });
+
+  it('bean_commit writes bean/<name> without a checkout and submits it; a stale head is a conflict', async () => {
+    const { user, token, client } = await session();
+    const repo = await repository(user);
+    await plantOnSprout(repo, { 'README.md': '# app\n', 'src/total.ts': 'export {};\n' }, token);
+    const input = {
+      repo: slug(repo),
+      bean: 'bean/docs-total',
+      expected_head: null,
+      changes: [
+        { path: 'docs/total.md', content: '# Totals\n' },
+        { path: 'src/total.ts', content: 'export const total = 0;\n' },
+      ],
+      message: 'Document totals',
+      idempotency_key: 'docs-1',
+    };
+    const committed = await tool(client, 'bean_commit', input);
+    expect(committed).toMatchObject({
+      kind: 'committed',
+      bean: 'docs-total',
+      branch: 'bean/docs-total',
+      files: 2,
+      summary: expect.stringContaining('submitted it as a push'),
+    });
+    // Compare-and-swap: a head that is not the branch's writes nothing.
+    const stale = {
+      ...input,
+      bean: 'fresh',
+      expected_head: committed['commit'],
+      idempotency_key: 'f-1',
+    };
+    expect(await tool(client, 'bean_commit', stale)).toMatchObject({
+      kind: 'conflict',
+      branch: 'bean/fresh',
+      current_head: null,
+      summary: expect.stringContaining('nothing was written'),
+    });
+    expect(
+      await tool(client, 'bean_wait', { repo: slug(repo), bean: 'docs-total', timeout_s: 60 }),
+    ).toMatchObject({
+      phase: expect.stringMatching(/^(landed|green)$/),
+      pushed: { actor: user.handle, title: 'Document totals' },
+    });
+    // An exact retry replays the first answer, even once the bean has landed.
+    expect(await tool(client, 'bean_commit', input)).toEqual(committed);
+    expect(
+      await tool(client, 'bean_commit', {
+        ...input,
+        idempotency_key: 'docs-3',
+        expected_head: committed['commit'],
+      }),
+    ).toEqual({ error: expect.stringContaining('already landed') });
+    const reader = await connect(await personalToken(user, ['read']));
+    expect((await reader.listTools()).tools.map((listed) => listed.name)).not.toContain(
+      'bean_commit',
+    );
+    expect(
+      await tool(client, 'bean_commit', {
+        ...input,
+        changes: [{ path: '.git/config', content: '' }],
+      }),
+    ).toHaveProperty('error');
+  });
+
   it('git_credentials for a read-only session reads but cannot push', async () => {
     const { user, client } = await session(['read']);
     const repo = await repository(user);
@@ -293,6 +440,24 @@ describe('repository tools', () => {
     expect(await tool(client, 'repo_status', { repo: slug(repo) })).toMatchObject({
       sent_back: [{ bean: 'red-discount', phase: 'red', actor: user.handle }],
     });
+    const status = await tool(client, 'bean_status', {
+      repo: slug(repo),
+      bean: 'bean/red-discount',
+      checks: true,
+    });
+    expect(status).toMatchObject({
+      bean: 'red-discount',
+      phase: 'red',
+      rework: { failing_tests: ['test/total.test.js > total adds tax'] },
+      engine: { phase: 'rework', reworks: 1 },
+      checks: {
+        red: 1,
+        failures: [{ file: 'test/total.test.js', test: 'total adds tax', protected: false }],
+      },
+      blamed_by: [],
+      preview_url: expect.stringContaining('bean=red-discount'),
+      next: expect.stringContaining('git rebase origin/sprout'),
+    });
   });
 
   it("follows the person's role: a read collaborator reads but opens no bean; outsiders see nothing", async () => {
@@ -303,7 +468,7 @@ describe('repository tools', () => {
     expect(await tool(client, 'repo_status', { repo: slug(repo) })).toMatchObject({
       repo: slug(repo),
     });
-    expect(await tool(client, 'repository_access', { repository: slug(repo) })).toMatchObject({
+    expect(await tool(client, 'whoami', { repo: slug(repo) })).toMatchObject({
       role: 'read',
       may: { read: true, push_beans: false },
     });

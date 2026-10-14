@@ -44,3 +44,19 @@ export function staleAnswerOf(input: {
     view: mergeAutomation({ base: input.base.text, theirs: input.theirs, ours: input.ours }),
   };
 }
+
+/** The key of a save attempt, given what the save sends. */
+export type SaveKeys = (attempt: string) => string;
+
+/**
+ * Idempotency keys for an editor's saves, one per attempt: the same save sent again (a double
+ * click, a retried request) carries the same key, so the gateway makes one bean; anything
+ * else saved starts a new attempt with a new key.
+ */
+export function saveKeys(newKey: () => string = () => crypto.randomUUID()): SaveKeys {
+  let last: { readonly attempt: string; readonly key: string } | null = null;
+  return (attempt) => {
+    if (last?.attempt !== attempt) last = { attempt, key: newKey() };
+    return last.key;
+  };
+}

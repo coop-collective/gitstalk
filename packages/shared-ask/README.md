@@ -21,9 +21,17 @@ packages/mcp ─┘          │                        └─ (web only) record
   set, and the answer is data, never generated layout. See
   [13-ask-explorer-design.md](../../docs/claude-opus/13-ask-explorer-design.md).
 - **Picker**: where a page chooses among candidates code has computed (suggested questions,
-  section order). `rulesPicker` applies each decision's deterministic rule; `jevPicker` asks
-  Jev, a ranking/classifier model served through Workers AI and AI Gateway, and falls back to
-  the rule on any failure. Every decision leaves a receipt. See
+  section order). `rulesPicker` applies each decision's deterministic rule; `modelPicker` asks
+  a typed decision model through Workers AI and AI Gateway (Cloudflare's Clef Flash by default;
+  Clef 27B or TypeSafe's Jev on request) and falls back to the rule on any failure. Every
+  decision leaves a receipt naming the model that answered.
+- **Decision model** (`src/pick/decision-model.ts`): typed questions for any package. Clef,
+  Clef 27B and Jev differ only in data (`DECISION_MODELS`: Workers AI id, the body's required
+  `model` field for Clef, display name). `decisionModelFrom({ name, ai, gateway, budgetMs?,
+  onError? })` returns a `DecisionModel` or null; `askChoice`, `askNoul` and `askScore` take
+  it (or null), a state, instructions and a fallback, and return `Decided<T>`: `answered`
+  (value, model, confidence, ms) or `fell-back` (the fallback value and why), never a throw.
+  `askQuestions` sends up to 64 questions in one call. See
   [14-repository-experience.md](../../docs/claude-opus/14-repository-experience.md) §5.
 - **ForgeSource**: the data adapter pages code against. `gatewaySource` reads live state over
   RPC; `memoSource` shares repeated reads within one request. The recorded-run source lives in
@@ -43,7 +51,7 @@ There is no index module; import files by path, for example
 | Path | Contents |
 | --- | --- |
 | `src/ask/` | Ask pipeline: `view-spec`, `classifier`, `workers-ai-classifier`, `classifier-from-env`, `question-words`, `resolve-files`, `file-set`, `corpus`, `plan-context`, `plan-answer`, `answer`, `answer-picks`, `main-pane`, `rail`, `chips`, `blame` |
-| `src/pick/` | `picker` (rules and Jev pickers), `picker-from-env`, `lead` (suggested questions) |
+| `src/pick/` | `decision-model` (Clef and Jev typed questions), `picker` (rules and model pickers), `picker-from-env`, `lead` (suggested questions) |
 | `src/forge/` | `forge-source`, `gateway-rpc` (typed, Zod-validated `GATEWAY` client), `gateway-source`, `memo-source`, `bean-records`, `bean-stream`, `forge-errors` |
 | `src/race/` | `race-events` (boundary schemas), `race-state`, `reduce-race`, `race-counters` |
 | `src/home/` | Home and Files views: `sessions`, `stalk`, `journey`, `file-rows`, `composition`, `areas`, `busiest-moment` |
@@ -68,8 +76,10 @@ Nothing is read from an environment directly. The importing Worker passes in its
 
 - `classifierFrom({ name, model, ai })`: the `ASK_CLASSIFIER` var (`keywords` or `workers-ai`),
   `ASK_AI_MODEL` and the optional `AI` binding.
-- `pickerFrom({ name, ai, gateway })`: the `PICKER` var (`jev` or `rules`), the `AI` binding and
-  the AI Gateway id in `JEV_GATEWAY`.
+- `pickerFrom({ name, ai, gateway })`: the `PICKER` var (`clef`, `clef-27b`, `jev` or
+  `rules`), the `AI` binding and the AI Gateway id in `DECISION_GATEWAY`.
+- `decisionModelFrom({ name, ai, gateway })`: the same values, for asking typed questions
+  directly.
 - `gatewaySource(...)`: the Worker's `GATEWAY` service binding to `gitstalk-gateway`.
 
 The library is deployed only as part of `gitstalk-web` and `gitstalk-mcp`; see

@@ -392,7 +392,7 @@ A file that is the truth needs exactly one way to change it, or the UI and the f
 
 ### 4.2 The flow
 
-**Built for automations (2026-10-10, §7.13).** The design below is what the automation builder does, with three differences: saving needs write (maintain only when `checks.toml` protects the file), the bean is named `automation-<slug>-<short>`, and the merge is field by field on the parsed file rather than replayed operations. `.github/workflows/` files have no editor yet.
+**Built for automations (2026-10-10, §7.13).** The design below is what the automation builder does, with three differences: saving needs write (maintain only when `checks.toml` protects the file), the bean is named `automation-<slug>-<short>`, and the merge is field by field on the parsed file rather than replayed operations. `.github/workflows/` files have no editor yet; the save path would take one with a new editor kind (its own path schema, the workflow parser as validator, maintain to save), since the commit core accepts any safe path (doc 33).
 
 ```
 editor (form ⇄ YAML) ── Save ──▶ web server action (person signed in, role ≥ maintain)
@@ -652,7 +652,7 @@ prompt: |
 
 | Key | Meaning |
 |---|---|
-| `on:` | A name, a list, or a mapping of: the Gitstalk events of §7.2 (each with optional `beans:` and `authors:` glob filters, GitHub's `!` rules; a list of only `!` patterns is an error), `schedule` (5-field UTC cron, at least 5 minutes apart, as Actions), `workflow_dispatch` (implied) |
+| `on:` | A name, a list, or a mapping of: the Gitstalk events of §7.2 (each with optional `beans:` and `authors:` glob filters, GitHub's `!` rules; a list of only `!` patterns is an error; `bean_landed` and `bean_reverted` also take `paths:`, the commit's changed files, §7.14), `schedule` (5-field UTC cron, at least 5 minutes apart, as Actions), `workflow_dispatch` (implied) |
 | `harness:` | `agent`: Gitstalk's agent loop on a Workers AI model (§7.5). `shell`: a `run:` script with the same workspace, memory and bean push, and no model (tiny hooks, and the no-model path the tests use) |
 | `prompt:` / `run:` | The goal (agent) or the script (shell). Both travel base64 in the job's environment, so `${{ }}` in them is text, never an expression |
 | `permissions.beans` | `write` lets the job token push `bean/*` as `<id>[automation]` |
@@ -754,7 +754,7 @@ Runs are Actions runs (`actions_runs`, path under `.gitstalk/automations/`), so 
 | D4 for events | `secrets.ts` (`RunOrigin` `event`) |
 | Contract | `shared-race/src/actions.ts`: `WorkflowPath` takes automation paths, `GITSTALK_EVENTS`, the `beanstalk` trigger, `AutomationInfo`, `ModelUsage`, `RunFilter.kind`, `JobSpec.workflowSource` |
 | Executor and runner | `actions-executor` passes `workflowSource`; `actions-runner` uses it (`job.rs`, `wire.rs`) |
-| MCP | `automation_list` (`mcp/src/repos/repo-tools.ts`, `repo-answers.ts`; gateway `agent/agent-repos-rpc.ts` `agentAutomations`) |
+| MCP | `automation_get` without a name (`mcp/src/actions/actions-tools.ts`, `repos/repo-answers.ts`; gateway `agent/agent-repos-rpc.ts` `agentAutomations`) |
 | Web | `automations/page.tsx`, `automations/runs/[run]/page.tsx`, `workflows-view.tsx` (`kind`), `run-view.tsx` (*What it did*), the contract and adapter |
 
 Tests (Miniflare, real bindings; the model is a fake only in the proxy's unit test): file parsing and validation with lines, triggers and filters and the loop guard, the compiled job read back by the workflow parser (no prompt becomes an expression or a secret reference), D4 for event runs, the proxy (charges, refusals, caps, either usage shape); end to end on the stub executor (`test/automations.test.ts`): a bean adds the automation and an invalid one, both are indexed with facts or problems, a later bean landing starts the automation, runs are listed apart from workflows, a manual run, one-at-a-time with a waiting event that starts when the run ends, the memory ref push (its own only) and bean pushes only with `beans: write`. Rust: the runner runs a compiled source without fetching.
@@ -793,13 +793,13 @@ Deployed by the coordinator from `prototype` `21e0696` (which carries `b55d1d2`)
 
 The owner's request: create or edit an automation in a visual builder "like cursor automations", saving with the same GitOps structure, and when the file is edited meanwhile, "smart merge it if we can otherwise say that a new version was posted". The agreed design differs from a literal "push a commit to main" in one way: **a save is a bean**, because only the engine moves the stalk.
 
-**What it is.** The Automations tab has **New automation** (a template picker: Fix red beans, Weekly dependency bump, Summarize landed work, Triage decision cards, Shell heartbeat, Blank) and **Edit** on each automation (people with write or more). Both open `/<owner>/<repo>/automations/new?template=<id>` or `/automations/edit/<file>`: a form beside the file's YAML (tabs on a phone).
+**What it is.** The Automations tab has **New automation** (a template picker: Fix red beans, Weekly dependency bump, Summarize landed work, Triage decision cards, Shell heartbeat, Area watcher (§7.14), Blank; the list is `shared-race/src/automation-templates.ts`) and **Edit** on each automation (people with write or more). Both open `/<owner>/<repo>/automations/new?template=<id>` or `/automations/edit/<file>`: a form beside the file's YAML (tabs on a phone).
 
 | Section | What it writes |
 |---|---|
 | Name, file | `name:`; a new file's name (`.gitstalk/automations/<slug>.yml`) |
-| Triggers | event chips for the eleven Gitstalk events, each with `beans:` and `authors:` globs; schedules from presets or typed cron, each in words with its next three runs (the gateway's own cron parser); "manual is always available". Removing the last trigger writes `workflow_dispatch:` so the file stays valid |
-| Harness | agent (model list from `automation-models.ts`, default Kimi K2.7 code) or shell (`run:`) |
+| Triggers | event chips for the eleven Gitstalk events, each with `beans:` and `authors:` globs (and `paths:` for `bean_landed` and `bean_reverted`); schedules from presets or typed cron, each in words with its next three runs (the gateway's own cron parser); "manual is always available". Removing the last trigger writes `workflow_dispatch:` so the file stays valid; switching a trigger on removes that line again (a bare key is present with a null value, so it is never "already absent"; fixed 2026-10-14) |
+| Harness | **Prompt** (`harness: agent`, the default: a prompt run by the agent loop; model list from `automation-models.ts`, default Kimi K2.7 code) or **Shell** (`harness: shell`, a `run:` script). Labels per the owner, 2026-10-14; the file keeps `agent` and `shell`, so earlier files still read. Run views name the job `prompt (<model>)` or `shell` |
 | Prompt / Script | a large editor |
 | Permissions | `permissions: beans: write` |
 | Secrets | chips of the repository's and org's secret names (never values), with the D4 note: event-triggered runs get only secrets marked "available to pre-land checks" |
@@ -813,8 +813,9 @@ The owner's request: create or edit an automation in a visual builder "like curs
 
 1. Access by `mayUseEngine` with the web viewer: `write` to save. If the latest landed `.gitstalk/checks.toml` protects the path (`protected_paths`, for example `.gitstalk/**`), only maintain or owner may, and the editor says so before anyone types. *Automation files are not protected by default:* `ALWAYS_PROTECTED` is `checks.toml` only (`24` §2), so §4.4's list is still a design.
 2. The content is validated with the shared parser; an invalid file is refused with its line.
-3. The file on the **latest landed commit** (the sprout head, where the bean will land) is compared with the blob the editor opened. Different: the save answers `stale` with that version and the author of the newest commit that changed it. Same: the gateway builds the blob, the trees along the path and a commit on that head (`automations/file-commit.ts`, byte-identical to git's own objects, checked against ids from a real repository), authored by the person (`<handle> <handle@users.<web host>>`).
-4. It pushes the objects as `refs/heads/bean/automation-<slug>-<6 hex>` with a write token the gateway mints (`pushRefs`), then hands the head to the engine with `submitPush`, exactly as the git proxy does after a push, with protected access "the person, with the web editor" (allowed for maintain and owner).
+3. The file on the **latest landed commit** (the sprout head, where the bean will land) is compared with the blob the editor opened. Different: the save answers `stale` with that version and the author of the newest commit that changed it (unless an earlier try of this same save, with the same idempotency key, made the bean that changed it: then it answers with that bean). Same: the save goes to the engine (`RunDO.repoSaveFile`), which commits it through **the one server-side commit flow `bean_commit` uses** (doc 33; `commit/file-save.ts` sets the parameters, `commit/server-commit.ts` does the work): the shared path rules and size caps (128 KiB a file), idempotency, the blob, the trees along the path and a commit on that head (`commit/tree-edit.ts`, byte-identical to git's own objects), authored by the person (`<handle> <handle@users.<web host>>`) with the trailers `Actor: @<handle>` and `Via: the automation builder`.
+4. The engine pushes the objects as `refs/heads/bean/automation-<slug>-<6 hex>` with a write token it mints, by compare-and-swap (the bean must not exist; one that does is a 409, never an overwrite), reads the report-status, then hands the head to itself with `submitPush`, exactly as the git proxy does after a push, with protected access "the person, with the web editor" (allowed for maintain and owner).
+4a. **Once per attempt (2026-10-14).** The builder sends an `idempotencyKey` made once per save attempt (`saveKeys` in `web/src/automations/automation-save.ts`): the same save sent again, by a double click or a retried request, carries the same key, and the engine runs one key's tries one at a time, so it makes one bean and answers both with it. The same key with other text is a 409. The default message is named from the version the editor opened ("Add" or "Edit"), so a retry is the same save.
 5. The editor follows the bean (`automationBean`): checking, then **Saved** with the landed commit linked, or red or conflict with the reason and the failing tests or conflicting files.
 
 *Why the sprout, not the stalk:* the bean lands on the sprout, so a change landed but not yet validated must count as "theirs", or the engine would send the bean back as a conflict that the editor could not see.
@@ -827,7 +828,7 @@ The owner's request: create or edit an automation in a visual builder "like curs
 
 **Test run.** Maintainers and the owner (the role that may already dispatch runs and manage secrets) can run the draft once without saving: `testAutomation` validates and compiles it (`compileAutomation`) **without the memory save step**, and the repository's ActionsRepoDO starts it as a manual run of that path on the stalk head (one at a time per path; the monthly minutes apply). It gets the secrets a manual run gets. *Why maintain, not write:* a draft can name any secret, so a writer could read secrets through a test run; saving needs only write, because a saved file is visible in git and runs as the repository's bot under D4.
 
-**Tests.** Web (vitest): the YAML round trip byte for byte (one field changed, comments and flow lists kept, a 4-space file, `on: <name>` normalised, syntax errors with lines, every template valid by the shared validator); the merge (disjoint fields, same field agreed, same-field conflict resolved by pick and by edit, each trigger its own field, file deleted on theirs, an unparseable side, no base). Gateway: the commit builder against real git's ids (edit, add, delete with directory removal, a first file); end to end on Miniflare (`test/automation-editor.test.ts`): open, save a new automation as a bean that lands and is indexed, invalid content refused with its line, stale with theirs and then a merged save that lands, delete, a reader refused, a writer allowed but not to test-run, maintain needed when `checks.toml` protects `.gitstalk/**`, and a test run that saves nothing and writes no memory. The fake Artifacts now reads real packs on bean pushes (`test/fakes/fake-pack.js`) and moves a line on the runner's update-ref when the line is still where the engine thinks.
+**Tests.** Web (vitest): the YAML round trip byte for byte (one field changed, comments and flow lists kept, a 4-space file, `on: <name>` normalised, syntax errors with lines, every template valid by the shared validator); the merge (disjoint fields, same field agreed, same-field conflict resolved by pick and by edit, each trigger its own field, file deleted on theirs, an unparseable side, no base). Gateway: the commit builder against real git's ids (`commit/tree-edit.test.ts`: edits, adds in new directories, a delete that removes a directory); end to end on Miniflare (`test/automation-editor.test.ts`): open, save a new automation as a bean that lands and is indexed, invalid content refused with its line, stale with theirs and then a merged save that lands, delete, a reader refused, a writer allowed but not to test-run, maintain needed when `checks.toml` protects `.gitstalk/**`, a test run that saves nothing and writes no memory, and (2026-10-14) a double-clicked save that makes one bean, a retry after landing answered with that bean, a reused key with other text refused, and a file over the commit's byte cap refused by the shared core. The fake Artifacts now reads real packs on bean pushes (`test/fakes/fake-pack.js`) and moves a line on the runner's update-ref when the line is still where the engine thinks.
 
 **Staging (2026-10-10).** Gateway `46c2f892`, web `ba5b9141` on the `staging` stack, smoked in headless Chromium with a throwaway passkey account and a repository from the TypeScript starter (deleted afterwards; both answer 404):
 
@@ -842,10 +843,46 @@ The owner's request: create or edit an automation in a visual builder "like curs
 
 Found on the way: a landed commit is the runner's squash, so "who changed it" named `beanstalk-runner`; the gateway now names the pusher of the bean in the commit's `Task:` trailer.
 
+### 7.14 Area watchers: the "superfan" template (2026-10-14)
+
+Scion's "superfan" (`docs/claude-18-lessons-from-scion.md` §6) is a reviewer that knows one component well and catches what static alerts miss. In Gitstalk it is a template, **Area watcher**, in New automation: an ordinary automation file, validated by the same parser as every other (`automation-file.ts`) and shown with the same compatibility report.
+
+```yaml
+# .gitstalk/automations/area-watcher.yml (abridged: the template's comments explain each part)
+name: Area watcher (billing)
+on:
+  bean_landed:
+    paths: ['src/billing/**']   # the area: a landing that changes nothing here never starts it
+permissions:
+  beans: write                  # only to push an evidence bean; it can never land anything
+max-cost-usd: 0.5
+prompt: |
+  You watch one area of this repository: src/billing/.
+  Its intent: <what this area must always do, and must never do>.
+  ... read memory; read the landing (bean_status, why_lines, repo_read when the Gitstalk MCP
+  tools are in your tool list, git show / git log -L / git blame otherwise); check it against
+  the intent and the last 20 landings; write reviews/<bean>.md; for a regression or drift you
+  can show, push one evidence bean with a failing test; read $GITSTALK_TELEMETRY when set.
+```
+
+**`paths:` on landings (new).** `bean_landed` and `bean_reverted` name one commit whose first-parent diff is the change (the runner's squash, the revert), so they take a `paths:` filter with GitHub's glob and `!` rules (`PATH_FILTERED_EVENTS`, `shared-race/src/actions.ts`). Other events refuse it with the reason. When an event arrives, the ActionsRepoDO reads the commit's changed files (`#commitPaths`: the commit's first parent from `log`, then `diff`) only if an active automation filters that event by paths (`needsChangedPaths`); `automationFires` then requires one changed file to be selected. Unknown files (more than 200, no parent, a read error) let the run start, as GitHub's push `paths` do; the compatibility report says this (`bean_landed paths`, runs differently). The payload carries `changed_paths` when they were read. Index rows written before this change have no `paths` and behave as before.
+
+**What it does.** Each landing that changes the area starts one run (runs coalesce, §7.7). The agent reads its memory (`area.md`, `reviews/`), the landing and the area's last 20 landings, and checks them against the intent the prompt states: behaviour changed without the intent saying so, a reverted fix coming back, a test removed, an invariant in its notes broken. Its review note is the run's summary and `reviews/<bean>.md` in its memory ref. For a regression or drift it can show, it pushes one evidence bean (a failing test, or the smallest change that shows the drift, with the evidence in the message). That bean goes through the pre-land check like any other, so a failing test keeps it red and nothing lands: **it is a reviewer, never a merger**. It never fires on its own beans (§7.2).
+
+**What it does not do yet.**
+
+- **Production telemetry.** It sees code, git and its notes, not Workers Observability or logs. The hook is `$GITSTALK_TELEMETRY`: the prompt already reads that directory as data when it is set, and today it never is. The design for filling it: a `telemetry:` key (for example `telemetry: { worker: billing-api, window: since-landing }`) that the compiled job turns into a step before the agent, which asks the gateway for a digest of that Worker's Workers Observability events (errors, exceptions, p99 wall time and the top log messages, before and after the landing) and writes them as JSON files into `$GITSTALK_TELEMETRY`. The gateway queries with the repository's Cloudflare connection; no token reaches the container, as with the model proxy (§7.5). The key is not accepted today (an unknown key is an error), so a file cannot claim telemetry it does not get.
+- **A review receipt on the bean.** Automation runs cannot post collaboration notes or receipts; the note lives in the run's log and in memory.
+- **Gitstalk MCP tools in the run** (§7.11): the prompt names `bean_status`, `why_lines` and `repo_read` for when they reach the agent through `bs.internal`; today it uses git.
+
+**Tests.** `shared-race`: `paths:` read with the trigger, refused on `bean_red`, a list of only `!` refused, the compatibility note. Gateway (`actions/area-watcher.test.ts`): the template is valid as written, starts for a landing under `src/billing/`, not for one outside it or for another event, starts when the files are unknown, never on its own beans, reads the files only when a filter needs them, and compiles to one agent job the workflow parser reads back. Web (`automation-draft.test.ts`): offered before Blank, the form shows the paths, setting the same filter leaves the file byte for byte, and changing beans and paths changes only those lines and stays valid.
+
 ### 7.11 Left
 
-- **Gitstalk MCP tools for the agent** (decision cards, comments, bean status) through `bs.internal` with a scoped session token; today the agent has git and the filesystem only. People's agents have one read tool, `automation_list` (automations, problems, memory refs and the 20 newest runs, through `AgentReposRpc.agentAutomations`); run logs over MCP are not built.
+- **Gitstalk MCP tools for the agent** (decision cards, comments, bean status) through `bs.internal` with a scoped session token; today the agent has git and the filesystem only. People's agents read them with `automation_get` (without a name: automations, problems, memory refs and the 20 newest runs, through `AgentReposRpc.agentAutomations`); run logs over MCP are not built.
+- The telemetry digest for area watchers (`telemetry:` and `$GITSTALK_TELEMETRY`, §7.14) and a review receipt an automation can post on a bean.
 - BYO model keys and real harnesses (Claude Code, Codex) in the container: a translating proxy (Anthropic Messages or Responses to Workers AI) or BYO keys through the same proxy.
+- A harness dropdown next to the prompt in the builder (owner's direction, 2026-10-14): the person picks one of their connected agents (Claude Code or Codex sessions) to run the prompt, instead of the built-in agent loop.
 - `repository_dispatch` webhooks; `thread_message`. The editor for automations is built (§7.13); the editor for `.github/workflows/` files is not.
 - A page for the memory ref (tree and history) beyond links to its commits; a memory diff view.
 - Checking out the event's own commit (a sprout or a bean head) instead of the stalk head, when the agent should start there.

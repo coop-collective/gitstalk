@@ -1,7 +1,8 @@
 /**
- * The page's picker from configuration: Jev through Workers AI and the AI Gateway when
- * `PICKER` is `jev` and the AI binding is there, otherwise the rules. Jev failures fall back
- * to the rules per decision and are logged (never with request bodies).
+ * The page's picker from configuration: the decision model `PICKER` names (Clef Flash for
+ * `clef`, Clef 27B for `clef-27b`, Jev for `jev`) through Workers AI and the AI Gateway in
+ * `DECISION_GATEWAY` when the AI binding is there, otherwise the rules. Model failures fall
+ * back to the rules per decision and are logged (never with request bodies).
  */
 import { env } from 'cloudflare:workers';
 
@@ -13,7 +14,8 @@ export function pagePicker(): Picker {
   return pickerFrom({
     name: env.PICKER,
     ai: Reflect.get(env, 'AI'),
-    gateway: env.JEV_GATEWAY,
-    onError: (decision, error) => log.warn('jev pick fell back to the rule', { decision, error }),
+    gateway: env.DECISION_GATEWAY,
+    onError: (decision, error) =>
+      log.warn('decision model pick fell back to the rule', { decision, error }),
   });
 }

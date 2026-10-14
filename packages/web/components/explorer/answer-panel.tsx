@@ -16,6 +16,14 @@ const KIND_LABEL: Readonly<Record<Chip['kind'], string>> = {
   file: 'file',
 };
 
+/** Who produced the view spec, named for a person. */
+const CLASSIFIER_LABELS: Readonly<Record<Answer['classifiedBy'], string>> = {
+  keywords: 'keyword router',
+  'workers-ai': 'Workers AI',
+  clef: 'Clef',
+  jev: 'Jev',
+};
+
 /**
  * What Ask understood: the question's class, one computed sentence, and the parsed question
  * as chips. Removing a chip re-runs the question without it.
@@ -78,8 +86,7 @@ export function AnswerPanel(props: {
       ) : null}
       <details className={styles.spec}>
         <summary>
-          View spec ({answer.classifiedBy === 'keywords' ? 'keyword router' : 'Workers AI'}), as
-          agents get it over MCP
+          View spec ({CLASSIFIER_LABELS[answer.classifiedBy]}), as agents get it over MCP
         </summary>
         <pre>{JSON.stringify(specWithView(answer.spec), null, 2)}</pre>
       </details>

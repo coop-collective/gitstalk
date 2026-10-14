@@ -1,0 +1,21 @@
+Gitstalk
+Copyright 2026 Coop
+
+This product includes software developed by its contributors.
+
+This repository also contains third-party material, which remains under its
+own licence:
+
+* .agents/skills/{agents-sdk,cloudflare,durable-objects,nextjs-on-cloudflare,
+  sandbox-next,web-perf,workers-best-practices,wrangler}: agent skills vendored
+  unmodified from https://github.com/cloudflare/skills (see skills-lock.json).
+  Copyright Cloudflare, Inc. Licensed under the Apache License, Version 2.0.
+
+* packages/web bundles the JetBrains Mono and Space Grotesk typefaces (through
+  the @fontsource-variable packages). Licensed under the SIL Open Font
+  License, Version 1.1.
+
+The container images built from the Dockerfiles under packages/*/container
+install third-party programs (for example git, Node.js and act) as separate
+programs, each under its own licence. They are not part of this source
+distribution.

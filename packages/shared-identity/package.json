@@ -1,6 +1,7 @@
 {
   "name": "@gitstalk/shared-identity",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "exports": {
     "./*": "./src/*.ts"

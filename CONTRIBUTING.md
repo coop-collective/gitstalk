@@ -2,7 +2,7 @@
 
 Thanks for your interest in Gitstalk. This guide covers setting up the repository, the checks every change must pass, and how to propose a change.
 
-By contributing, you agree that your contribution is licensed under the repository's [license](LICENSE.md) (FSL-1.1-ALv2), and you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
+By contributing, you agree that your contribution is licensed under the [Apache License, Version 2.0](LICENSE), the same licence as the rest of the repository (inbound = outbound, as section 5 of the licence describes), and you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## Set up
 

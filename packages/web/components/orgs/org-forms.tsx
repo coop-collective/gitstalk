@@ -34,7 +34,7 @@ export type OrgSettingsView = {
 
 type Access = { readonly csrf: string; readonly path: string };
 
-export function NewOrgForm(props: { readonly csrf: string }) {
+export function NewOrgForm(props: { readonly csrf: string; readonly host: string }) {
   const [state, action, pending] = useActionState(createOrgAction, IDLE);
   return (
     <form action={action} className={repo.form} noValidate>
@@ -45,7 +45,7 @@ export function NewOrgForm(props: { readonly csrf: string }) {
           Handle
         </label>
         <div className={repo.nameRow}>
-          <span className={repo.owner}>gitstalk /</span>
+          <span className={repo.owner}>{props.host} /</span>
           <input
             id="org-handle"
             name="handle"
