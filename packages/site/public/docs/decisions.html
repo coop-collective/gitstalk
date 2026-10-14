@@ -336,17 +336,20 @@
                   <td>Card tools over MCP</td>
                   <td><span class="badge planned">planned</span></td>
                   <td>
-                    An agent can read that a bean is held for a person (<code>bean_status</code>)
-                    but cannot answer.
+                    An agent cannot answer a decision card. (A bean the approval rules hold is
+                    different: an agent can approve it for its person with
+                    <code>bean_approve</code>, when the person tells it to.)
                   </td>
                 </tr>
                 <tr>
                   <td>Approval-rule cards</td>
                   <td><span class="badge beta">beta</span></td>
                   <td>
-                    A rule can hold a change for a person's approval, with its own receipt. There is
-                    no approve button in the web yet. See
-                    <a href="/docs/approval-rules">Approval rules</a>.
+                    A rule can hold a change for a person's approval, with its own receipt. An owner
+                    or maintainer approves it with Approve in the Held panel on the bean's page (a
+                    Held badge marks it in Changes), or has their agent call
+                    <code>bean_approve</code>. See
+                    <a href="/docs/approval-rules#approve">Approving a held bean</a>.
                   </td>
                 </tr>
               </tbody>

@@ -235,6 +235,7 @@ const AUDIT_VERBS: Readonly<Record<string, string>> = {
   'actions-secret-deleted': 'deleted the Actions secret',
   'actions-variable-set': 'saved the Actions variable',
   'actions-variable-deleted': 'deleted the Actions variable',
+  'bean.approve': 'approved a held bean',
 };
 
 function auditText(event: AuditEvent): string {

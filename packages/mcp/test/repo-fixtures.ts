@@ -62,7 +62,7 @@ export async function repository(
 export async function collaborator(
   owner: Person,
   repo: Repository,
-  role: 'read' | 'write',
+  role: 'read' | 'write' | 'maintain',
 ): Promise<Person> {
   const member = await person('mcp-member');
   const invited = await gatewayCall('inviteCollaborator', owner, repo.id, {

@@ -15,6 +15,8 @@ import { person, personalToken } from './repo-fixtures';
 const ORIGIN = 'https://gitstalk-mcp.example.workers.dev';
 const CONTRIBUTOR_TOKEN = 'bst1.contributor-for-t021';
 const clients: Client[] = [];
+/** Clients cap the tools they load (Cursor at 40); the surface stays at 30 or fewer per caller. */
+const MAX_TOOLS_PER_CALLER = 30;
 
 afterEach(async () => {
   await Promise.all(clients.splice(0).map((client) => client.close()));
@@ -50,6 +52,7 @@ const WRITE_SESSION = [
   'actions_dispatch',
   'actions_rerun',
   'automation_run',
+  'bean_approve',
   'bean_commit',
   'bean_open',
   'task_claim',
@@ -76,6 +79,11 @@ describe('the tools each caller is offered', () => {
     const token = await personalToken(await person('mcp-surface'), scopes);
     const tools = await listed(sessionTransport(token));
     expect(tools.map((tool) => tool.name).toSorted()).toEqual(expected.toSorted());
+  });
+
+  it('offers no caller more than 30 tools', () => {
+    for (const surface of [READ_SESSION, WRITE_SESSION, SECRETS_SESSION, CONTRIBUTOR, EVERY_CALLER])
+      expect(surface.length).toBeLessThanOrEqual(MAX_TOOLS_PER_CALLER);
   });
 
   it('a read-only session is offered only read-only tools, but for git_credentials', async () => {

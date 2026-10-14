@@ -114,7 +114,8 @@ function isPushedEnvelope(value: unknown): value is PushedBean {
     typeof value['bean'] === 'string' &&
     typeof value['phase'] === 'string' &&
     typeof value['actor'] === 'string' &&
-    Array.isArray(value['verdict'])
+    Array.isArray(value['verdict']) &&
+    (value['hold'] === undefined || value['hold'] === null || isRecord(value['hold']))
   );
 }
 

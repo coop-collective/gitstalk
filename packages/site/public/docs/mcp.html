@@ -179,10 +179,10 @@
               The server, sign-in and scopes are <span class="badge live">live</span>. The tools
               added on 14 October 2026 (<code>why_lines</code>, <code>repo_read</code>,
               <code>bean_commit</code>, <code>actions_config_*</code>, and
-              <code>bean_status</code> and <code>repo_status</code> in their new form) are
-              <span class="badge beta">beta</span>: they are merged and tested, but the hosted
-              server may still list older names until its deploy is confirmed. See
-              <a href="#names">Names that changed</a>.
+              <code>bean_status</code> and <code>repo_status</code> in their new form) and
+              <code>bean_approve</code>, added after them, are <span class="badge beta">beta</span>:
+              they are merged and tested, but the hosted server may still list older names until its
+              deploy is confirmed. See <a href="#names">Names that changed</a>.
             </p>
           </aside>
 
@@ -329,9 +329,11 @@
                   <td><code>write</code></td>
                   <td>
                     Open beans, commit to them, claim tasks. Run, re-run and cancel workflows and
-                    automations.
+                    automations. Approve a held bean when you tell the agent to.
                   </td>
-                  <td>Write to push beans; maintain to run, re-run or cancel workflows</td>
+                  <td>
+                    Write to push beans; maintain to run, re-run or cancel workflows and to approve
+                  </td>
                   <td>Yes</td>
                 </tr>
                 <tr>
@@ -351,7 +353,10 @@
               Merging to the stalk, answering a decision card and changing repository settings are
               not grantable to any token. The server offers no tool for them, whatever the scopes.
               Changes to protected paths are refused when an agent makes them: only an owner or
-              maintainer pushing with their own credential may change those files.
+              maintainer pushing with their own credential may change those files. Approving a bean
+              the approval rules hold (<code>bean_approve</code>) is your decision, carried out by
+              the agent only when you ask, and refused for a bean the agent may have pushed itself
+              unless you confirmed it.
             </p>
           </aside>
           <p>
@@ -408,12 +413,13 @@
                 <tr>
                   <td>Bean and backlog writes</td>
                   <td>
-                    <code>bean_open</code>, <code>bean_commit</code>, <code>task_claim</code>,
-                    <code>task_release</code>
+                    <code>bean_open</code>, <code>bean_commit</code>, <code>bean_approve</code>,
+                    <code>task_claim</code>, <code>task_release</code>
                   </td>
                   <td>
                     Reserve a bean name with its intent; commit files to a bean with no checkout;
-                    claim a backlog task so no other agent takes it; give it back.
+                    approve a held bean for your person (<a href="#approve">below</a>); claim a
+                    backlog task so no other agent takes it; give it back.
                   </td>
                 </tr>
                 <tr>
@@ -500,14 +506,14 @@
                 <tr>
                   <td>Your session, <code>write</code></td>
                   <td>The above, the bean and backlog writes, the Actions changes</td>
-                  <td class="num">27</td>
+                  <td class="num">28</td>
                 </tr>
                 <tr>
                   <td>Your session, <code>write</code> and <code>secrets</code></td>
                   <td>
                     The above, <code>actions_config_set</code>, <code>actions_config_delete</code>
                   </td>
-                  <td class="num">29</td>
+                  <td class="num">30</td>
                 </tr>
               </tbody>
             </table>
@@ -578,6 +584,47 @@
               <strong>Protected paths</strong> need a person, as with a git push by an agent: the
               check fails and says so (see <a href="/docs/checks#protected">Checks</a>). A bean that
               already landed takes no new commit; start a new bean.
+            </li>
+          </ul>
+
+          <h3 id="approve">Approve a held bean: <code>bean_approve</code></h3>
+          <p>
+            When a repository's <a href="/docs/approval-rules">approval rules</a> hold a bean for a
+            person, <code>bean_status</code> answers <code>held: true</code>, an
+            <code>approve_url</code> (the bean's page, with its Held panel) and a next step. An
+            agent tells its person and waits; it approves only when the person says so.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Tool call</span></header>
+            <pre class="chat"><code>bean_approve {
+  "repo": "acme/api",
+  "bean": "token-refresh",
+  "revision": "4e1c9a2f0b7d3e5a8c1f6b2d9e0a7c4b3f5d8e1a",
+  "note": "Ada read the expiry change and said approve it.",
+  "idempotency_key": "approve-token-refresh-1"
+}</code></pre>
+          </div>
+          <ul>
+            <li>
+              <strong>Who.</strong> The session needs <code>write</code>, and its person the
+              maintain role or ownership. It must act for a person; an automation never approves.
+            </li>
+            <li>
+              <strong><code>revision</code></strong> defaults to the bean's pushed head. A revision
+              that is no longer the head is refused: a new push needs a new approval.
+            </li>
+            <li>
+              <strong>Its own bean.</strong> When the bean's latest push was made for the same
+              person and Gitstalk cannot show another agent session made it (this agent client, the
+              person's SSH key or personal token), the call is refused.
+              <code>confirm_owner_intent: true</code> lets it through, and an agent sets it only
+              after its person confirmed.
+            </li>
+            <li>
+              <strong>The answer</strong> is the receipt (who, when, client, revision, note) and the
+              next step: the bean's check runs again, and <code>bean_wait</code> wakes at its
+              verdict. The approval goes into the repository's access log as "via MCP
+              (&lt;client&gt;)". Reuse <code>idempotency_key</code> only for an exact retry.
             </li>
           </ul>
 

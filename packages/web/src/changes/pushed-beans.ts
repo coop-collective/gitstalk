@@ -1,10 +1,12 @@
 /**
  * A repository's pushed beans as the gateway's `pushedBeans` lists them (who pushed each,
- * its title, its phase, its head and landing), validated before a page trusts them. Anything
+ * its title, its phase, its head and landing, its approval hold), validated before a page trusts them. Anything
  * but a valid answer (an older gateway, a race's engine) reads as "no pushed beans", so the
  * pages fall back to the engine's own record of its beans.
  */
 import { z } from 'zod';
+
+import { BeanHold } from '@gitstalk/shared-race/bean-approval';
 
 import { log } from '../log';
 
@@ -19,6 +21,8 @@ export const PushedBean = z.object({
   reason: z.string(),
   landed_sha: z.string().nullable(),
   verdict: z.array(z.string()),
+  /** Held for a person's approval, or approved (a gateway before approvals sends none). */
+  hold: BeanHold.nullable().default(null),
 });
 export type PushedBean = z.infer<typeof PushedBean>;
 

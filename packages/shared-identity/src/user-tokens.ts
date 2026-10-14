@@ -34,6 +34,8 @@ export type VerifiedUserToken = {
     readonly expiresAt: number;
     /** The one repository (engine id) a bound session token opens; null: not bound. */
     readonly repository: string | null;
+    /** The OAuth client a session token was minted for (MCP `git_credentials`); else null. */
+    readonly clientId: string | null;
   };
 };
 
@@ -143,7 +145,7 @@ export async function verifyUserToken(
   const now = clock();
   const row = await env.IDENTITY_DB.prepare(
     `SELECT t.id, t.kind, t.token_hash, t.scopes, t.expires_at, t.last_used_at, t.repository,
-            u.id AS user_id, u.handle, u.email
+            t.oauth_client_id, u.id AS user_id, u.handle, u.email
        FROM user_tokens t JOIN users u ON u.id = t.user_id
       WHERE t.token_hash = ? AND t.revoked_at IS NULL AND t.expires_at > ? AND u.disabled_at IS NULL`,
   )
@@ -161,6 +163,7 @@ export async function verifyUserToken(
       kind: row.kind,
       expiresAt: row.expires_at,
       repository: row.repository,
+      clientId: row.oauth_client_id,
     },
   };
 }
@@ -231,6 +234,7 @@ type TokenRow = {
   readonly expires_at: number;
   readonly last_used_at: number | null;
   readonly repository: string | null;
+  readonly oauth_client_id: string | null;
   readonly user_id: string;
   readonly handle: string;
   readonly email: string | null;

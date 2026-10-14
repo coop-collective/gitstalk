@@ -53,7 +53,7 @@ describe('verifyGitCredential', () => {
       scopes: ['repo:read', 'bean:write'],
       engine: null,
       runPrincipal: null,
-      session: { via: 'personal-token', id: pat.summary.id },
+      session: { via: 'personal-token', id: pat.summary.id, client: null },
     });
     expect(await verifyGitCredential(creds, session.token)).toMatchObject({
       user,

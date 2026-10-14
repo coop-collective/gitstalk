@@ -2,14 +2,15 @@
 
 /**
  * The Changes tab's lists, derived in the browser from the engine's events and the pushed
- * beans (`useChangesFeed`): the group filters with their counts, the live badge, and the rows
- * of the group shown. A new batch from the engine re-derives the rows; nothing reloads.
+ * beans (`useChangesFeed`): the group filters with their counts (and Held, the open beans
+ * waiting for a person's approval, while there are any), the live badge, and the rows of the
+ * group shown. A new batch from the engine re-derives the rows; nothing reloads.
  */
 import { IntentLink as Link } from '../shell/intent-link';
 import { useMemo } from 'react';
 
 import type { RepoScope } from '../../src/changes/change-feed';
-import type { Change, ChangeGroup } from '../../src/changes/changes';
+import type { Change, ChangeFilter } from '../../src/changes/changes';
 import {
   authorText,
   changesOf,
@@ -26,7 +27,7 @@ import styles from './repo-tabs.module.css';
 import { useChangesFeed } from './use-changes-feed';
 
 const GROUPS: readonly {
-  readonly group: ChangeGroup;
+  readonly group: ChangeFilter;
   readonly name: string;
   readonly empty: string;
 }[] = [
@@ -35,6 +36,7 @@ const GROUPS: readonly {
     name: 'Open',
     empty: 'Nothing is growing. Push a bean/<name> branch, or ask your agent for a change.',
   },
+  { group: 'held', name: 'Held', empty: 'No bean is waiting for an approval.' },
   { group: 'landed', name: 'Landed', empty: 'No bean has landed yet.' },
   { group: 'parked', name: 'Parked', empty: 'No bean is parked or fell off.' },
 ];
@@ -58,11 +60,14 @@ export function ChangesList(props: {
     <>
       <div className={styles.bar}>
         <nav className={styles.filters} aria-label="Which beans">
-          {GROUPS.map((entry) => (
+          {GROUPS.filter(
+            (entry) => entry.group !== 'held' || counts.held > 0 || show === 'held',
+          ).map((entry) => (
             <Link
               key={entry.group}
               href={`${scope.base}/changes?show=${entry.group}`}
               className={styles.filter}
+              data-filter={entry.group}
               aria-current={show === entry.group ? 'page' : undefined}
             >
               {entry.name}
@@ -117,7 +122,15 @@ function ChangeRow(props: {
           </time>
         )}
       </div>
-      {change.failing.length === 0 && change.collided.length === 0 ? null : (
+      {change.state === 'held' && change.hold !== null ? (
+        <p className={styles.heldLine}>
+          Waits for an owner or maintainer to approve{' '}
+          <span className={styles.mono}>{change.hold.revision.slice(0, 7)}</span>
+          {change.hold.class === null ? '' : ` (rule ${change.hold.class})`}
+        </p>
+      ) : null}
+      {change.state === 'held' ||
+      (change.failing.length === 0 && change.collided.length === 0) ? null : (
         <ul className={styles.failing} aria-label="Why it is red">
           {change.failing.slice(0, 3).map((test) => (
             <li key={test}>✗ {test}</li>
