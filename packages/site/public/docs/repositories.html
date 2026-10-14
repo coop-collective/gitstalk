@@ -6,14 +6,14 @@
     <title>Repositories: Gitstalk docs</title>
     <meta
       name="description"
-      content="Create or import a Gitstalk repository, the start page, and the repository tabs."
+      content="Create a repository, connect git, tour its tabs, and rename, move, archive or delete it. Old addresses keep working."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Repositories: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Create or import a Gitstalk repository, the start page, and the repository tabs."
+      content="Create a repository, connect git, tour its tabs, and rename, move, archive or delete it. Old addresses keep working."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -167,18 +167,60 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs repositories</p>
-          <h1>Repositories <span class="pill live">live</span></h1>
+          <h1>Repositories <span class="badge live">live</span></h1>
           <p class="lede">
-            A repository belongs to a person, holds the sprout and the stalk, and runs its own
-            engine: every bean pushed to it is checked, landed and validated without any other
+            A repository holds your code, a bean branch for every change in flight, and its own
+            checking engine. Create one, push a bean, and it is checked and landed with no other
             setup.
           </p>
 
           <h2 id="create">Create one</h2>
           <p>
-            From <strong>New repository</strong>, give it a name, an optional description, and
-            choose:
+            Open <strong>New repository</strong> from the <strong>+ New</strong> menu in the header.
+            Pick an owner (you, or an organization that lets you create repositories), a name, an
+            optional description and a visibility, then choose how it starts.
           </p>
+          <figure
+            class="mock"
+            aria-label="The New repository form with the TypeScript starter chosen"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/new</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label"><b>Name</b><span>gitstalk.dev / acme /</span></div>
+                <div class="m-input">api</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Description</b><span>Optional.</span></div>
+                <div class="m-input">Payments service</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Visibility</b><span>Private, Internal (organizations only) or Public.</span>
+                </div>
+                <div class="m-input">Private</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Start with</b
+                  ><span>TypeScript starter, Empty, or Import a public git repository.</span>
+                </div>
+                <div class="m-input">TypeScript starter</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Public git URL</b><span>Shown only when you choose Import.</span>
+                </div>
+                <div class="m-input">https://github.com/acme/legacy-api.git</div>
+              </div>
+            </div>
+            <figcaption>
+              One form. Names are unique per owner, ignoring case. If anything fails on the way, the
+              half-made repository is removed and the name is free again.
+            </figcaption>
+          </figure>
           <div class="tbl">
             <table>
               <thead>
@@ -189,11 +231,11 @@
               </thead>
               <tbody>
                 <tr>
-                  <td>TypeScript starter (default)</td>
+                  <td>TypeScript starter</td>
                   <td>
-                    A small project with no dependencies: a module, its test (Node's test runner), a
+                    A small library with no dependencies: a module, its test (Node's test runner), a
                     <code>package.json</code>, a README and <code>.gitstalk/checks.toml</code>. The
-                    first bean's check is real from the start.
+                    first bean is checked for real from the start.
                   </td>
                 </tr>
                 <tr>
@@ -201,32 +243,177 @@
                   <td>One commit with a README.</td>
                 </tr>
                 <tr>
-                  <td>Import a public git URL</td>
+                  <td>Import a public git repository</td>
                   <td>
                     Any public repository, for example
-                    <code>https://github.com/fastify/fastify</code>. Its history comes along; the
-                    sprout and stalk start at its default branch. A private URL comes back as an
-                    error on the form.
+                    <code>https://github.com/fastify/fastify</code>. Its default branch's history
+                    comes along and becomes the stalk. A private URL comes back as an error on the
+                    form: the message says it is not a public git repository (it asked for
+                    credentials or was not found).
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p>
-            Names are unique per owner, ignoring case. If anything fails on the way, the half-made
-            repository is removed and the name is free again.
+            Importing a private repository and two-way sync with another forge are
+            <span class="badge planned">planned</span>.
           </p>
 
-          <h2 id="start-page">The start page</h2>
+          <h2 id="start">The start page</h2>
           <p>
-            Until the first bean, the repository page has one job: show exactly how to begin. It
-            holds the clone URL, three ways to connect git (the plugin line, HTTPS with a token, or
-            environment variables with a deploy token made on the spot), the sentence to hand to an
-            agent, the six git commands that push a first bean, the files on the stalk, and
-            <strong>What counts as green</strong>: the checks every bean must pass.
+            Until the first bean lands, the repository page has one job: show exactly how to begin.
+            Everything is copyable.
           </p>
+          <figure class="mock" aria-label="A new repository's start page">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <span>acme /</span> <b>api</b> <span class="badge live">private</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span class="on">Code</span><span>Changes</span><span>History</span
+                  ><span>Automations</span><span>Ask</span><span>People</span><span>Settings</span>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>1. Connect git</b><span>Three tabs: Plugin, HTTPS, Env vars.</span>
+                </div>
+                <div class="m-input">Plugin | HTTPS | Env vars</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>2. Hand it to an agent</b><span>Say this to a connected agent.</span>
+                </div>
+                <div class="m-input">
+                  Work on acme/api on Gitstalk: clone it, make the change as a bean, and push it.
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>3. Or push a bean with git</b><span>Five commands.</span>
+                </div>
+                <div class="m-input">git push -o wait origin bean/first-change</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Clone it</b><span>The clone URL.</span></div>
+                <div class="m-input">https://gitstalk.dev/acme/api.git</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>What counts as green</b><span>.gitstalk/checks.toml</span>
+                </div>
+                <div class="m-input">node --test, 120 s</div>
+              </div>
+            </div>
+            <figcaption>
+              The start page: connect git, hand it to an agent or push a first bean, the clone URL,
+              the files on the stalk and what counts as green.
+            </figcaption>
+          </figure>
+          <h3>Connect git: three ways</h3>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tab</th>
+                  <th>What it is for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Plugin</td>
+                  <td>
+                    The default. One line installs the Gitstalk plugin for Claude Code and runs
+                    <code>/gitstalk:setup acme/api</code>, which finds or makes an SSH key, asks you
+                    to approve it once in the browser and points git at the repository. Codex has
+                    its own line and a sentence to paste. See
+                    <a href="/docs/agents">Connecting agents</a>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>HTTPS</td>
+                  <td>
+                    Clone over HTTPS. When git asks for a password, paste a personal token with
+                    write access from <strong>Settings, Tokens</strong>; any user name works.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Env vars</td>
+                  <td>
+                    For CI and scripts: make a deploy token on the spot and copy a block that sets
+                    <code>GITSTALK_TOKEN</code> so git never prompts. The block needs git 2.31 or
+                    newer. Deploy tokens are made by an owner or a maintainer, and never on an
+                    archived repository.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="callout note">
+            <p class="callout-title">Git remotes use HTTPS today</p>
+            <p>
+              Registering an SSH key is live and approves your machine, but the remote it sets is an
+              HTTPS URL. Git over SSH is built and not public yet. See
+              <a href="/docs/git#ssh">Git compatibility</a>.
+            </p>
+          </aside>
 
-          <h2 id="tabs">The repository tabs</h2>
+          <h2 id="tabs">A tour of the tabs</h2>
+          <p>
+            Every repository has the same seven tabs. Everyone who may see the repository sees the
+            tabs; the Settings tab shows for people with a role.
+          </p>
+          <figure class="mock" aria-label="A repository with its tabs and a bean list">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/changes</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <span>acme /</span> <b>api</b> <span class="badge live">private</span>
+                </div>
+                <p class="meta">Code: files, README, beans. Changes: open, landed, parked.</p>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Code</span><span class="on">Changes<small>2</small></span
+                  ><span>History</span><span>Automations</span><span>Ask</span><span>People</span
+                  ><span>Settings</span>
+                </div>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/add-truncate</span>
+                <span class="by">claude-code, 12 s ago</span>
+                <span class="ms checking">checking</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/rename-cache</span>
+                <span class="by">codex, 14 min ago</span>
+                <span class="ms red">red</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/fix-retry</span>
+                <span class="by">ada, 2 h ago</span>
+                <span class="ms landed">landed</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/docs-links</span>
+                <span class="by">ada, yesterday</span>
+                <span class="ms green">on the stalk</span>
+              </div>
+            </div>
+            <figcaption>
+              The Changes tab shows one list at a time (Open, Landed or Parked); this mock mixes
+              them. The number beside the tab counts beans in check, red or waiting.
+            </figcaption>
+          </figure>
           <div class="tbl">
             <table>
               <thead>
@@ -238,45 +425,24 @@
               </thead>
               <tbody>
                 <tr>
-                  <td>Home</td>
-                  <td>
-                    The stalk, beans growing now, what happened recently, files, and the Ask box.
-                    Bean lines name the person who pushed them (<code
-                      >last push @coop: add-truncate</code
-                    >).
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>Ask</td>
-                  <td>
-                    Type a question in plain words (<em>what changed on coupons?</em>) and the page
-                    reshapes around the answer: the files, their diffs, and the beans behind them.
-                    Live answers still take a few seconds.
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>Settings</td>
-                  <td>Rename, description, visibility, deploy tokens, delete.</td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
                   <td>Code</td>
                   <td>
-                    Folders and files at the stalk, the sprout, any pushed bean or any commit, with
-                    syntax highlighting and a rendered README.
+                    The front page. Folders and files at the stalk, the sprout, any pushed bean or
+                    any commit, with syntax highlighting and a rendered README. A side column shows
+                    the description, how many beans are on the stalk, and the clone URL. Before the
+                    first bean it is the start page above.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td>Changes</td>
                   <td>
-                    Beans in three lists: open (in check, red, conflict), landed, and parked. A
-                    bean's page shows its journey (each push, checks with failing tests, rework,
-                    landing, validation) and its diff, updating live.
+                    Beans in three lists: <strong>open</strong> (in check, red, conflict, waiting),
+                    <strong>landed</strong> and <strong>parked</strong>. A bean's page tells its
+                    journey: each push, the pre-land check with its failing tests, rework, landing,
+                    validation and any decision card. The list updates live.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td>History</td>
@@ -284,118 +450,240 @@
                     The stalk's commits, and above them the sprout commits that landed but are not
                     validated yet, with every validation verdict.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
+                </tr>
+                <tr>
+                  <td>Automations</td>
+                  <td>
+                    One tab, two views: <strong>Actions</strong> (your
+                    <code>.github/workflows</code> and their runs) and
+                    <strong>Automations</strong> (agents and scripts in
+                    <code>.gitstalk/automations</code>). See
+                    <a href="/docs/actions">GitHub Actions</a> and
+                    <a href="/docs/automations">Automations</a>.
+                  </td>
+                  <td><span class="badge live">live</span></td>
+                </tr>
+                <tr>
+                  <td>Ask</td>
+                  <td>
+                    Type a question in plain words (<em>what changed on coupons?</em>) and the page
+                    reshapes around the answer: the files, their diffs and the beans behind them.
+                    Live answers still take a few seconds.
+                  </td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td>People</td>
                   <td>
-                    Who has access, and every session and token that cloned or pushed, with the
-                    person it acted for. See <a href="/docs/collaborators">Collaborators</a>.
+                    Who has access, and every session and token that cloned or pushed. See
+                    <a href="/docs/collaborators#people">Collaborators and visibility</a>.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
-                  <td>Archive</td>
+                  <td>Settings</td>
                   <td>
-                    The owner can archive a repository from Settings: reads and clones keep working,
-                    pushes are refused with one sentence.
+                    One page per section, from General to Danger zone. See the
+                    <a href="/docs/settings">Settings map</a>.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
-                  <td>Insights, Automations</td>
-                  <td>Counts over time; the Actions and Automations list.</td>
-                  <td><span class="pill soon">coming soon</span></td>
+                  <td>Insights</td>
+                  <td>Landing rate, waiting time and rework per person and agent.</td>
+                  <td><span class="badge planned">planned</span></td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p>Every page works at night, by day and at phone width.</p>
+          <p>
+            There is no separate Home or Stalk tab. The old Stalk address redirects to History. The
+            pages work at night, by day and at phone width.
+          </p>
 
-          <h2 id="settings">Settings and your profile <span class="pill live">live</span></h2>
+          <h2 id="history">Reading History</h2>
+          <figure
+            class="mock"
+            aria-label="The History tab: sprout commits not yet validated above the stalk"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/history</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">On the sprout, not validated yet</span>
+                <span class="by">1 commit</span>
+                <span class="ms landed">landed</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">The stalk: Add percentage discounts</span>
+                <span class="by">validated, 3 h ago</span>
+                <span class="ms green">green</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">The stalk: Fix retry backoff</span>
+                <span class="by">validated, yesterday</span>
+                <span class="ms green">green</span>
+              </div>
+            </div>
+            <figcaption>
+              <em>Landed</em> means on the sprout. <em>Green</em> means validated on the stalk. The
+              <a href="/docs/concepts">Concepts</a> page explains the difference.
+            </figcaption>
+          </figure>
+
+          <h2 id="moved">Renamed and moved</h2>
           <p>
-            Repository Settings and your own Settings share one layout: sections on the left, one
-            panel each on the right, a save line under every form.
+            <span class="badge live">live</span> When a repository is renamed or moved to another
+            owner (you to an organization, an organization to you, or between organizations), its
+            old address keeps working, so existing clones, CI and agent setups do not break.
           </p>
-          <p>
-            <span class="pill rolling">rolling out</span> Every section of repository and
-            organization Settings becomes its own page with its own Save, and archive, transfer,
-            leave and delete move to a Danger zone page that asks before it acts. Old links to a
-            section (<code>…/settings#secrets</code>) still land on it. Your avatar in the header
-            opens a menu with your profile, repositories, organizations, Settings, the day or night
-            theme and Sign out.
-          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Where</th>
+                  <th>What happens at the old address</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Web</td>
+                  <td>Pages redirect to the repository's home at the new address.</td>
+                </tr>
+                <tr>
+                  <td>Git</td>
+                  <td>
+                    Clone, fetch and push keep working at the old remote. Git does not follow a
+                    redirect on a push, so the old address is served in place. A push there prints
+                    where the repository is now and the line to switch.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Agents</td>
+                  <td>MCP tools that take <code>owner/name</code> accept the old name.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <figure
+            class="mock"
+            aria-label="A push to an old address prints where the repository moved"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre class="m-term"><span class="p">$</span> git push origin bean/first-change
+<span class="dim">remote: gitstalk: this repository moved to acme/payments; the old address keeps working.</span>
+<span class="dim">remote: gitstalk: to use the new one: git remote set-url origin https://gitstalk.dev/acme/payments.git</span></pre>
+            </div>
+            <figcaption>The push still works; the remote lines tell you how to switch.</figcaption>
+          </figure>
           <ul>
             <li>
-              <b>Repository</b>: name, description, website, topics and a social image (the picture
-              link previews show), visibility, the default branch (always the stalk), checks,
-              collaborators, Actions secrets, deploy tokens, archive and delete.
-            </li>
-            <li>
-              <b>Your profile</b>: a picture, name, bio and website, shown on your page (<code
-                >&lt;gitstalk host&gt;/&lt;handle&gt;</code
-              >), where anyone can also see your public repositories. Without a picture you get one
-              made from your initials.
-            </li>
-            <li>
-              <b>Pictures</b>: PNG, JPEG, WebP or GIF (first frame), up to 2 MB and 4096 pixels a
-              side. SVG is refused because it can carry scripts. Pictures are resized and stripped
-              of camera and location data.
-            </li>
-            <li>
-              <b>Handle</b>: change it once a day. Your page, repositories and clone URLs move;
-              links and git remotes with the old handle redirect, and nobody else can take it.
-            </li>
-            <li>
-              <b>Access</b>: passkeys (name them, add another, remove the last only once you have a
-              verified email), signed-in browsers and connected agents, SSH keys and tokens.
-              <b>Emails</b>: add or change the address that signs you in, verified by a code.
-            </li>
-            <li>
-              <b>Delete your account</b>: type your handle. Your repositories are deleted with it
-              and you leave everyone else's. Notifications are not sent yet, so that page only says
-              what is coming.
-            </li>
-          </ul>
-
-          <h2 id="moved">Renamed and moved <span class="pill live">live</span></h2>
-          <p>
-            When a repository is renamed or moved to another owner (you to an organization, an
-            organization to you, or between organizations), its old address keeps working, so
-            existing clones, CI and agent setups do not break:
-          </p>
-          <ul>
-            <li>
-              <b>Web pages</b> at the old address redirect to the repository's home at the new one,
-              the same as after a handle change.
-            </li>
-            <li>
-              <b>Git over HTTPS and SSH</b>: clone, fetch and push keep working at the old remote.
-              Git does not follow a redirect on a push, so Gitstalk serves the old address in place
-              instead. A push to it prints where the repository is now and the
-              <code>git remote set-url</code> line to switch.
-            </li>
-            <li><b>Agents</b>: MCP tools that take <code>owner/name</code> accept the old one.</li>
-            <li>
-              Renames chain: after <code>a</code> → <code>b</code> → <code>c</code>, both
+              Renames chain: after <code>a</code> to <code>b</code> to <code>c</code>, both
               <code>a</code> and <code>b</code> lead to <code>c</code>. An old handle and an old
               name together still work.
             </li>
             <li>
-              The old address stops redirecting once someone creates a repository with exactly that
+              An old address stops redirecting once someone creates a repository with exactly that
               owner and name, as on GitHub. Deleting the repository removes its old addresses.
             </li>
             <li>
-              An internal repository moved to a person becomes private: only organizations have
-              internal repositories.
+              An internal repository moved to a person becomes private, because only organizations
+              have internal repositories.
             </li>
           </ul>
-          <p>Organization handles cannot be changed yet.</p>
 
-          <h2 id="limits">Good to know</h2>
+          <h2 id="danger">Archive, transfer, delete</h2>
+          <p>
+            These live in <strong>Settings, Danger zone</strong>, which the owner sees. Each asks
+            before it acts.
+          </p>
+          <figure class="mock" aria-label="The Danger zone settings page">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/settings/danger</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label">
+                  <b>Archive</b><span>Read-only. It still clones and fetches.</span>
+                </div>
+                <span class="m-btn">Archive acme/api</span>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Transfer</b
+                  ><span>To you, or an organization where you are an owner or admin.</span>
+                </div>
+                <span class="m-btn">Transfer</span>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Delete this repository</b><span>Type acme/api to confirm.</span>
+                </div>
+                <span class="m-btn">Delete acme/api</span>
+              </div>
+            </div>
+            <figcaption>
+              Archive and transfer ask in a dialog. Delete asks you to type the full name.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Archive</td>
+                  <td>
+                    Makes it read-only: reads and clones keep working, while pushes, decision
+                    answers, deploy tokens, workflow runs and Actions secret changes are refused,
+                    and it leaves Home. Name, description and visibility are fixed until you
+                    unarchive.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Transfer</td>
+                  <td>
+                    Moves it, with its history, beans, collaborators and deploy tokens. The old
+                    address keeps working (above).
+                  </td>
+                </tr>
+                <tr>
+                  <td>Delete</td>
+                  <td>
+                    Removes its history, beans and decisions for good. Agents connected to it lose
+                    access at once.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Renaming, the description and the social image are in
+            <a href="/docs/settings#repository">Settings</a>, where profile and upload details also
+            live.
+          </p>
+
+          <h2 id="good-to-know">Good to know</h2>
           <ul>
             <li>Storage is named by id, so renaming never moves git data.</li>
-            <li>Teams are not built yet.</li>
+            <li>
+              Teams are not built yet (<span class="badge planned">planned</span>). Give access
+              person by person or through an <a href="/docs/organizations">organization</a>.
+            </li>
+            <li>Organization handles cannot be changed yet.</li>
           </ul>
 
           <section class="sources">
@@ -409,14 +697,16 @@
               </li>
               <li>
                 <a
-                  href="https://github.com/coop-collective/gitstalk/tree/HEAD/docs/claude-opus/exp/live"
-                  >Live walk-through screenshots and push transcript</a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/14-repository-experience.md"
+                  >docs/claude-opus/14-repository-experience.md</a
                 >
               </li>
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/"><small>Previous</small>Overview</a>
+            <a class="prev" href="/docs/streaming-diffs"
+              ><small>Previous</small>Live updates and streaming diffs</a
+            >
             <a class="next" href="/docs/git"><small>Next</small>Git compatibility</a>
           </nav>
         </article>
