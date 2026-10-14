@@ -28,8 +28,20 @@ describe('query keys', () => {
 
   it('make an area key a prefix of its queries, for invalidation', () => {
     const repo = qk.repo('u1', 'acme', 'web');
-    for (const key of [repo.events(), repo.pushed(), repo.bean('b'), repo.run('r')])
+    for (const key of [
+      repo.events(),
+      repo.pushed(),
+      repo.bean('b'),
+      repo.run('r'),
+      repo.jobLog('r', 'j'),
+      repo.runs('status=done'),
+      repo.diff('a', 'b'),
+      repo.tree('a'),
+      repo.file('a', 'src/x.ts'),
+      repo.tail(4),
+    ])
       expect(key.slice(0, repo.all.length)).toEqual(repo.all);
+    expect(repo.jobLog('r', 'j').slice(0, repo.run('r').length)).toEqual(repo.run('r'));
     expect(qk.home('u1').activity().slice(0, 2)).toEqual(qk.home('u1').all);
   });
 });

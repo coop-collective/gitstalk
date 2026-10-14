@@ -4,15 +4,21 @@
  * A bean's own change on its page: its landing, or its newest head against its base. The
  * server prefetches it under `qk.repo(...).bean(name)`; a new push or the landing invalidates
  * that key (`ChangeView`) and it is read again through the engine's diff route.
+ *
+ * Once the bean has landed its diff is the landing's commit pair, so the query is immutable
+ * (never refetched on focus; persisted for a public repository). A later landing after a
+ * requeue still invalidates it through the feed. Until then it is mutable (30 s).
  */
 import { useQuery } from '@tanstack/react-query';
 
+import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { RepoDiff } from '@gitstalk/shared-ask/repo/repo-types';
 import { DiffView } from '../explorer/diff-view';
 import type { RepoScope } from '../../src/changes/change-feed';
 import { beanDiffPath, isRepoDiff } from '../../src/changes/change-feed';
 import { fetchJson, isHttpStatus } from '../../src/query/fetch-json';
 import { qk } from '../../src/query/keys';
+import { freshness } from '../../src/query/policy';
 import styles from './repo-tabs.module.css';
 
 export function BeanDiff(props: {
@@ -21,9 +27,17 @@ export function BeanDiff(props: {
   readonly bean: string;
 }) {
   const { scope, engine, bean } = props;
+  const keys = qk.repo(scope.uid, scope.owner, scope.repo);
+  // Whether it landed, from the events the page's feed keeps (no fetch of its own).
+  const { data: landed = false } = useQuery<readonly RaceEvent[], Error, boolean>({
+    queryKey: keys.events(),
+    enabled: false,
+    select: (events) => hasLanded(events, bean),
+  });
   const diff = useQuery({
-    queryKey: qk.repo(scope.uid, scope.owner, scope.repo).bean(bean),
+    queryKey: keys.bean(bean),
     queryFn: ({ signal }) => readBeanDiff(beanDiffPath(engine, bean), signal),
+    ...freshness(landed ? 'immutable' : 'mutable', { visibility: scope.visibility }),
   });
   const files = diff.data?.files ?? [];
   return (
@@ -38,6 +52,11 @@ export function BeanDiff(props: {
       )}
     </section>
   );
+}
+
+/** Whether the events hold the bean's landing. */
+function hasLanded(events: readonly RaceEvent[], bean: string): boolean {
+  return events.some((event) => event.type === 'land' && event.task === bean);
 }
 
 /** The diff, or null while the bean has none (the route's 404). */

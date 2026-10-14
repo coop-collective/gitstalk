@@ -18,7 +18,7 @@
  */
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Sequenced } from './append-by-seq';
 import { appendBySeq, lastSeq } from './append-by-seq';
@@ -40,6 +40,16 @@ export type LiveFeedOptions<T extends Sequenced> = {
   readonly eventName?: string;
   /** False keeps the feed closed (default true). */
   readonly enabled?: boolean;
+  /**
+   * Where the feed starts when the held list is empty: a page that holds only the events
+   * after the seq it rendered at (a tail) passes that seq. Default 0.
+   */
+  readonly after?: number;
+  /**
+   * Called when events may have been missed (a gap in a batch, a reconnect), after the query
+   * itself was invalidated: other queries the missed events could have changed refetch here.
+   */
+  readonly onResync?: () => void;
 };
 
 export type LiveFeed = {
@@ -50,8 +60,13 @@ export type LiveFeed = {
 
 export function useLiveFeed<T extends Sequenced>(options: LiveFeedOptions<T>): LiveFeed {
   const queryClient = useQueryClient();
-  const { queryKey, url, parseBatch, eventName = 'events', enabled = true } = options;
+  const { queryKey, url, parseBatch, eventName = 'events', enabled = true, after = 0 } = options;
   const [status, setStatus] = useState<LiveFeedStatus>('idle');
+  // A ref, so a new callback each render does not reopen the feed.
+  const onResync = useRef(options.onResync);
+  useEffect(() => {
+    onResync.current = options.onResync;
+  });
   // Subscribe to "has data" only, so the feed opens once the snapshot is there and is not
   // reopened on every batch.
   const { data: hasSnapshot = false } = useQuery<readonly T[], Error, boolean>({
@@ -64,17 +79,21 @@ export function useLiveFeed<T extends Sequenced>(options: LiveFeedOptions<T>): L
   useEffect(() => {
     if (!enabled || !hasSnapshot) return undefined;
     const held = queryClient.getQueryData<readonly T[]>(queryKey) ?? [];
-    const source = new EventSource(withAfter(url, lastSeq(held)));
+    const source = new EventSource(withAfter(url, lastSeq(held, after)));
     setStatus('connecting');
+    const resync = () => {
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+      onResync.current?.();
+    };
     const onBatch = (message: MessageEvent<string>) => {
       const batch = parseBatch(parseData(message.data));
-      if (batch !== null) applyBatch(queryClient, queryKey, batch);
+      if (batch !== null && applyBatch(queryClient, queryKey, batch) === 'gap') resync();
     };
     let dropped = false;
     source.addEventListener('open', () => {
       setStatus('live');
       // Events may have been missed while disconnected: read the snapshot again.
-      if (dropped) void queryClient.invalidateQueries({ queryKey, exact: true });
+      if (dropped) resync();
     });
     source.addEventListener('error', () => {
       dropped = true;
@@ -91,7 +110,7 @@ export function useLiveFeed<T extends Sequenced>(options: LiveFeedOptions<T>): L
     };
     // keyHash stands for queryKey (a new array on every render); parseBatch should be stable
     // (module-level or memoised), or the feed reopens on every render.
-  }, [queryClient, keyHash, url, eventName, enabled, hasSnapshot, parseBatch]);
+  }, [queryClient, keyHash, url, eventName, enabled, hasSnapshot, parseBatch, after]);
 
   return {
     status,
@@ -99,12 +118,12 @@ export function useLiveFeed<T extends Sequenced>(options: LiveFeedOptions<T>): L
   };
 }
 
-/** Appends one batch to the cached list; a gap invalidates the query to fill it. */
+/** Appends one batch to the cached list; says whether it left a gap (the caller resyncs). */
 function applyBatch(
   queryClient: QueryClient,
   queryKey: QueryKey,
   batch: readonly Sequenced[],
-): void {
+): 'gap' | 'contiguous' {
   let opened = false;
   queryClient.setQueryData<readonly Sequenced[]>(queryKey, (held) => {
     // No snapshot yet: leave the query to fetch one rather than seed it with a fragment.
@@ -113,7 +132,7 @@ function applyBatch(
     opened = outcome.kind === 'gap';
     return outcome.events;
   });
-  if (opened) void queryClient.invalidateQueries({ queryKey, exact: true });
+  return opened ? 'gap' : 'contiguous';
 }
 
 function withAfter(url: string, after: number): string {

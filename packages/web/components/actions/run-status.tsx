@@ -5,7 +5,8 @@
  * render seeds a query, which polls the run route every few seconds while the run is live
  * (TanStack Query pauses it in a hidden tab). Cancel and Re-run show their result at once and
  * roll back if the control plane refuses. When the run finishes, the page is rendered once
- * more so what only the server reads (annotations, summary, the job's stored log) catches up.
+ * more so what only the server reads (annotations, summary, the job's stored log) catches up,
+ * and the query turns immutable (src/query/policy.ts): a finished run is never refetched.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IntentLink as Link } from '../shell/intent-link';
@@ -29,6 +30,7 @@ import {
 } from '../../src/actions/run-view';
 import { fetchJson } from '../../src/query/fetch-json';
 import { qk } from '../../src/query/keys';
+import { freshness } from '../../src/query/policy';
 import { timeAgo } from '../../src/repositories/when';
 import type { ActionsAccess } from '../../src/server/actions-page';
 import styles from './actions.module.css';
@@ -37,6 +39,11 @@ import { RunControls } from './run-controls';
 import { StateMark } from './state-mark';
 
 const POLL_MS = 4000;
+
+/** A live run is mutable; a finished one is immutable (src/query/policy.ts). */
+function runFreshness(run: RunDetail) {
+  return freshness(isLive(stateOf(run)) ? 'mutable' : 'immutable');
+}
 
 export function RunStatus(props: {
   /** The viewer's id, or null: part of the query key. */
@@ -62,6 +69,9 @@ export function RunStatus(props: {
     initialData: initial,
     initialDataUpdatedAt: nowMs,
     refetchInterval: (query) => (isLive(stateOf(query.state.data ?? initial)) ? POLL_MS : false),
+    // A finished run never changes again: immutable, so focus does not refetch it.
+    staleTime: (query) => runFreshness(query.state.data ?? initial).staleTime,
+    gcTime: freshness('immutable').gcTime,
   });
   // A newer server render (navigation, or the refresh below) is fresher than what is cached.
   useEffect(() => {
@@ -71,11 +81,16 @@ export function RunStatus(props: {
   }, [queryClient, initial, nowMs]);
 
   const wasLive = useRef(isLive(stateOf(run)));
+  const refreshed = useRef<string | null>(null);
   const live = isLive(stateOf(run));
   useEffect(() => {
-    if (wasLive.current && !live) router.refresh();
+    // Once per run: the refreshed render seeds the same finished run again.
+    if (wasLive.current && !live && refreshed.current !== run.id) {
+      refreshed.current = run.id;
+      router.refresh();
+    }
     wasLive.current = live;
-  }, [live, router]);
+  }, [live, router, run.id]);
 
   const [shown, setIntent] = useOptimistic<RunDetail, RunIntent>(run, optimisticRun);
   const state = stateOf(shown);

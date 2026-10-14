@@ -18,8 +18,11 @@ declare module '@tanstack/react-query' {
 
 /** The sessionStorage key holding the persisted cache. */
 export const PERSIST_STORAGE_KEY = 'gitstalk-query';
-/** A persisted cache older than this is discarded on restore. */
-export const PERSIST_MAX_AGE_MS = 15 * 60_000;
+/**
+ * A persisted cache older than this is discarded on restore. Persisted queries keep a `gcTime`
+ * at least this long (`freshness` in policy.ts), or a restored query is collected at once.
+ */
+export const PERSIST_MAX_AGE_MS = 60 * 60_000;
 
 /** The build this bundle came from (next.config.ts `env`), or `'dev'` outside a build. */
 export const BUILD_ID: string = process.env.GITSTALK_BUILD_ID ?? 'dev';

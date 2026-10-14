@@ -10,6 +10,7 @@
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { RepoDiff } from '@gitstalk/shared-ask/repo/repo-types';
 
+import type { Visibility } from '../query/policy';
 import type { PushedBean } from './pushed-beans';
 
 /** `GET /api/repos/:owner/:repo/events[?after=<seq>]`. */
@@ -27,6 +28,8 @@ export type RepoScope = {
   readonly repo: string;
   /** `/<owner>/<repo>`. */
   readonly base: string;
+  /** Who may read it: only a public repository's data is persisted (src/query/policy.ts). */
+  readonly visibility: Visibility;
 };
 
 /** The JSON routes and the live feed of the repository at `base` (`/<owner>/<repo>`). */
