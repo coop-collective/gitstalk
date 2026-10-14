@@ -12,6 +12,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+import { logQueryCounts } from '../../src/query/cache-counter';
 import { viewerKey } from '../../src/query/keys';
 import { makeQueryClient } from '../../src/query/make-query-client';
 import {
@@ -45,6 +46,14 @@ export function QueryProvider(props: {
     queryClient.clear();
     forgetPersistedCache(sessionStorageOrUndefined());
   }, [queryClient, viewer, buster]);
+  // Development only: how often each kind of query is served from the cache or fetched.
+  useEffect(
+    () =>
+      process.env.NODE_ENV === 'production'
+        ? undefined
+        : logQueryCounts(queryClient.getQueryCache()),
+    [queryClient],
+  );
   return (
     <PersistQueryClientProvider
       client={queryClient}
