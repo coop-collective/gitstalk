@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * One bean, kept live in the browser: where it stands and who brought it, its journey (each
+ * One bean, kept live in the browser: where it stands and who brought it, the approval it
+ * waits for when the approval rules hold it (`HeldPanel`), its journey (each
  * push, check and verdict, with the failing tests and the landed beans it collided with, then
  * landing, validation and any decision), its diff, and the engine's last word to the pusher.
  * Derived from the same queries as the Changes list (`useChangesFeed`); the feed stays open
@@ -25,12 +26,16 @@ import {
 } from '../../src/changes/changes';
 import { qk } from '../../src/query/keys';
 import { timeAgo } from '../../src/repositories/when';
+import type { ApproveAccess } from '../../src/changes/approval-client';
 import { ChangeGlyph } from './change-glyph';
+import { HeldPanel } from './held-panel';
 import { LiveBadge } from './live-badge';
 import styles from './repo-tabs.module.css';
 import { useChangesFeed } from './use-changes-feed';
 
 const at = (ms: number): string => new Date(ms).toISOString();
+/** The diff's place on the page, for the held panel's link. */
+const DIFF_ID = 'bean-diff';
 
 export function ChangeView(props: {
   readonly scope: RepoScope;
@@ -41,6 +46,8 @@ export function ChangeView(props: {
   readonly filesHref: string;
   /** Whether the bean was settled when the server rendered (its feed then never opens). */
   readonly settled: boolean;
+  /** Whether the viewer may approve a held bean, or why not. */
+  readonly approveAccess: ApproveAccess;
   readonly nowMs: number;
 }) {
   const { scope, bean } = props;
@@ -70,8 +77,21 @@ export function ChangeView(props: {
       <ChangeHeader change={change} filesHref={props.filesHref} />
       <div className={styles.split}>
         <div>
+          {change.hold === null ? null : (
+            <HeldPanel
+              hold={change.hold}
+              bean={change.bean}
+              scope={scope}
+              access={props.approveAccess}
+              diffHref={`#${DIFF_ID}`}
+              landed={change.group === 'landed'}
+              nowMs={nowMs}
+            />
+          )}
           <Journey change={change} base={scope.base} nowMs={nowMs} />
-          {props.diff}
+          <div id={DIFF_ID} className={styles.diffAnchor}>
+            {props.diff}
+          </div>
         </div>
         <aside className={styles.aside} aria-label="What the push was told">
           <section>

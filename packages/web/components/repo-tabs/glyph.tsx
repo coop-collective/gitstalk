@@ -1,16 +1,18 @@
 /**
  * The stalk's marks, small: a leaf (asymmetric rounded square) on the stalk or the sprout,
- * a bean for an open change, a red leaf, a folded leaf for parked, a seed at the root.
+ * a bean for an open change, a hollow bean held for a person, a red leaf, a folded leaf for
+ * parked, a seed at the root.
  * Colour says which; the shape says what.
  */
 import styles from './repo-tabs.module.css';
 
-export type GlyphKind = 'stalk' | 'sprout' | 'bean' | 'red' | 'parked' | 'seed';
+export type GlyphKind = 'stalk' | 'sprout' | 'bean' | 'held' | 'red' | 'parked' | 'seed';
 
 const LABELS: Readonly<Record<GlyphKind, string>> = {
   stalk: 'on the stalk',
   sprout: 'on the sprout, not validated yet',
   bean: 'open bean',
+  held: 'held for a person’s approval',
   red: 'red',
   parked: 'parked',
   seed: 'first commit',
@@ -38,6 +40,19 @@ function shapeOf(kind: GlyphKind) {
     case 'bean':
       return (
         <ellipse cx="7" cy="7" rx="4.2" ry="5.6" transform="rotate(28 7 7)" fill="currentColor" />
+      );
+    case 'held':
+      return (
+        <ellipse
+          cx="7"
+          cy="7"
+          rx="3.6"
+          ry="5"
+          transform="rotate(28 7 7)"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        />
       );
     case 'seed':
       return (

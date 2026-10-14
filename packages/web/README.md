@@ -31,7 +31,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
 | `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk |
 | `/<owner>/<repo>/ask`, `/files` | Ask, the generated explorer: a question becomes a view spec with removable chips, then a fixed arrangement of files, beans, decisions and checks |
-| `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, landed, parked) and a bean's detail; stalk and sprout history with validation verdicts; who has access |
+| `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, held for approval, landed, parked) and a bean's detail (a held bean's page has the Held panel where owners and maintainers approve it); stalk and sprout history with validation verdicts; who has access |
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
 | `/<owner>/<repo>/settings/*` | General, visibility, branches, checks, collaborators, deploy tokens, secrets, Actions, social image, danger zone |
 | `/orgs`, `/orgs/new`, `/orgs/<org>/settings/*` | Organisations: members, repository defaults, secrets, audit log, danger zone |
