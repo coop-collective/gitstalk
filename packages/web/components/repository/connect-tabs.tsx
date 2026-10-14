@@ -33,8 +33,6 @@ export type DeployTokenAccess = {
 export function ConnectTabs(props: {
   readonly guide: StartGuide;
   readonly deploy: DeployTokenAccess;
-  /** The Code tab's side column: the same three tabs, set small. */
-  readonly compact?: boolean;
 }) {
   const [tab, setTab] = useState<TabId>('plugin');
   const baseId = useId();
@@ -51,10 +49,7 @@ export function ConnectTabs(props: {
     }
   };
   return (
-    <section
-      className={props.compact === true ? `${styles.step} ${styles.connectCompact}` : styles.step}
-      aria-labelledby={`${baseId}-title`}
-    >
+    <section className={styles.step} aria-labelledby={`${baseId}-title`}>
       <h2 id={`${baseId}-title`}>Connect git</h2>
       <div role="tablist" aria-label="How to connect git" className={styles.connectTabs}>
         {TABS.map((entry) => (
@@ -128,7 +123,6 @@ function EnvPanel(props: { readonly guide: StartGuide; readonly deploy: DeployTo
     { kind: 'idle' },
   );
   const token = state.kind === 'created' ? state.token : null;
-  const block = envVarsBlock(props.guide.gitOrigin, token);
   return (
     <>
       <p>
@@ -177,6 +171,19 @@ function EnvPanel(props: { readonly guide: StartGuide; readonly deploy: DeployTo
           in the repository.
         </p>
       )}
+      <EnvVarsBlocks gitOrigin={props.guide.gitOrigin} token={token} />
+    </>
+  );
+}
+
+/** How git reads a deploy token from the environment: a credential helper, or a header. */
+export function EnvVarsBlocks(props: {
+  readonly gitOrigin: string;
+  readonly token: string | null;
+}) {
+  const block = envVarsBlock(props.gitOrigin, props.token);
+  return (
+    <>
       <Block label="Credential helper" text={block.helper} />
       <Block label="Or as a Bearer header" text={block.header} />
     </>

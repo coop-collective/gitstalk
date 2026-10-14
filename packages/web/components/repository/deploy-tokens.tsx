@@ -13,6 +13,7 @@ import {
   createDeployTokenAction,
   revokeDeployTokenAction,
 } from '../../src/server/deploy-token-actions';
+import { EnvVarsBlocks } from './connect-tabs';
 import { CopyButton } from './copy-button';
 import styles from './repository.module.css';
 
@@ -23,6 +24,8 @@ type Access = { readonly repoId: string; readonly csrf: string; readonly path: s
 export function DeployTokens(props: {
   readonly tokens: readonly DeployTokenSummary[];
   readonly access: Access;
+  /** Where git is served, for the env vars blocks. */
+  readonly gitOrigin: string;
 }) {
   const [state, action, pending] = useActionState<DeployTokenState, FormData>(
     createDeployTokenAction,
@@ -34,8 +37,8 @@ export function DeployTokens(props: {
       <h2 id="deploy-title">Deploy tokens</h2>
       <p className={styles.sub}>
         For CI and other machines: one token opens this repository only, read or read and write,
-        until it expires. Pushes with it are pushed by you. The start page&rsquo;s Env vars tab
-        shows how git uses one.
+        until it expires. Pushes with it are pushed by you. Below the list: the env vars git reads
+        it from, so it never prompts (git 2.31 or newer).
       </p>
       <form action={action} className={styles.deployForm}>
         <Hidden access={access} />
@@ -87,6 +90,10 @@ export function DeployTokens(props: {
           ))}
         </ul>
       )}
+      <EnvVarsBlocks
+        gitOrigin={props.gitOrigin}
+        token={state.kind === 'created' ? state.token : null}
+      />
     </section>
   );
 }

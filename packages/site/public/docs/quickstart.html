@@ -311,6 +311,35 @@
                   key is stored.
                 </figcaption>
               </figure>
+              <p>
+                Later, every repository page has a <strong>Code</strong> button above its files. Its
+                Agent tab has the same lines for Claude Code, Codex, Cursor, Gemini CLI and other
+                MCP clients, set up for that repository; its Clone tab has the clone URL and
+                commands. See <a href="/docs/repositories#code-button">The Code button</a>.
+              </p>
+              <figure class="mock" aria-label="The Code button's Agent tab">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span class="mock-url">gitstalk.io/ada/notes-api</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-secret">
+                    <span class="key">stalk ▾</span><span class="val"></span
+                    ><span class="when"></span><span class="m-btn primary">Code ▾</span>
+                  </div>
+                  <div class="m-tabs" aria-hidden="true">
+                    <span>Clone</span><span class="on">Agent</span
+                    ><span>Submit intent<small>soon</small></span>
+                  </div>
+                  <div class="m-field">
+                    <div class="label"><b>Claude Code</b><span>Paste in your terminal.</span></div>
+                    <div class="m-input">… &amp;&amp; claude "/gitstalk:setup ada/notes-api"</div>
+                  </div>
+                </div>
+                <figcaption>
+                  The Code button's Agent tab: one line installs the plugin and connects git to this
+                  repository.
+                </figcaption>
+              </figure>
               <aside class="callout note">
                 <p class="callout-title">Git runs over HTTPS today</p>
                 <p>

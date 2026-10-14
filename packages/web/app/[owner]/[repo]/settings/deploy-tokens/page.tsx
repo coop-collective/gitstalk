@@ -30,6 +30,7 @@ export default async function DeployTokensSettingsPage(props: {
     >
       <DeployTokens
         tokens={tokens.ok ? tokens.value : []}
+        gitOrigin={env.GIT_ORIGIN}
         access={{
           repoId: record.id,
           csrf: session.csrfToken,

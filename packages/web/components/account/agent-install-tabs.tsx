@@ -2,7 +2,8 @@
 
 /**
  * /signup/agent's install commands as tabs, one per harness, Claude Code first (WAI-ARIA tabs
- * with automatic activation). The choice is remembered in this browser under the same key the
+ * with automatic activation); the repository's Code button reuses it with lines for that
+ * repository and what to ask the agent after. The choice is remembered in this browser under the same key the
  * marketing site's selector uses (packages/site/public/site.js), so a harness picked on one is
  * picked on the other, and another open tab that changes it is followed here.
  */
@@ -94,6 +95,15 @@ export function AgentInstallTabs(props: { readonly installs: readonly AgentInsta
             {install.after}
             {install.verified ? null : ' (Follows the client’s documented MCP sign-in.)'}
           </p>
+          {install.prompt === undefined ? null : (
+            <>
+              <span className={styles.hint}>Then ask it</span>
+              <div className={styles.installCode}>
+                <q className={styles.installPrompt}>{install.prompt}</q>
+                <CopyButton text={install.prompt} label={`what to ask ${install.name}`} />
+              </div>
+            </>
+          )}
         </div>
       ))}
     </div>
