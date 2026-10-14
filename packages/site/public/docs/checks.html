@@ -6,14 +6,14 @@
     <title>Checks: Gitstalk docs</title>
     <meta
       name="description"
-      content="What must a bean pass to land? One file, .gitstalk/checks.toml, sets the command, time limit, environment and protected paths."
+      content="What must a bean pass to land? One file, .gitstalk/checks.yml, sets the command, time limit, environment and protected paths."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Checks: Gitstalk docs" />
     <meta
       property="og:description"
-      content="What must a bean pass to land? One file, .gitstalk/checks.toml, sets the command, time limit, environment and protected paths."
+      content="What must a bean pass to land? One file, .gitstalk/checks.yml, sets the command, time limit, environment and protected paths."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -171,9 +171,10 @@
           <p class="prompt" aria-hidden="true">gitstalk docs checks</p>
           <h1>Checks <span class="badge live">live</span></h1>
           <p class="lede">
-            What must a bean pass to land? One file, <code>.gitstalk/checks.toml</code>, answers it.
+            What must a bean pass to land? One file, <code>.gitstalk/checks.yml</code>, answers it.
             It is read from the exact tree each check runs on, so a change to the checks is checked
-            by its own copy.
+            by its own copy. Like the approval rules and automations, it is YAML: all
+            <code>.gitstalk/</code> configuration is YAML now.
           </p>
           <aside class="callout warning">
             <p class="callout-title">Limits today</p>
@@ -203,27 +204,36 @@
               ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/add-truncate
 <span class="dim">remote: gitstalk: new bean add-truncate received at 3f9a1c2: "Add truncate(text, n)"</span>
 <span class="dim">remote: gitstalk: pre-land check started: your change is merged onto the sprout and the whole suite runs on that tree</span>
-remote: gitstalk: no .gitstalk/checks.toml on this tree: the repository's default suite runs: node --test (timeout 300 s)
+remote: gitstalk: no .gitstalk/checks.yml on this tree: the repository's default suite runs: node --test (timeout 300 s)
 remote: gitstalk: <span class="ok">LANDED: add-truncate passed its pre-land check and is on the sprout as 8d41e07</span></pre>
             </div>
             <figcaption>
-              With a valid file the line reads <code>checks from .gitstalk/checks.toml</code> and
+              With a valid file the line reads <code>checks from .gitstalk/checks.yml</code> and
               names your command, image, time limit and any environment names.
             </figcaption>
           </figure>
 
           <h2 id="format">The file</h2>
           <div class="cmd" data-copyable>
-            <header><span>.gitstalk/checks.toml</span></header>
-            <pre class="url"><code># .gitstalk/checks.toml
-image = "node"
-command = ["node", "--test", "spec/**/*.spec.mjs"]
-timeout_seconds = 60
-protected_paths = ["data/schema.json", "migrations/**"]
-
-[env]
-KV_LIMIT = "3"</code></pre>
+            <header><span>.gitstalk/checks.yml</span></header>
+            <pre
+              class="url"
+            ><code># yaml-language-server: $schema=https://gitstalk.dev/schemas/checks.json
+image: node
+timeout-minutes: 1
+env:
+  KV_LIMIT: "3"
+run: [node, --test, "spec/**/*.spec.mjs"]
+protected-paths:
+  - data/schema.json
+  - migrations/**</code></pre>
           </div>
+          <p>
+            Keys are named the way GitHub Actions names the same things
+            (<code>timeout-minutes</code>,
+            <code>env</code>, kebab-case). The first line gives editors that use the YAML language
+            server completion and checking from the file's JSON Schema.
+          </p>
           <div class="tbl">
             <table>
               <thead>
@@ -236,44 +246,52 @@ KV_LIMIT = "3"</code></pre>
               <tbody>
                 <tr>
                   <td><code>image</code></td>
-                  <td><code>"node"</code></td>
+                  <td><code>node</code></td>
                   <td>
                     Only <code>node</code> today (Node 25). Other languages need their own runner
                     image; not built yet.
                   </td>
                 </tr>
                 <tr>
-                  <td><code>command</code></td>
-                  <td><code>["node", "--test"]</code></td>
+                  <td><code>run</code></td>
+                  <td><code>[node, --test]</code></td>
                   <td>
-                    An argv, never a shell (so not <code>npm test</code>). Must start with
-                    <code>node</code> and include <code>--test</code>; the rest are options and test
-                    globs.
+                    A list of arguments, never a shell (so not <code>npm test</code>). Must start
+                    with <code>node</code> and include <code>--test</code>; the rest are options and
+                    test globs. Quote a glob that starts with <code>*</code>.
                   </td>
                 </tr>
                 <tr>
-                  <td><code>timeout_seconds</code></td>
+                  <td><code>timeout-minutes</code></td>
+                  <td>5</td>
+                  <td>
+                    Up to 30, and it must come to whole seconds (<code>0.5</code> is 30 s). A suite
+                    that runs out of time is run again; a pre-land check is never reported red for
+                    timing out.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>timeout-seconds</code></td>
                   <td>300</td>
                   <td>
-                    1 to 1,800. A suite that runs out of time is run again; a pre-land check is
-                    never reported red for timing out.
+                    1 to 1,800, instead of <code>timeout-minutes</code> (write one, not both).
                   </td>
                 </tr>
                 <tr>
-                  <td><code>protected_paths</code></td>
+                  <td><code>protected-paths</code></td>
                   <td><code>[]</code></td>
                   <td>
                     Patterns: <code>*</code> within a segment, <code>**</code> across segments, a
-                    trailing <code>/</code> for a directory. Relative to the repository root.
-                    <code>.gitstalk/checks.toml</code> and <code>.gitstalk/policy.yml</code> are
-                    always protected.
+                    trailing <code>/</code> for a directory. Relative to the repository root. Every
+                    checks file and <code>.gitstalk/policy.yml</code> are always protected.
                   </td>
                 </tr>
                 <tr>
-                  <td><code>[env]</code></td>
+                  <td><code>env</code></td>
                   <td>none</td>
                   <td>
-                    Up to 32 upper-case names with string values. The runner's own
+                    Up to 32 upper-case names with string values: quote numbers and
+                    <code>true</code>/<code>false</code> (<code>"10"</code>). The runner's own
                     (<code>PATH</code>, <code>HOME</code>, <code>CI</code>, <code>GIT_*</code>,
                     <code>LD_*</code>, <code>NODE_TEST*</code>, <code>BWRAP*</code>) are refused.
                     Never put a secret here: the file is in your repository. See
@@ -283,11 +301,23 @@ KV_LIMIT = "3"</code></pre>
               </tbody>
             </table>
           </div>
-          <p>Unknown keys are refused by name, with a guess when one is close:</p>
+          <h3 id="run">Why <code>run</code> is a list</h3>
+          <p>
+            In a GitHub Actions workflow, <code>run:</code> is a string that a shell runs. Checks
+            never use a shell, so a string would either mean something different here (no pipes, no
+            <code>&amp;&amp;</code>, no shell quoting) or need a splitting rule of its own. A list
+            says exactly what the runner starts, so <code>run: npm test</code> is refused with the
+            reason, and so is a bare number in the list.
+          </p>
+          <p>
+            Parsing is strict, as for the approval rules: YAML 1.2 (<code>no</code> stays a string),
+            no duplicate keys, no anchors, aliases or merge keys. Every problem names its line,
+            column and key, and unknown keys are refused by name, with a guess when one is close:
+          </p>
           <div class="cmd" data-copyable>
             <header><span>Output</span></header>
-            <pre class="url"><code>.gitstalk/checks.toml is invalid:
-  unknown key "comand" (did you mean "command"?)</code></pre>
+            <pre class="url"><code>.gitstalk/checks.yml is invalid:
+  line 2, column 1: unknown key "rnu" (did you mean "run"?)</code></pre>
           </div>
           <div class="tbl">
             <table>
@@ -309,8 +339,8 @@ KV_LIMIT = "3"</code></pre>
                 <tr>
                   <td>an invalid file</td>
                   <td>
-                    Red without running anything, naming every problem: a syntax error with its line
-                    and column, any other problem with its key.
+                    Red without running anything, naming every problem with its line, column and
+                    key.
                   </td>
                 </tr>
               </tbody>
@@ -322,7 +352,13 @@ KV_LIMIT = "3"</code></pre>
             <strong>Settings, Checks</strong> shows what the next check will run. It reads the file
             from the stalk with the same parser the engine uses, so the page and the check cannot
             disagree. It is read-only: the form never edits the file. Everyone with a role can see
-            it.
+            it, with the file itself as YAML.
+          </p>
+          <p>
+            A repository whose checks are still in <code>checks.toml</code> sees the equivalent YAML
+            and, for the owner and maintainers, a <strong>Convert to YAML</strong> button. It saves
+            one bean, authored by you, that writes <code>.gitstalk/checks.yml</code> and deletes the
+            TOML file in the same commit; it lands through the pre-land check like any change.
           </p>
           <figure
             class="mock"
@@ -354,8 +390,9 @@ KV_LIMIT = "3"</code></pre>
                   <b>Protected</b><span>The checks and policy files always</span>
                 </div>
                 <div class="m-input">
-                  .gitstalk/checks.toml, .beanstalk/checks.toml, .gitstalk/policy.yml,
-                  .beanstalk/policy.yml, data/schema.json, migrations/**
+                  .gitstalk/checks.yml, .gitstalk/checks.yaml, .gitstalk/checks.toml,
+                  .beanstalk/checks.yml, .beanstalk/checks.yaml, .beanstalk/checks.toml,
+                  .gitstalk/policy.yml, .beanstalk/policy.yml, data/schema.json, migrations/**
                 </div>
               </div>
             </div>
@@ -428,15 +465,66 @@ remote: gitstalk:   - data/schema.json
             <a href="/docs/approval-rules">Approval rules</a>.
           </p>
 
-          <h2 id="older-name">The older name</h2>
+          <h2 id="older-name">Older files: TOML and <code>.beanstalk/</code></h2>
+          <p>
+            Until 14 October 2026 the file was <code>.gitstalk/checks.toml</code>. It still works,
+            with the same capabilities and snake_case keys (<code>command</code>,
+            <code>timeout_seconds</code>, <code>protected_paths</code>, an
+            <code>[env]</code> table). A tree's checks come from the first of these it has:
+          </p>
+          <ol>
+            <li><code>.gitstalk/checks.yml</code></li>
+            <li><code>.gitstalk/checks.yaml</code></li>
+            <li><code>.gitstalk/checks.toml</code></li>
+            <li>the same three in <code>.beanstalk/</code></li>
+          </ol>
+          <p>
+            Every one of them is always protected. Messages always name the file that was read. A
+            TOML file adds a push line saying YAML is the format now. If a tree has two, the first
+            wins and the push says the other is not read:
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Output</span></header>
+            <pre
+              class="url"
+            ><code>remote: gitstalk: checks from .gitstalk/checks.yml: node --test (image node, timeout 120 s)
+remote: gitstalk: .gitstalk/checks.toml is also on this tree and is not read (.gitstalk/checks.yml wins): delete it (git rm .gitstalk/checks.toml)</code></pre>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>checks.toml</th>
+                  <th>checks.yml</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>command = ["node", "--test"]</code></td>
+                  <td><code>run: [node, --test]</code></td>
+                </tr>
+                <tr>
+                  <td><code>timeout_seconds = 120</code></td>
+                  <td><code>timeout-minutes: 2</code> or <code>timeout-seconds: 120</code></td>
+                </tr>
+                <tr>
+                  <td><code>protected_paths = ["migrations/**"]</code></td>
+                  <td><code>protected-paths: [migrations/**]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[env]</code> then <code>TZ = "UTC"</code></td>
+                  <td><code>env:</code> then <code> TZ: UTC</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <aside class="callout note">
             <p class="callout-title">Beanstalk-era repositories</p>
             <p>
-              Gitstalk was called Beanstalk until 10 October 2026. A repository that keeps its
-              checks in <code>.beanstalk/checks.toml</code> still works: that file is read when
-              there is no <code>.gitstalk/checks.toml</code>, and is protected the same way. The
-              TypeScript starter's older <code>[[check]]</code> draft does not choose the suite; the
-              default runs instead, and the push says so.
+              Gitstalk was called Beanstalk until 10 October 2026, so <code>.beanstalk/</code> is
+              still read when <code>.gitstalk/</code> has no checks file. The TypeScript starter's
+              older <code>[[check]]</code> TOML draft does not choose the suite; the default runs
+              instead, and the push says so.
             </p>
           </aside>
 

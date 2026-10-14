@@ -53,6 +53,7 @@ import type {
   SaveRulesInput,
 } from '@gitstalk/shared-race/rules-editor';
 import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
+import type { ChecksEditorRpc, ConvertChecksInput } from '@gitstalk/shared-race/checks-editor';
 
 import type {
   CreateRepositoryInput,
@@ -147,6 +148,7 @@ import { repositoryStorage } from './adapters/repository-storage';
 import { accountsRpc } from './repos/accounts-rpc';
 import { automationEditorRpc } from './automations/editor-rpc';
 import { rulesEditorRpc } from './approval/rules-editor-rpc';
+import { checksEditorRpc } from './checks/checks-editor-rpc';
 import { agentActionsRpc } from './agent/agent-actions-rpc';
 import { agentReposRpc } from './agent/agent-repos-rpc';
 import { consumeRepoEvents } from './repo-events/consumer';
@@ -208,7 +210,8 @@ export default class Gateway
     DerivedRpc,
     AccountsRpc,
     AutomationEditorRpc,
-    RulesEditorRpc
+    RulesEditorRpc,
+    ChecksEditorRpc
 {
   override async fetch(request: Request): Promise<Response> {
     return withHsts(request, await app.fetch(request, this.env, this.ctx));
@@ -924,6 +927,18 @@ export default class Gateway
 
   #rules(): RulesEditorRpc {
     return rulesEditorRpc(this.env, createDeps(this.env));
+  }
+
+  convertChecks(
+    viewer: Viewer,
+    repoId: string,
+    input: ConvertChecksInput,
+  ): Promise<RpcResult<SaveAutomationResult>> {
+    return this.#checks().convertChecks(viewer, repoId, input);
+  }
+
+  #checks(): ChecksEditorRpc {
+    return checksEditorRpc(this.env, createDeps(this.env));
   }
 
   #automations(): AutomationEditorRpc {

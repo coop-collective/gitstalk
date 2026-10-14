@@ -1,6 +1,6 @@
 /**
  * What counts as green on a repository: the effective checks of its stalk, read from
- * `.gitstalk/checks.toml` (or the older `.beanstalk/checks.toml`) with the parser the engine uses, so the page says exactly what the
+ * `.gitstalk/checks.yml` (or an older checks file, `CHECKS_PATHS`) with the parser the engine uses, so the page says exactly what the
  * next pre-land check will run (a bean that changes the file is checked by its own copy).
  */
 import {
@@ -45,8 +45,8 @@ export function ChecksSummary(props: {
           </p>
           <DefaultSuite />
           <p className={styles.muted}>
-            To choose another, a maintainer rewrites it with <code>command</code> at the top level
-            (an argv such as <code>[&quot;node&quot;, &quot;--test&quot;]</code>).
+            To choose another, a maintainer replaces it with <code>{CHECKS_PATH}</code> and its{' '}
+            <code>run</code> list (such as <code>run: [node, --test]</code>).
           </p>
           <RawFile file={props.file} />
         </div>

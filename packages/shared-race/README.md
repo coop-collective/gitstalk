@@ -30,7 +30,7 @@ gitstalk-actions-exec ─┘                                                    
   object per line), `ids.ts` (branded ids), `read-maps.ts` (which test files observe which
   paths), `repo-events.ts` (messages on the `repo-events` Queue).
 - **Repository configuration**: `.gitstalk/` wins over the older `.beanstalk/` (`config-dir.ts`);
-  `checks-config.ts` parses `checks.toml`; `automation-file.ts`, `automation-editor.ts`,
+  `checks-config.ts` finds and reads the checks file (`checks-yaml.ts` for `checks.yml`, `checks-toml.ts` for the older `checks.toml`, `strict-yaml.ts` shared with `policy-file.ts`); `automation-file.ts`, `automation-editor.ts`,
   `automation-models.ts` and `cron.ts` cover Automations and schedules.
 - **Collaboration records** (`collaboration.ts`): transport-neutral records for contributors
   posting on beans.

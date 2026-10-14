@@ -255,7 +255,7 @@ describe('agent repositories: beans', () => {
         message: 'Charge 10% tax\n\nEvery total includes a 10% tax line.',
         options: ['wait'],
         files: {
-          '.beanstalk/checks.toml': NODE_CHECKS,
+          '.gitstalk/checks.yml': NODE_CHECKS,
           'src/tax-rate.ts': 'export const rate = 0.1;\n',
         },
       }),

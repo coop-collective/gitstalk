@@ -25,12 +25,11 @@ import {
 } from '@gitstalk/shared-race/automation-editor';
 import { readAutomationFile } from '@gitstalk/shared-race/automation-file';
 import {
-  CHECKS_PATHS,
   matchesPattern,
   protectedPatterns,
+  readChecksFile,
   resolveChecksFile,
 } from '@gitstalk/shared-race/checks-config';
-import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
 import type { RepositoryForViewer, ViewerRole } from '@gitstalk/shared-race/collaborators';
 import { RunId, Sha, TaskId } from '@gitstalk/shared-race/ids';
 import type { Viewer } from '@gitstalk/shared-race/repos';
@@ -260,9 +259,9 @@ async function pusherOf(
   return RUNNER_NAMES.has(commit.author.name) ? null : commit.author.name;
 }
 
-/** `protected_paths` of the latest landed checks file (`.gitstalk/` or `.beanstalk/`) that cover `path`. */
+/** `protected-paths` of the latest landed checks file (`readChecksFile`) that cover `path`. */
 async function protectionOf(engine: Engine, path: string): Promise<string | null> {
-  const checks = await readFirstPresent(CHECKS_PATHS, async (candidate) => {
+  const checks = await readChecksFile(async (candidate) => {
     const file = await engine.repoFile(LANDED, candidate);
     return file.ok ? file.value.content : null;
   });
@@ -279,6 +278,8 @@ export function fileSaveOf(
     readonly base: AutomationBase;
     readonly path: string;
     readonly content: string | null;
+    /** Another file the same commit deletes (a converted `checks.toml`). */
+    readonly deletes?: string;
     readonly message: string;
     /** The web's key for this attempt; a request without one is its own attempt. */
     readonly idempotencyKey: string | undefined;
@@ -291,6 +292,7 @@ export function fileSaveOf(
     base: Sha.parse(save.base.commit),
     path: save.path,
     content: save.content,
+    ...(save.deletes === undefined ? {} : { deletes: save.deletes }),
     message: save.message,
     idempotencyKey: save.idempotencyKey ?? crypto.randomUUID(),
   };

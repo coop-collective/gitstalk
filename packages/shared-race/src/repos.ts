@@ -235,7 +235,7 @@ export type RepositoryFiles = {
   readonly files: readonly string[];
   /** README.md at the root, cut at 8,000 characters, or null. */
   readonly readme: string | null;
-  /** The checks file's text (`.gitstalk/checks.toml`, else `.beanstalk/checks.toml`), or null. */
+  /** The checks file's text (the first of `CHECKS_PATHS`: `.gitstalk/checks.yml` first), or null. */
   readonly checks: string | null;
   /** Where `checks` was read from, or null when there is none. */
   readonly checksPath: string | null;

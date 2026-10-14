@@ -26,8 +26,7 @@ import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
 import type { ApprovedBean, BeanHold } from '@gitstalk/shared-race/bean-approval';
 import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
 import { policyView, resolvePolicyFile } from '@gitstalk/shared-race/policy-file';
-import { CHECKS_PATHS } from '@gitstalk/shared-race/checks-config';
-import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
+import { readChecksFile } from '@gitstalk/shared-race/checks-config';
 
 import type {
   BeanDetail,
@@ -1850,7 +1849,7 @@ export class RunDO extends DurableObject<Env> {
       readChecks: async (sha) => {
         if ((await this.#artifacts.commitMessage(repo, sha)) === null)
           throw new UpstreamError(`commit ${sha} is not readable yet`, true);
-        return readFirstPresent(CHECKS_PATHS, (path) => this.#artifacts.readFile(repo, sha, path));
+        return readChecksFile((path) => this.#artifacts.readFile(repo, sha, path));
       },
       saveLandingTree: (tree) => saveLandingTree(sql, tree, Date.now()),
       landingTree: (sha) => readLandingTree(sql, sha),

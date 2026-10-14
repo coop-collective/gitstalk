@@ -3,6 +3,7 @@ import { exports } from 'cloudflare:workers';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { AutomationBeanStatus } from '@gitstalk/shared-race/automation-editor';
+import { tomlChecksToYaml } from '@gitstalk/shared-race/checks-yaml';
 import type { RepositoryRecord } from '@gitstalk/shared-race/repos';
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
 import { PersonalTokenInput, createPersonalToken } from '@gitstalk/shared-identity/user-tokens';
@@ -246,7 +247,7 @@ describe('who may save', () => {
     expect(refused).toMatchObject({ ok: false, error: { status: 403 } });
   });
 
-  it('needs maintain when checks.toml protects the automations folder', async () => {
+  it('needs maintain when the checks file (here the older .beanstalk/checks.toml) protects the automations folder', async () => {
     const guarded = await createRepo('editor-guarded');
     await invite(guarded, erin, 'write');
     const checks = 'protected_paths = [".beanstalk/**"]\n';
@@ -351,6 +352,47 @@ describe('Settings → Rules', () => {
     });
     expect(refused.ok === false && refused.error.status).toBe(403);
   });
+});
+
+describe('Settings → Checks: Convert to YAML', () => {
+  const TOML = 'command = ["node", "--test"]\ntimeout_seconds = 120\n';
+
+  it('writes .gitstalk/checks.yml and deletes the TOML in one bean by the owner, which lands', async () => {
+    const converting = await createRepo('checks-convert');
+    await invite(converting, erin, 'write');
+    expect(
+      (await pushFiles(converting, 'bean/toml', { '.beanstalk/checks.toml': TOML })).status,
+    ).toBe(200);
+    await waitForLanded(converting, '.beanstalk/checks.toml', TOML);
+    const yaml = tomlChecksToYaml(TOML);
+    if (!yaml.ok) throw new Error('expected a conversion');
+
+    const byWriter = await gateway.convertChecks(erin.id, converting.id, { yaml: yaml.yaml });
+    expect(byWriter).toMatchObject({ ok: false, error: { status: 403 } });
+    const unseen = await gateway.convertChecks(coop.id, converting.id, { yaml: `${yaml.yaml}#\n` });
+    expect(unseen).toMatchObject({ ok: false, error: { status: 409 } });
+
+    const saved = value(await gateway.convertChecks(coop.id, converting.id, { yaml: yaml.yaml }));
+    if (saved.kind !== 'pushed') throw new Error('expected a pushed bean');
+    expect(saved.bean).toMatch(/^checks-[0-9a-f]{6}$/);
+    expect(['landed', 'green']).toContain((await waitForBean(converting, saved.bean)).phase);
+    await waitForLanded(converting, '.gitstalk/checks.yml', yaml.yaml);
+    // The bean's own commit, not the sprout: the fake runner's squash keeps the base's files.
+    const old = await gateway.repoFile(
+      converting.engine_id,
+      saved.commit,
+      '.beanstalk/checks.toml',
+    );
+    expect(old).toMatchObject({ ok: false, error: { status: 404 } });
+    const yml = await gateway.repoFile(converting.engine_id, saved.commit, '.gitstalk/checks.yml');
+    expect(yml).toMatchObject({ ok: true, value: { content: yaml.yaml } });
+
+    const again = await gateway.convertChecks(coop.id, converting.id, { yaml: yaml.yaml });
+    expect(again).toMatchObject({
+      ok: false,
+      error: { status: 400, message: '.gitstalk/checks.yml is YAML already.' },
+    });
+  }, 60_000);
 });
 
 async function waitForBean(on: RepositoryRecord, bean: string): Promise<AutomationBeanStatus> {

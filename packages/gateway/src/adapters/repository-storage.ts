@@ -3,8 +3,7 @@
  * the sprout, list the stalk's files, delete it. Write tokens are minted for one push, used
  * from inside the gateway and revoked; they never leave this module.
  */
-import { CHECKS_PATHS } from '@gitstalk/shared-race/checks-config';
-import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
+import { readChecksFile } from '@gitstalk/shared-race/checks-config';
 import type { RepositoryFiles } from '@gitstalk/shared-race/repos';
 
 import { UpstreamError } from '../errors';
@@ -164,7 +163,7 @@ async function listFiles(repo: ArtifactsRepo, ref: string): Promise<RepositoryFi
   }
   const [readme, checks] = await Promise.all([
     textAt(repo, top.hash, 'README.md'),
-    readFirstPresent(CHECKS_PATHS, (path) => textAt(repo, top.hash, path)),
+    readChecksFile((path) => textAt(repo, top.hash, path)),
   ]);
   return {
     ref,

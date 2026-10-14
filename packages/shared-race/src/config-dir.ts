@@ -1,5 +1,5 @@
 /**
- * A repository's own configuration directory: `.gitstalk/` (checks.toml, backlog.md,
+ * A repository's own configuration directory: `.gitstalk/` (checks.yml, policy.yml, backlog.md,
  * automations/). Repositories made before the product was renamed (2026-10-10) keep theirs in
  * `.beanstalk/`, which is still read. The rule, everywhere a file is looked up: `.gitstalk/`
  * wins, `.beanstalk/` is read only when the `.gitstalk/` file is absent. New files are written

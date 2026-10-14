@@ -1,6 +1,6 @@
 /**
  * A repository's checks, decided per checked tree (backlog 2.3,
- * `docs/claude-opus/24-checks-config.md`): `.gitstalk/checks.toml` (or `.beanstalk/`, the fallback) is
+ * `docs/claude-opus/24-checks-config.md`): `.gitstalk/checks.yml` (or a fallback, `CHECKS_PATHS`) is
  * read from the exact tree the check runs on, so a bean that changes it is checked by its own config. Before any
  * suite runs, a bean's pre-land check applies the sprout's protected paths to the files the
  * bean changes. The answer is a suite for the runner, or a check result that needs none:
@@ -10,8 +10,7 @@
  * - an invalid file: red, its one failing "test" naming every problem, and no suite run;
  * - a protected path changed by a push that may not: red, naming the paths and who may.
  */
-import type { ChecksResolution } from '@gitstalk/shared-race/checks-config';
-import type { ConfigFile } from '@gitstalk/shared-race/config-dir';
+import type { ChecksFile, ChecksResolution } from '@gitstalk/shared-race/checks-config';
 import {
   CHECKS_PATH,
   describeChecks,
@@ -35,8 +34,8 @@ export type CheckPlan =
 
 /** What deciding a check needs from the engine's Durable Object. */
 export type RepositoryChecksHost = {
-  /** The checks file at a commit (`CHECKS_PATHS`, `.gitstalk/` first), or null when the tree has none. */
-  readChecks(sha: Sha): Promise<ConfigFile | null>;
+  /** The checks file at a commit (`readChecksFile`), or null when the tree has none. */
+  readChecks(sha: Sha): Promise<ChecksFile | null>;
   /** Remembers a bean's clean merge onto the sprout: the tree its pre-land check runs on. */
   saveLandingTree(tree: LandingTree): void;
   /** The bean merge that made `sha`, when `sha` is one (its pre-land check's tree). */
@@ -177,7 +176,7 @@ function protectedRed(guard: ProtectedGuard): CheckResult {
     { file: first, name: 'changes a protected path', message: guard.changed.join(', ') },
     [
       `This bean changes protected paths: ${guard.changed.join(', ')}.`,
-      `The sprout protects ${guard.patterns.join(', ')} (protected_paths in the checks file; the checks and policy files always).`,
+      `The sprout protects ${guard.patterns.join(', ')} (protected-paths in the checks file; the checks and policy files always).`,
       'Only the owner or a maintainer, pushing with a personal token or an SSH key, may change them;',
       `this push was by ${guard.access.who}.`,
       'Drop those changes from the bean, or ask a maintainer to push them.',

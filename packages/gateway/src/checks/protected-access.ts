@@ -1,6 +1,6 @@
 /**
- * Who may change a repository's protected paths (`protected_paths` in `.gitstalk/checks.toml`,
- * and `.gitstalk/checks.toml` always): a person with the maintain role or the owner, pushing with
+ * Who may change a repository's protected paths (`protected-paths` in `.gitstalk/checks.yml`,
+ * and every checks file always): a person with the maintain role or the owner, pushing with
  * their own credential (a personal token or an SSH key). Agent sessions, deploy tokens and
  * engine tokens never may, whoever they act for: what counts as green is a person's decision.
  */
