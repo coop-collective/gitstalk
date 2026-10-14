@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Streaming diffs: Gitstalk docs</title>
+    <title>Live updates and streaming diffs: Gitstalk docs</title>
     <meta
       name="description"
-      content="Watch a bean's change arrive while its agent writes it: how it works in races today and what repositories need."
+      content="What the web app follows live today, and what streaming diffs are: watching an agent's edit arrive before it commits, which works in engine races only so far."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
-    <meta property="og:title" content="Streaming diffs: Gitstalk docs" />
+    <meta property="og:title" content="Live updates and streaming diffs: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Watch a bean's change arrive while its agent writes it: how it works in races today and what repositories need."
+      content="What the web app follows live today, and what streaming diffs are: watching an agent's edit arrive before it commits, which works in engine races only so far."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -100,7 +100,7 @@
     <main id="main">
       <div class="wrap docs">
         <details class="dnav">
-          <summary>Docs: Streaming diffs</summary>
+          <summary>Docs: Live updates and streaming diffs</summary>
           <nav class="inner" aria-label="Docs pages">
             <h2>Start</h2>
             <ul>
@@ -135,7 +135,7 @@
                 ></a>
               </li>
               <li>
-                <a href="/docs/streaming-diffs" aria-current="page"
+                <a href="/docs/streaming-diffs"
                   >Streaming diffs<span class="st soon" title="coming soon"></span
                 ></a>
               </li>
@@ -167,53 +167,205 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs streaming-diffs</p>
-          <h1>Streaming diffs <span class="pill soon">coming soon</span></h1>
+          <h1>Live updates and streaming diffs <span class="badge beta">beta</span></h1>
           <p class="lede">
-            A bean's page can show its change arriving while the agent writes it: the file it
-            changed last stays open and follows the hunk it just edited.
+            Two things, with different statuses. Pages that follow a bean's progress as it happens
+            are live today. Watching an agent's edit arrive line by line, before it commits, works
+            only in benchmark races so far.
           </p>
-          <div class="note caveat">
-            <p>
-              <strong>Works in races today</strong>, behind a run setting, where Gitstalk drives the
-              agents. For repositories, where agents push with plain git, Gitstalk does not see the
-              work before the push; streaming there needs the agent's side to report it, and is not
-              built yet.
-            </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Part</th>
+                  <th>What it is</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="#live">Live updates</a></td>
+                  <td>The web app follows engine events and logs without a reload.</td>
+                  <td><span class="badge live">live</span></td>
+                </tr>
+                <tr>
+                  <td><a href="#streaming">Streaming diffs</a></td>
+                  <td>A bean's working change, while the agent is still writing it.</td>
+                  <td>
+                    <span class="badge beta">beta</span> in races only,
+                    <span class="badge planned">planned</span> for repositories
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <h2 id="how">How it works</h2>
+          <h2 id="live">A. What updates live today <span class="badge live">live</span></h2>
+          <p>
+            Pages that follow something in progress show a small <strong>Live</strong> pill (or
+            "Connecting…" while the connection opens). New events arrive over Server-Sent Events, so
+            you never press refresh to watch a bean get checked.
+          </p>
+          <figure class="mock" aria-label="A bean page following its journey with a Live badge">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.io/acme/api/changes/add-truncate</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-run">
+                <header>
+                  <b>add-truncate</b><span class="ms checking">Live</span>
+                  <span class="sub">Add truncate helper</span>
+                </header>
+                <div class="m-step ok">
+                  <span>Push 1 from @ada: 3f9a1c2</span><span class="t">12:01</span>
+                </div>
+                <div class="m-step fail">
+                  <span>Pre-land check red: 1 failing test (4.2 s)</span
+                  ><span class="t">12:02</span>
+                </div>
+                <div class="m-step ok">
+                  <span>Sent back to @ada: it collided with a landed bean</span
+                  ><span class="t">12:02</span>
+                </div>
+                <div class="m-step ok">
+                  <span>Push 2 from @ada: 8d2e51b</span><span class="t">12:03</span>
+                </div>
+                <div class="m-step ok">
+                  <span>Pre-land check green on the merged tree (3.9 s)</span
+                  ><span class="t">12:04</span>
+                </div>
+                <div class="m-step run">
+                  <span>Landed on the sprout as 7a41c0e</span><span class="t">12:04</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              Each line appears as the engine reports it. The pill goes away when the bean is
+              settled.
+            </figcaption>
+          </figure>
+
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Where</th>
+                  <th>What follows live</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Changes tab</td>
+                  <td>The list of beans, their states and counts.</td>
+                </tr>
+                <tr>
+                  <td>A bean's page</td>
+                  <td>Its journey: pushes, checks, verdicts, landing, validation, decisions.</td>
+                </tr>
+                <tr>
+                  <td>Actions run page</td>
+                  <td>
+                    The job log streams while the job runs and follows the end; scroll up and it
+                    stops following until you press Follow. The run's header and job graph refresh
+                    every few seconds while it runs.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Automation run page</td>
+                  <td>The same run view: the job log streams while the automation runs.</td>
+                </tr>
+                <tr>
+                  <td>Repository home (Ask view)</td>
+                  <td>Growing now and what happened follow the engine's events.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Other pages are read when you open them, so reload to see a change: Settings, People,
+            History and the Actions run list. If the connection drops, a page falls back to
+            refreshing when you return to the tab, and reads the missed events again when it
+            reconnects.
+          </p>
+          <aside class="callout tip">
+            <p class="callout-title">From an agent</p>
+            <p>
+              An agent does not need a live page. <code>bean_wait</code> and
+              <code>git push -o wait</code> wake on the verdict. See
+              <a href="/docs/mcp#wait">MCP tools and scopes</a>.
+            </p>
+          </aside>
+
+          <h2 id="streaming">B. Streaming diffs <span class="badge beta">beta</span></h2>
+          <p>
+            A bean's journey on the Ask view can show its change arriving while the agent writes it:
+            the file it changed last stays open and follows the hunk it just edited. Beans being
+            written show a <strong>writing</strong> mark in the stalk list.
+          </p>
+          <figure
+            class="mock"
+            aria-label="A bean journey following a streamed hunk, with a streaming chip"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.io/admin/runs/demo-race</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">t012</span>
+                <span class="by">a3 is writing · 2 files so far, +14 −2</span>
+                <span class="ms checking">streaming</span>
+              </div>
+              <pre class="m-term"><span class="dim">src/truncate.ts</span>
+<span class="dim">  export function truncate(text: string, max: number) {</span>
+<span class="bad">-   return text.slice(0, max);</span>
+<span class="ok">+   if (text.length &lt;= max) return text;</span>
+<span class="ok">+   return text.slice(0, max - 1) + '…';</span></pre>
+            </div>
+            <figcaption>
+              The chip says streaming, not passing: an intermediate state can be wrong.
+            </figcaption>
+          </figure>
+
+          <aside class="callout warning">
+            <p class="callout-title">Where it works today</p>
+            <p>
+              <strong>In engine races</strong>, where Gitstalk drives the agents, behind a run
+              setting.
+              <strong>Not for repositories where agents use plain <code>git push</code></strong
+              >: Gitstalk does not see the work before the push. Streaming there needs the agent's
+              side to report its edits, and that is not built. What a repository gives you instead
+              is the live journey in part A.
+            </p>
+          </aside>
+
+          <h3 id="how">How it works, in three lines</h3>
           <ul>
             <li>
-              After each tool call the agent's driver computes what changed since the last snapshot
-              and posts only that: one file's patch, usually hundreds of bytes. Secrets are redacted
-              before it leaves the machine and again on arrival.
+              After an edit (or every few seconds, for agents that give no signal), the agent's
+              driver sends only what changed since the last snapshot, usually one file's patch of a
+              few hundred bytes. Secrets are redacted before it leaves the machine and again on
+              arrival.
             </li>
             <li>
               A Durable Object per run, beside the engine's, holds the latest snapshot per bean. The
               engine never touches streams, so a busy run's decisions never wait on them.
             </li>
             <li>
-              Viewers get a summary of every bean (files, lines added and removed) and full patches
-              only for the beans they have open, over a hibernatable WebSocket bridged to the
-              browser as server-sent events.
-            </li>
-            <li>
-              Streams never enter the event log, replays or summaries. When the agent commits, the
-              committed diff replaces the stream.
+              Viewers get a summary of every bean and full patches only for the beans they have
+              open. Streams never enter the event log; when the agent commits, the committed diff
+              replaces the stream.
             </li>
           </ul>
           <p>
-            The first design re-sent the whole change on every update through the engine's own
-            object; the second sends deltas and moved off the engine, cutting the update interval
-            from 1.5 s to 0.5 s.
-          </p>
-
-          <h2 id="honest">What it looks like</h2>
-          <p>
-            A snapshot is one tool call, so a line is never half typed, but changes arrive in
-            chunks: an agent that writes each file in one go appears rather than streams.
-            Intermediate states can be wrong; the chip says <em>streaming</em>, not
-            <em>passing</em>.
+            A snapshot is the working copy at that moment, so you see edits arrive in chunks, not
+            keystrokes: an agent that writes each file in one go appears rather than streams. The
+            two designs and why the second replaced the first are in
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-17-streaming-diffs.md"
+              >docs/claude-17-streaming-diffs.md</a
+            >.
           </p>
 
           <section class="sources">
@@ -231,13 +383,20 @@
                   >Screenshots</a
                 >
               </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/packages/web/README.md"
+                  >packages/web/README.md</a
+                >
+                (live updates, client data)
+              </li>
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/decisions"
-              ><small>Previous</small>Decision cards and reconcile</a
+            <a class="prev" href="/docs/cloud-agents"
+              ><small>Previous</small>Cloud agents and sandboxes</a
             >
-            <a class="next" href="/docs/actions"><small>Next</small>GitHub Actions</a>
+            <a class="next" href="/docs/repositories"><small>Next</small>Repositories</a>
           </nav>
         </article>
       </div>
