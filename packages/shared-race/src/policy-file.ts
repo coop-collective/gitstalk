@@ -59,6 +59,8 @@ export type ClassMatch =
 
 export type PolicyClass = {
   readonly name: string;
+  /** What the class is, in a sentence: shown to Clef when it triages the class's beans. */
+  readonly description?: string;
   readonly match: ClassMatch;
   readonly route: Route;
   /** Who should decide its cards (shown on the card; the repository's deciders still decide). */
@@ -90,6 +92,48 @@ export type PolicyResolution =
     }
   | { readonly kind: 'valid'; readonly path: string; readonly policy: ApprovalPolicy };
 
+/**
+ * The recommended starter rules, offered by Settings → Approval rules when a repository has no
+ * file: comments, docs, tests and lockfiles land on their tests; migrations and auth code wait
+ * for a person; other code under the usual source roots is triaged by Clef. An agent's change
+ * to `.gitstalk/` is held for a person by the built-in `policy-change` class, so it needs no
+ * class here (and a class there would hold a maintainer's own save from Settings too).
+ */
+export const STARTER_POLICY = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
+# Recommended starter rules (docs: /docs/approval-rules). A bean takes the strictest route of
+# the classes it matches; a comment-only change takes the comments class's route. An agent's
+# change to .gitstalk/ always waits for a person (built in).
+classes:
+  - name: comments
+    description: Only comments and whitespace changed.
+    match: { syntax: comments-and-whitespace }
+    route: auto
+  - name: docs
+    description: Documentation only.
+    match: { class: docs-only }
+    route: auto
+  - name: tests
+    description: Tests only.
+    match: { class: tests-only }
+    route: auto
+  - name: lockfile
+    description: A package manager's lockfile only.
+    match: { class: lockfile }
+    route: auto
+  - name: migrations
+    description: Database schema and data migrations.
+    match: { paths: ["**/migrations/**", "**/*.sql"] }
+    route: card
+  - name: auth
+    description: Authentication, sessions, permissions and secrets handling.
+    match: { paths: ["**/auth/**", "**/permissions/**", "**/security/**"] }
+    route: card
+  - name: source
+    description: Application and library code.
+    match: { paths: ["src/**", "lib/**", "app/**", "packages/**", "pkg/**", "cmd/**", "internal/**"] }
+    route: triage
+`;
+
 /** The policy a repository without a file (or with an invalid one) has: no classes. */
 export const EMPTY_POLICY: ApprovalPolicy = { classes: [], groups: {} };
 
@@ -98,6 +142,7 @@ const MAX_CLASSES = 50;
 const MAX_PATTERNS = 100;
 const MAX_PRINCIPALS = 100;
 const MAX_PROBLEMS = 20;
+const MAX_DESCRIPTION_CHARS = 200;
 const NAME = /^[a-z0-9][a-z0-9-]{0,39}$/u;
 /** `@handle` (a person, or a group of the file), or `agent:a3` (a race's agent slot). */
 const PRINCIPAL = /^(?:@[A-Za-z0-9][A-Za-z0-9_.-]{0,38}|agent:a\d{1,2})$/u;
@@ -140,6 +185,11 @@ const Match = z.union(
 
 const ClassEntry = z.strictObject({
   name: Name.refine((name) => name !== POLICY_CHANGE_CLASS, `"${POLICY_CHANGE_CLASS}" is built in`),
+  description: z
+    .string({ error: 'must be a string' })
+    .min(1, 'must not be empty')
+    .max(MAX_DESCRIPTION_CHARS, `must be at most ${MAX_DESCRIPTION_CHARS} characters`)
+    .optional(),
   match: Match,
   route: z.enum(ROUTES, { error: 'must be auto, triage or card' }),
   reviewers: Principals.default([]),
@@ -195,7 +245,11 @@ export function readApprovalPolicy(text: string | null, path = POLICY_PATH): Pol
     path,
     policy: {
       groups: file.data.groups,
-      classes: file.data.classes.map((entry) => ({ ...entry, match: matchOf(entry.match) })),
+      classes: file.data.classes.map(({ description, ...entry }) => ({
+        ...entry,
+        ...(description === undefined ? {} : { description }),
+        match: matchOf(entry.match),
+      })),
     },
   };
 }
@@ -219,6 +273,7 @@ export function writeApprovalPolicy(policy: ApprovalPolicy): string {
     ...(Object.keys(policy.groups).length === 0 ? {} : { groups: policy.groups }),
     classes: policy.classes.map((entry) => ({
       name: entry.name,
+      ...(entry.description === undefined ? {} : { description: entry.description }),
       match: matchInput(entry.match),
       route: entry.route,
       ...(entry.reviewers.length === 0 ? {} : { reviewers: entry.reviewers }),

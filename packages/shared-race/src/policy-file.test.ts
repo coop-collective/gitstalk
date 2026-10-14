@@ -10,9 +10,11 @@ import {
   ROUTES,
   policyOf,
   policyView,
+  STARTER_POLICY,
   readApprovalPolicy,
   writeApprovalPolicy,
 } from './policy-file';
+import { classifyChange } from './approval-policy';
 
 const SPEC = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
 groups:
@@ -99,6 +101,16 @@ describe('readApprovalPolicy', () => {
     expect(problems('groups: {}\ngroups: {}\n')[0]?.line).toBe(2);
   });
 
+  it('reads a class description, and refuses an empty or long one', () => {
+    const withDescription = (description: string) =>
+      `classes:\n  - name: lib\n    description: ${description}\n    match: { paths: ["lib/**"] }\n    route: triage\n`;
+    expect(policyOf(readApprovalPolicy(withDescription('The runtime.'))).classes[0]).toMatchObject({
+      description: 'The runtime.',
+    });
+    expect(problems(withDescription('""'))[0]?.field).toBe('classes[0].description');
+    expect(problems(withDescription('x'.repeat(201)))[0]?.field).toBe('classes[0].description');
+  });
+
   it('refuses the built-in class name and duplicate names', () => {
     expect(
       problems('classes:\n  - { name: policy-change, route: auto, match: { paths: [a] } }\n')[0]
@@ -130,20 +142,24 @@ const principal = fc.oneof(
   fc.integer({ min: 0, max: 31 }).map((slot) => `agent:a${slot}`),
 );
 const pattern = fc.constantFrom('src/**', 'docs/', '*.md', 'src/auth/**', 'no', 'yes: x', '"q"');
-const policyClass: fc.Arbitrary<Omit<PolicyClass, 'name'>> = fc.record({
-  match: fc.oneof(
-    fc
-      .array(pattern, { minLength: 1, maxLength: 4 })
-      .map((paths) => ({ kind: 'paths' as const, paths })),
-    fc.constant({ kind: 'syntax' as const, syntax: 'comments-and-whitespace' as const }),
-    fc
-      .constantFrom(...BUILTIN_CLASSES)
-      .map((builtin) => ({ kind: 'class' as const, class: builtin })),
-  ),
-  route: fc.constantFrom(...ROUTES),
-  reviewers: fc.array(principal, { maxLength: 3 }),
-  writers: fc.array(principal, { maxLength: 3 }),
-});
+const policyClass: fc.Arbitrary<Omit<PolicyClass, 'name'>> = fc.record(
+  {
+    description: fc.constantFrom('Database migrations.', 'no', 'a: b # not a comment'),
+    match: fc.oneof(
+      fc
+        .array(pattern, { minLength: 1, maxLength: 4 })
+        .map((paths) => ({ kind: 'paths' as const, paths })),
+      fc.constant({ kind: 'syntax' as const, syntax: 'comments-and-whitespace' as const }),
+      fc
+        .constantFrom(...BUILTIN_CLASSES)
+        .map((builtin) => ({ kind: 'class' as const, class: builtin })),
+    ),
+    route: fc.constantFrom(...ROUTES),
+    reviewers: fc.array(principal, { maxLength: 3 }),
+    writers: fc.array(principal, { maxLength: 3 }),
+  },
+  { requiredKeys: ['match', 'route', 'reviewers', 'writers'] },
+);
 const policy: fc.Arbitrary<ApprovalPolicy> = fc.record({
   groups: fc.dictionary(name, fc.array(principal, { maxLength: 3 }), { maxKeys: 3 }),
   classes: fc
@@ -170,6 +186,37 @@ describe('writeApprovalPolicy', () => {
         });
       }),
     );
+  });
+});
+
+describe('STARTER_POLICY', () => {
+  const starter = policyOf(readApprovalPolicy(STARTER_POLICY));
+  const routeOf = (...paths: string[]) =>
+    classifyChange(
+      starter,
+      paths.map((path) => ({ path, commentOnly: false })),
+    ).route;
+
+  it('is a valid policy', () => {
+    expect(readApprovalPolicy(STARTER_POLICY).kind).toBe('valid');
+  });
+
+  it('lands comments, docs, tests and lockfiles on their tests', () => {
+    expect(classifyChange(starter, [{ path: 'src/a.ts', commentOnly: true }]).route).toBe('auto');
+    expect(routeOf('README.md', 'docs/guide.md')).toBe('auto');
+    expect(routeOf('test/a.test.js')).toBe('auto');
+    expect(routeOf('pnpm-lock.yaml')).toBe('auto');
+  });
+
+  it('holds migrations and auth code for a person, and triages other source code', () => {
+    expect(routeOf('db/migrations/0001_init.sql')).toBe('card');
+    expect(routeOf('src/auth/session.ts')).toBe('card');
+    expect(routeOf('lib/request.js', 'test/request.test.js')).toBe('triage');
+    expect(routeOf('src/auth/session.ts', 'lib/request.js')).toBe('card');
+  });
+
+  it('holds an agent’s change to the configuration directory (built in)', () => {
+    expect(routeOf('.gitstalk/checks.toml')).toBe('card');
   });
 });
 

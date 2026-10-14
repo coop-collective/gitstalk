@@ -33,6 +33,12 @@ export const RouteReceipt = z.object({
   by: z.enum(['policy', 'clef', 'rules']),
   /** Clef's probability of its choice; null for the policy and the rules. */
   probability: z.number().nullable(),
+  /**
+   * How long Clef took to answer (or to fail, when the rule answered for it), in ms; null when
+   * Clef was not asked for this receipt (a class's own route, or a triage reused for the same
+   * change). Absent in receipts from before 2026-10-14.
+   */
+  latencyMs: z.number().nullable().optional(),
   /** Who the bean is from, as writer limits name principals. */
   principal: z.string(),
   reviewers: z.array(z.string()),

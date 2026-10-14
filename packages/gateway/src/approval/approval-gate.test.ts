@@ -44,6 +44,10 @@ function fakeHost(options: {
   readonly changes?: readonly FileChange[];
   readonly ai?: AiRunner;
   readonly approvedBy?: string;
+  /** The bean's pushed head (null: a race). */
+  readonly revision?: string | null;
+  /** The stalk commit the policy is read at; moved by a test between checks. */
+  readonly stalk?: { sha: string };
 }): Fake {
   const asked: Fake['asked'] = [];
   const reads = { count: 0 };
@@ -65,7 +69,7 @@ function fakeHost(options: {
           options.policy === null
             ? null
             : { path: '.gitstalk/policy.yml', text: options.policy ?? POLICY },
-        sha: 'c'.repeat(40),
+        sha: options.stalk?.sha ?? 'c'.repeat(40),
       }),
     changedFiles: () => {
       reads.count += 1;
@@ -73,7 +77,7 @@ function fakeHost(options: {
     },
     principal: (_task, instance) => (instance.kind === 'sandbox' ? `agent:${instance.slot}` : '?'),
     origin: () => 'agent',
-    revision: () => null,
+    revision: () => options.revision ?? null,
     approval: () =>
       options.approvedBy === undefined
         ? null
@@ -182,6 +186,79 @@ describe('judgeLanding', () => {
     expect(fake.asked).toHaveLength(2);
   });
 
+  it('reuses a triage when the same push is re-checked on a newer stalk', async () => {
+    const stalk = { sha: 'c'.repeat(40) };
+    const fake = fakeHost({ ai: clefSays('auto', 0.7), revision: 'r1', stalk });
+    const first = await judgeLanding(fake.host, landing(['src/api/orders.ts']), SANDBOX);
+    stalk.sha = 'd'.repeat(40);
+    const recheck = await judgeLanding(
+      fake.host,
+      landing(['src/api/orders.ts', 'src/api/shrunk-later.ts']),
+      SANDBOX,
+    );
+    expect(fake.asked).toHaveLength(1);
+    expect(first.receipt.latencyMs).toEqual(expect.any(Number));
+    expect(recheck.receipt).toMatchObject({ route: 'auto', by: 'clef', latencyMs: null });
+    expect(recheck.receipt.policy.sha).toBe('d'.repeat(40));
+  });
+
+  it('asks again for a new push, or when the policy file changes', async () => {
+    const changing = fakeHost({ ai: clefSays('auto', 0.7), revision: 'r1' });
+    await judgeLanding(changing.host, landing(['src/api/orders.ts']), SANDBOX);
+    const nextPush = fakeHost({ ai: clefSays('auto', 0.7), revision: 'r2' });
+    nextPush.host.save(changing.host.previous('b1') ?? fail());
+    await judgeLanding(nextPush.host, landing(['src/api/orders.ts']), SANDBOX);
+    expect(nextPush.asked).toHaveLength(1);
+    const newPolicy = fakeHost({
+      ai: clefSays('auto', 0.7),
+      revision: 'r1',
+      policy: `${POLICY}  - name: docs\n    match: { class: docs-only }\n    route: auto\n`,
+    });
+    newPolicy.host.save(changing.host.previous('b1') ?? fail());
+    await judgeLanding(newPolicy.host, landing(['src/api/orders.ts']), SANDBOX);
+    expect(newPolicy.asked).toHaveLength(1);
+  });
+
+  it('tells Clef the class’s description and the diff’s size and test share', async () => {
+    const fake = fakeHost({
+      ai: clefSays('auto', 0.8),
+      policy: `classes:\n  - name: lib\n    description: The framework runtime.\n    match: { paths: ["lib/**"] }\n    route: triage\n`,
+      changes: [
+        change('lib/request.js', 'a\nb\n', 'a\nB\nc\n'),
+        change('test/request.test.js', 't\n', 't\nu\nv\n'),
+      ],
+    });
+    await judgeLanding(fake.host, landing(['lib/request.js', 'test/request.test.js']), SANDBOX);
+    expect(fake.reads.count).toBe(1);
+    expect(fake.asked[0]?.body).toMatchObject({
+      questions: { route: { type: 'choice', criteria: { auto: expect.any(String) } } },
+      state: {
+        classes: ['lib'],
+        class: 'lib',
+        class_description: 'The framework runtime.',
+        file_count: 2,
+        lines_added: 4,
+        lines_removed: 1,
+        test_line_share: 0.4,
+        new_files: 0,
+        deleted_files: 0,
+      },
+    });
+  });
+
+  it('records how long Clef took, also when the rule answered for it', async () => {
+    const late: AiRunner = { run: () => new Promise(() => undefined) };
+    const slow = await judgeLanding(
+      fakeHost({ ai: late }).host,
+      landing(['src/api/a.ts']),
+      SANDBOX,
+    );
+    expect(slow.receipt).toMatchObject({ by: 'rules' });
+    expect(slow.receipt.latencyMs).toBeGreaterThanOrEqual(40);
+    const carded = await judgeLanding(fakeHost({}).host, landing(['src/auth/a.ts']), SANDBOX);
+    expect(carded.receipt.latencyMs).toBeNull();
+  });
+
   it('falls back to the rule when Clef is late or answers outside the choices', async () => {
     const late: AiRunner = { run: () => new Promise(() => undefined) };
     const slow = await judgeLanding(
@@ -215,6 +292,10 @@ describe('judgeLanding', () => {
     expect(judged).toMatchObject({ hold: null, lines: [], receipt: { route: 'auto' } });
   });
 });
+
+function fail(): never {
+  throw new Error('expected a saved receipt');
+}
 
 describe('askChoice', () => {
   it('falls back without a binding', async () => {
