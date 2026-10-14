@@ -131,6 +131,23 @@ function answer(result: CheckResult): CheckPlan {
   return { kind: 'answer', result };
 }
 
+/**
+ * A pre-land check's refusal by a path guard, answered without a suite: the protected paths
+ * here, and the approval rules' writer limits and holds (`approval/approval-gate.ts`), so every
+ * guard falls a bean off the same way, with one failing "test" naming what it changed.
+ */
+export function guardRed(refusal: {
+  readonly file: string;
+  readonly name: string;
+  readonly message: string;
+  readonly output: readonly string[];
+}): CheckResult {
+  return red(
+    { file: refusal.file, name: refusal.name, message: refusal.message },
+    refusal.output.join('\n'),
+  );
+}
+
 function red(failing: FailingTest, output: string): CheckResult {
   return {
     ...NO_READS,
@@ -160,7 +177,7 @@ function protectedRed(guard: ProtectedGuard): CheckResult {
     { file: first, name: 'changes a protected path', message: guard.changed.join(', ') },
     [
       `This bean changes protected paths: ${guard.changed.join(', ')}.`,
-      `The sprout protects ${guard.patterns.join(', ')} (protected_paths in the checks file; the checks file itself always).`,
+      `The sprout protects ${guard.patterns.join(', ')} (protected_paths in the checks file; the checks and policy files always).`,
       'Only the owner or a maintainer, pushing with a personal token or an SSH key, may change them;',
       `this push was by ${guard.access.who}.`,
       'Drop those changes from the bean, or ask a maintainer to push them.',

@@ -93,6 +93,10 @@ async function tool(client: Client, name: string, input: Record<string, unknown>
   return z.record(z.string(), z.unknown()).parse(JSON.parse(text));
 }
 
+async function toolNames(client: Client): Promise<readonly string[]> {
+  return (await client.listTools()).tools.map((listed) => listed.name);
+}
+
 async function as(user: Person, scopes: readonly string[]): Promise<Client> {
   return connect(await personalToken(user, scopes));
 }
@@ -129,12 +133,9 @@ describe('Actions tools: the deploy loop', () => {
         'actions_dispatch',
         'actions_rerun',
         'actions_cancel',
-        'actions_secret_list',
-        'actions_secret_set',
-        'actions_secret_delete',
-        'actions_variable_list',
-        'actions_variable_set',
-        'actions_variable_delete',
+        'actions_config_list',
+        'actions_config_set',
+        'actions_config_delete',
         'automation_get',
         'automation_run',
       ]),
@@ -144,15 +145,17 @@ describe('Actions tools: the deploy loop', () => {
 
   it('sets the secret the person gave, pushes a workflow, waits for its run and reads the failure', async () => {
     const client = await connect(ownerToken);
-    const saved = await tool(client, 'actions_secret_set', {
+    const saved = await tool(client, 'actions_config_set', {
       repo: slug(repo),
+      kind: 'secret',
       name: 'CLOUDFLARE_API_TOKEN',
       value: SECRET_VALUE,
     });
     expect(saved).toMatchObject({ name: 'CLOUDFLARE_API_TOKEN', level: 'repository' });
     expect(
-      await tool(client, 'actions_variable_set', {
+      await tool(client, 'actions_config_set', {
         repo: slug(repo),
+        kind: 'variable',
         name: 'account_id',
         value: 'acc-42',
       }),
@@ -208,15 +211,34 @@ describe('Actions tools: the deploy loop', () => {
 
   it('lists secret names only, with the Settings link, and workflows with their triggers', async () => {
     const client = await connect(ownerToken);
-    const secrets = await tool(client, 'actions_secret_list', { repo: slug(repo) });
+    const secrets = await tool(client, 'actions_config_list', { repo: slug(repo), kind: 'secret' });
     expect(secrets).toMatchObject({
       secrets: [expect.objectContaining({ name: 'CLOUDFLARE_API_TOKEN' })],
       settings_url: `${WEB}/${slug(repo)}/settings/secrets`,
     });
-    const variables = await tool(client, 'actions_variable_list', { repo: slug(repo) });
+    expect(secrets).not.toHaveProperty('variables');
+    expect(JSON.stringify(secrets)).not.toContain(SECRET_VALUE);
+    const variables = await tool(client, 'actions_config_list', {
+      repo: slug(repo),
+      kind: 'variable',
+    });
     expect(variables['variables']).toEqual([
       expect.objectContaining({ name: 'ACCOUNT_ID', value: 'acc-42' }),
     ]);
+    expect(variables).not.toHaveProperty('secrets');
+    const both = await tool(client, 'actions_config_list', { repo: slug(repo) });
+    expect(both).toMatchObject({
+      secrets: [expect.objectContaining({ name: 'CLOUDFLARE_API_TOKEN' })],
+      variables: [expect.objectContaining({ name: 'ACCOUNT_ID' })],
+    });
+    expect(
+      await tool(client, 'actions_config_set', {
+        repo: slug(repo),
+        kind: 'secret',
+        name: 'EMPTY',
+        value: '',
+      }),
+    ).toEqual({ error: 'a secret value cannot be empty' });
     const workflows = await tool(client, 'actions_workflow_list', { repo: slug(repo) });
     expect(workflows['workflows']).toEqual(
       expect.arrayContaining([
@@ -257,9 +279,7 @@ describe('Actions tools: the deploy loop', () => {
 
   it('reads an automation and runs it now', async () => {
     const client = await connect(ownerToken);
-    expect(
-      await tool(client, 'automation_get', { repo: slug(repo), automation: 'note' }),
-    ).toMatchObject({
+    expect(await tool(client, 'automation_get', { repo: slug(repo), name: 'note' })).toMatchObject({
       path: '.gitstalk/automations/note.yml',
       file: NOTE,
     });
@@ -276,54 +296,53 @@ describe('Actions tools: the deploy loop', () => {
 
   it('refuses by scope and role: read-only, no secrets scope, a writer, a stranger', async () => {
     const readOnly = await as(owner, ['read']);
-    expect(
-      await tool(readOnly, 'actions_dispatch', { repo: slug(repo), workflow: 'deploy.yml' }),
-    ).toEqual({ error: expect.stringContaining('needs the write scope') });
+    expect(await toolNames(readOnly)).not.toContain('actions_dispatch');
     const noSecrets = await as(owner, ['read', 'write']);
-    const refused = await tool(noSecrets, 'actions_secret_set', {
-      repo: slug(repo),
-      name: 'OTHER',
-      value: SECRET_VALUE,
-    });
-    expect(refused).toEqual({ error: expect.stringContaining('needs the secrets scope') });
-    expect(refused).toEqual({
-      error: expect.stringContaining(`${WEB}/${slug(repo)}/settings/secrets`),
+    expect(await toolNames(noSecrets)).not.toContain('actions_config_set');
+    expect(await tool(noSecrets, 'whoami', { repo: slug(repo) })).toMatchObject({
+      may: { run_workflows: true, set_secrets: false },
     });
     const writer = await collaborator(owner, repo, 'write');
     const asWriter = await as(writer, ['read', 'write', 'secrets']);
-    expect(
-      await tool(asWriter, 'actions_secret_set', {
-        repo: slug(repo),
-        name: 'OTHER',
-        value: SECRET_VALUE,
-      }),
-    ).toEqual({ error: expect.stringContaining('maintain role') });
+    const refused = await tool(asWriter, 'actions_config_set', {
+      repo: slug(repo),
+      kind: 'secret',
+      name: 'OTHER',
+      value: SECRET_VALUE,
+    });
+    expect(refused).toEqual({ error: expect.stringContaining('maintain role') });
+    expect(refused).toEqual({
+      error: expect.stringContaining(`${WEB}/${slug(repo)}/settings/secrets`),
+    });
     expect(
       await tool(asWriter, 'actions_dispatch', { repo: slug(repo), workflow: 'deploy.yml' }),
     ).toEqual({ error: expect.stringContaining('maintain role') });
-    expect(await tool(asWriter, 'actions_secret_list', { repo: slug(repo) })).toMatchObject({
+    expect(await tool(asWriter, 'actions_config_list', { repo: slug(repo) })).toMatchObject({
       can_manage: false,
     });
-    const access = await tool(asWriter, 'repository_access', { repository: slug(repo) });
+    const access = await tool(asWriter, 'whoami', { repo: slug(repo) });
     expect(access['may']).toMatchObject({ run_workflows: false, set_secrets: false });
     const stranger = await as(await person('mcp-stranger'), ['read', 'write', 'secrets']);
     expect(await tool(stranger, 'actions_run_list', { repo: slug(repo) })).toEqual({
       error: `repository ${slug(repo)} not found`,
     });
-    const ownerAccess = await tool(await connect(ownerToken), 'repository_access', {
-      repository: slug(repo),
-    });
+    const ownerAccess = await tool(await connect(ownerToken), 'whoami', { repo: slug(repo) });
     expect(ownerAccess['may']).toMatchObject({ run_workflows: true, set_secrets: true });
   });
 
   it('deletes secrets and variables', async () => {
     const client = await connect(ownerToken);
     expect(
-      await tool(client, 'actions_variable_delete', { repo: slug(repo), name: 'ACCOUNT_ID' }),
+      await tool(client, 'actions_config_delete', {
+        repo: slug(repo),
+        kind: 'variable',
+        name: 'ACCOUNT_ID',
+      }),
     ).toMatchObject({ deleted: true });
     expect(
-      await tool(client, 'actions_secret_delete', {
+      await tool(client, 'actions_config_delete', {
         repo: slug(repo),
+        kind: 'secret',
         name: 'CLOUDFLARE_API_TOKEN',
       }),
     ).toMatchObject({ deleted: true });

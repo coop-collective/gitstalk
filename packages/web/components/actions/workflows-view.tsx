@@ -281,7 +281,7 @@ function AutomationFactsList(props: { readonly facts: AutomationFacts }) {
           <dd>
             {facts.harness === 'agent' ? (
               <>
-                agent on <span className={styles.mono}>{facts.model}</span>
+                a prompt on <span className={styles.mono}>{facts.model}</span>
               </>
             ) : (
               'a shell script'

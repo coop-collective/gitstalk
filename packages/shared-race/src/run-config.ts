@@ -230,6 +230,13 @@ const CheckedFields = z
      */
     structural_merge: z.boolean().optional(),
     /**
+     * Approval rules by kind of change (`approval-policy.ts`): each bean's pre-land check first
+     * reads `.gitstalk/policy.toml` from the stalk, classifies the bean, enforces writer limits
+     * and holds `card` beans for a person's approval; every route leaves a receipt. Absent or
+     * `false`: off, as every run before it (no preset turns it on).
+     */
+    approval_rules: z.boolean().optional(),
+    /**
      * v2: which unstarted bean a free agent takes. `fifo`: priority order. `dependency`: a bean
      * whose predicted footprint and declared couplings clash with no bean in flight and no
      * earlier unlanded bean, longest dependent chain first, with an age bound
@@ -615,6 +622,17 @@ export function checksSourceOf(
   if (config.checks_source !== undefined) return config.checks_source;
   const isDefaultSuite = JSON.stringify(config.suite) === JSON.stringify(DEFAULT_SUITE);
   return config.continuous && isDefaultSuite ? 'repository' : 'suite';
+}
+
+/**
+ * Whether a run judges beans by approval rules: its `approval_rules`, else on for a
+ * repository's engine (whose rules are its own `policy.toml`; no file routes every bean `auto`,
+ * as before) and off for races, so every benchmark replays as before.
+ */
+export function approvalRulesOf(
+  config: Pick<RunConfig, 'approval_rules' | 'checks_source' | 'continuous' | 'suite'>,
+): boolean {
+  return config.approval_rules ?? checksSourceOf(config) === 'repository';
 }
 
 /** What each preset pins. */

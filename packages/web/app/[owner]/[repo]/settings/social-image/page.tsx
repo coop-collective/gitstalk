@@ -17,8 +17,9 @@ export const dynamic = 'force-dynamic';
 export const generateMetadata = settingsMetadata('Social image');
 
 /**
- * Settings → Social image (the owner): the picture link previews show. Uploads are plain
- * multipart POSTs to `./upload`, which redirects back here with `?picture=`.
+ * Settings → Social image (the owner): the picture link previews show. Uploads are
+ * multipart POSTs to `./upload` (cropped in the browser first when scripts run), which
+ * redirects back here with `?picture=`.
  */
 export default async function SocialImageSettingsPage(props: {
   readonly params: RepositoryParams;
@@ -32,7 +33,8 @@ export default async function SocialImageSettingsPage(props: {
       <PictureSection
         id="social"
         title="Preview picture"
-        lede="Shown when a link to this repository is shared. 1280 × 640 works best; PNG, JPEG, WebP or GIF up to 2 MB."
+        lede="Shown when a link to this repository is shared. PNG, JPEG, WebP or GIF up to 2 MB, cropped to 2:1 (1280 × 640) after you choose it."
+        shape="social"
         action={`${base}/settings/social-image/upload`}
         csrf={session.csrfToken}
         hasPicture={record.social_image_key !== null}

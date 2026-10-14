@@ -4,8 +4,20 @@
  * `workflow_dispatch`), the harness that runs the agent, its prompt, its permissions and the
  * secrets it may use. Pure: problems are in the answer, with a line when one is known.
  */
-import type { AutomationInfo, GitstalkEvent, WorkflowProblem, WorkflowTrigger } from './actions';
-import { GITSTALK_EVENTS, SecretName, automationIdOf } from './actions';
+import type {
+  AutomationInfo,
+  CompatibilityNote,
+  GitstalkEvent,
+  WorkflowProblem,
+  WorkflowTrigger,
+} from './actions';
+import {
+  GITSTALK_EVENTS,
+  PATH_FILTERED_EVENTS,
+  SecretName,
+  automationIdOf,
+  isPathFilteredEvent,
+} from './actions';
 import { LineCounter, isMap, isNode, parseDocument } from 'yaml';
 import type { Document } from 'yaml';
 import { z } from 'zod';
@@ -22,6 +34,9 @@ export const DEFAULT_MAX_COST_USD = 0.5;
 /** A run's model spend may not be set higher than this (USD). */
 export const MAX_COST_USD = 5;
 
+/** Changed files the gateway reads to filter by `paths:` (its diff cap). */
+export const MAX_FILTERED_FILES = 200;
+
 export type AutomationFile = {
   readonly path: string;
   readonly name: string;
@@ -29,12 +44,16 @@ export type AutomationFile = {
   readonly info: AutomationInfo | null;
   readonly triggers: readonly WorkflowTrigger[];
   readonly problems: readonly WorkflowProblem[];
-  /** Things that run, but not as written (a timeout capped). */
-  readonly notes: readonly string[];
+  /** The compatibility report: what runs, but not quite as written (a timeout capped). */
+  readonly notes: readonly CompatibilityNote[];
 };
 
 const Globs = z.array(z.string().min(1).max(200)).max(50);
-const EventFilter = z.strictObject({ beans: Globs.optional(), authors: Globs.optional() });
+const EventFilter = z.strictObject({
+  beans: Globs.optional(),
+  authors: Globs.optional(),
+  paths: Globs.optional(),
+});
 const KNOWN_KEYS = [
   'name',
   'on',
@@ -106,10 +125,10 @@ export function readAutomationFile(
     name,
     triggers: triggers.triggers,
     problems: [],
-    notes:
-      timeoutMinutes < body['timeout-minutes']
-        ? [`timeout-minutes is capped at ${limits.maxTimeoutMinutes}`]
-        : [],
+    notes: notesOf(triggers.triggers, {
+      isCapped: timeoutMinutes < body['timeout-minutes'],
+      limits,
+    }),
     info: {
       id,
       harness: body.harness,
@@ -134,6 +153,27 @@ export function memoryRefOf(id: string): string {
 /** Who an automation acts as: its pushes, beans and memory commits name it. */
 export function automationActor(id: string): string {
   return `${id}[automation]`;
+}
+
+/** The compatibility report of a valid file. */
+function notesOf(
+  triggers: readonly WorkflowTrigger[],
+  timeout: { readonly isCapped: boolean; readonly limits: AutomationLimits },
+): CompatibilityNote[] {
+  const capped: CompatibilityNote = {
+    feature: 'timeout-minutes',
+    verdict: 'runs-differently',
+    detail: `timeout-minutes is capped at ${timeout.limits.maxTimeoutMinutes}`,
+  };
+  const pathFiltered = triggers.flatMap((trigger) =>
+    trigger.kind === 'beanstalk' && trigger.paths !== undefined ? [trigger.event] : [],
+  );
+  const paths: CompatibilityNote = {
+    feature: `${pathFiltered.join(', ')} paths`,
+    verdict: 'runs-differently',
+    detail: `paths filters the commit's changed files; when they cannot be read (more than ${MAX_FILTERED_FILES} files, or a commit without a parent) the run starts anyway, as GitHub's push paths do`,
+  };
+  return [...(timeout.isCapped ? [capped] : []), ...(pathFiltered.length > 0 ? [paths] : [])];
 }
 
 // Triggers ----------------------------------------------------------------------------------
@@ -175,8 +215,13 @@ function triggerOf(event: string, value: unknown): WorkflowTrigger | string {
   if (beanstalk === undefined)
     return `${event} is not an automation trigger (use ${GITSTALK_EVENTS.join(', ')}, schedule or workflow_dispatch)`;
   const filter = EventFilter.safeParse(value ?? {});
-  if (!filter.success) return `${event} takes only beans: and authors: filters`;
-  const onlyNegated = [filter.data.beans, filter.data.authors].some(
+  if (!filter.success)
+    return isPathFilteredEvent(beanstalk)
+      ? `${event} takes only beans:, authors: and paths: filters`
+      : `${event} takes only beans: and authors: filters`;
+  if (filter.data.paths !== undefined && !isPathFilteredEvent(beanstalk))
+    return `${event} has no single commit to filter by paths: (only ${PATH_FILTERED_EVENTS.join(' and ')} take paths:)`;
+  const onlyNegated = [filter.data.beans, filter.data.authors, filter.data.paths].some(
     (globs) => globs !== undefined && globs.every((glob) => glob.startsWith('!')),
   );
   if (onlyNegated)
@@ -188,7 +233,13 @@ function beanstalkTrigger(
   event: GitstalkEvent,
   filter: z.infer<typeof EventFilter>,
 ): WorkflowTrigger {
-  return { kind: 'beanstalk', event, beans: filter.beans ?? [], authors: filter.authors ?? [] };
+  return {
+    kind: 'beanstalk',
+    event,
+    beans: filter.beans ?? [],
+    authors: filter.authors ?? [],
+    ...(filter.paths === undefined ? {} : { paths: filter.paths }),
+  };
 }
 
 function scheduleOf(value: unknown): WorkflowTrigger | string {

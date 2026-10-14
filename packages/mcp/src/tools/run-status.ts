@@ -1,6 +1,7 @@
 /**
- * `run_status`: the run at a glance. The sprout and the stalk, the window of landings the
- * stalk has not validated yet, beans in flight, open decision cards, red validations, cost.
+ * `repo_status` without a repository: the caller's run at a glance. The sprout and the stalk,
+ * the window of landings the stalk has not validated yet, beans in flight, open decision
+ * cards, red validations, cost, and explorer links for both lines.
  */
 import { z } from 'zod';
 
@@ -60,7 +61,8 @@ export type RunStatus = {
   };
   readonly beans: { readonly total: number; readonly green: number; readonly dropped: number };
   readonly cost_usd: number;
-  readonly preview_url: string;
+  /** The explorer on each line. */
+  readonly preview_urls: { readonly sprout: string; readonly stalk: string };
   readonly summary: string;
 };
 
@@ -107,7 +109,10 @@ export async function runStatus(ctx: ToolContext): Promise<RunStatus> {
     red_validations: { count: counters.redValidations, recent: recentReds(state) },
     beans: { total: counters.beans, green: counters.green, dropped: counters.dropped },
     cost_usd: Math.round(counters.costUsd * 100) / 100,
-    preview_url: previewUrl(ctx.webUrl, ctx.run, { kind: 'ref', ref: 'sprout' }),
+    preview_urls: {
+      sprout: previewUrl(ctx.webUrl, ctx.run, { kind: 'ref', ref: 'sprout' }),
+      stalk: previewUrl(ctx.webUrl, ctx.run, { kind: 'ref', ref: 'stalk' }),
+    },
   };
   return { ...status, summary: summarize(status) };
 }

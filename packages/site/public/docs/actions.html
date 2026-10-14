@@ -350,8 +350,8 @@
             commit and inputs), <code>actions_cancel</code> and <code>automation_run</code> need the
             maintain role and the agent's <code>write</code> scope. A deploy token such as
             <code>CLOUDFLARE_API_TOKEN</code> is best added by you in Settings → Secrets and
-            variables; the agent sees its name with <code>actions_secret_list</code>. If you give
-            the agent the value instead, <code>actions_secret_set</code> stores it, write-only, when
+            variables; the agent sees its name with <code>actions_config_list</code>. If you give
+            the agent the value instead, <code>actions_config_set</code> stores it, write-only, when
             you are a maintainer and ticked the <code>secrets</code> scope; the audit log names you
             and the agent's client.
           </p>
@@ -574,8 +574,13 @@
             <h2 id="f-legal">Legal</h2>
             <ul>
               <li>
-                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE.md"
-                  >Licence (FSL → Apache-2.0)</a
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
                 >
               </li>
               <li><a href="/privacy">Privacy</a></li>
@@ -585,7 +590,7 @@
         </div>
         <div class="base">
           <span>© 2026 Gitstalk</span>
-          <span>Source available (FSL). Each release becomes Apache-2.0 after two years.</span>
+          <span>Open source under the Apache License 2.0.</span>
         </div>
       </div>
     </footer>

@@ -30,3 +30,9 @@ export function field(form: FormData, name: string): string {
   const value = form.get(name);
   return typeof value === 'string' ? value : '';
 }
+
+/** The form's key for a save attempt (an editor makes one per attempt), when it sent one. */
+export function idempotencyOf(form: FormData): { readonly idempotencyKey?: string } {
+  const key = field(form, 'idempotencyKey');
+  return key === '' ? {} : { idempotencyKey: key };
+}

@@ -154,6 +154,20 @@ export const GITSTALK_EVENTS = [
 ] as const;
 export type GitstalkEvent = (typeof GITSTALK_EVENTS)[number];
 
+/**
+ * The events that name one commit whose first-parent diff is the change (a landed bean's squash,
+ * a revert), so an automation may filter them by the files they change with `paths:`.
+ */
+export const PATH_FILTERED_EVENTS = [
+  'bean_landed',
+  'bean_reverted',
+] as const satisfies readonly GitstalkEvent[];
+
+/** Whether `event` takes a `paths:` filter. */
+export function isPathFilteredEvent(event: GitstalkEvent): boolean {
+  return PATH_FILTERED_EVENTS.some((known) => known === event);
+}
+
 /** The events that start a run: GitHub's three, and the Gitstalk events (automations only). */
 export const ACTIONS_EVENTS = [
   'push',
@@ -185,6 +199,12 @@ export type WorkflowTrigger =
       readonly beans: readonly string[];
       /** Handles of the bean's pusher it fires for; empty: any. */
       readonly authors: readonly string[];
+      /**
+       * Changed-file globs (GitHub's `paths` rules) for `PATH_FILTERED_EVENTS`: it fires only
+       * when one of the commit's files is selected. Absent: any files (and in index rows
+       * written before 2026-10-14).
+       */
+      readonly paths?: readonly string[];
     };
 
 /** What an automation file says beyond its triggers (doc 25 §7.1). */

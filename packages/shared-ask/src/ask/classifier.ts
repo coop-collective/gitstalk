@@ -8,7 +8,8 @@ import { parseQuestion } from './question-words';
 import type { LineRef, QuestionClass, ViewSpec } from './view-spec';
 import { ViewSpec as ViewSpecSchema } from './view-spec';
 
-export type ClassifierName = 'keywords' | 'workers-ai' | 'jev';
+/** `clef` and `jev` name the decision model whose route replaced the classifier's. */
+export type ClassifierName = 'keywords' | 'workers-ai' | 'clef' | 'jev';
 
 export type Classification = {
   readonly spec: ViewSpec;

@@ -40,8 +40,10 @@ export const CHECKS_PATH = '.gitstalk/checks.toml';
  * directories (a bean adding `.gitstalk/checks.toml` would override a `.beanstalk/` one). Not
  * all of `.gitstalk/`: agents tick tasks in `.gitstalk/backlog.md` with ordinary beans
  * (`23-mcp-repository-tools.md`); a repository that wants more lists it in `protected_paths`.
+ * The approval rules (`policy.yml`, `policy-file.ts`) are protected the same way: they
+ * decide which changes reach a person.
  */
-export const ALWAYS_PROTECTED: readonly string[] = CHECKS_PATHS;
+export const ALWAYS_PROTECTED: readonly string[] = [...CHECKS_PATHS, ...configPaths('policy.yml')];
 
 /** Images the runner has; the image ships Node 25.8.1 only (`packages/gateway/container/README.md`). */
 export const CHECK_IMAGES = ['node'] as const;

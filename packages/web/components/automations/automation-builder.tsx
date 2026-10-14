@@ -28,7 +28,7 @@ import {
 import type { Pick } from '../../src/automations/automation-merge';
 import { resolveMerge } from '../../src/automations/automation-merge';
 import type { SaveBase } from '../../src/automations/automation-save';
-import { saveBaseOf, staleAnswerOf } from '../../src/automations/automation-save';
+import { saveBaseOf, saveKeys, staleAnswerOf } from '../../src/automations/automation-save';
 import type { BeanStatus, Theirs } from '../../src/automations/editor-client';
 import {
   automationBeanAction,
@@ -93,6 +93,7 @@ export function AutomationBuilder(props: BuilderProps) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [tab, setTab] = useState<'form' | 'yaml'>('form');
   const [message, setMessage] = useState('');
+  const [keyOf] = useState(() => saveKeys());
   const [isBusy, runBusy] = useBusy(() =>
     setNotice({ tone: 'bad', text: 'The server did not answer. Your draft is kept; try again.' }),
   );
@@ -143,14 +144,15 @@ export function AutomationBuilder(props: BuilderProps) {
   const push = (content: string | null, from: SaveBase) =>
     runBusy(async () => {
       setNotice(null);
+      const fields = {
+        path,
+        base: JSON.stringify(from.base),
+        content: content ?? '',
+        mode: content === null ? 'delete' : 'save',
+        message,
+      };
       const answer = await saveAutomationAction(
-        formData({
-          path,
-          base: JSON.stringify(from.base),
-          content: content ?? '',
-          mode: content === null ? 'delete' : 'save',
-          message,
-        }),
+        formData({ ...fields, idempotencyKey: keyOf(JSON.stringify(fields)) }),
       );
       if (answer.kind === 'refused') {
         setNotice({ tone: 'bad', text: answer.message });
@@ -323,6 +325,15 @@ export function AutomationBuilder(props: BuilderProps) {
         </div>
         <aside className={styles.yamlCol} aria-label="The file">
           <YamlPane path={path} text={shownText} problems={lineProblems} onChange={edit} />
+          {lineProblems.length > 0 || file.notes.length === 0 ? null : (
+            <ul className={styles.compat} aria-label="Compatibility notes">
+              {file.notes.map((note) => (
+                <li key={note.feature}>
+                  <b>{note.feature}</b> {note.detail}
+                </li>
+              ))}
+            </ul>
+          )}
         </aside>
       </div>
       <footer className={styles.saveBar}>

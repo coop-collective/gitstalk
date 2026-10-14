@@ -1,6 +1,7 @@
 {
   "name": "@gitstalk/gateway",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -13,6 +14,7 @@
     "@actions/expressions": "catalog:",
     "@actions/workflow-parser": "catalog:",
     "@cloudflare/containers": "catalog:",
+    "@gitstalk/shared-ask": "workspace:*",
     "@gitstalk/shared-identity": "workspace:*",
     "@gitstalk/shared-oidc": "workspace:*",
     "@gitstalk/shared-race": "workspace:*",

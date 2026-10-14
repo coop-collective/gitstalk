@@ -75,7 +75,7 @@ describe('auth', () => {
 });
 
 describe('tools/list', () => {
-  it('lists the six read-only tools and no execute tool', async () => {
+  it('lists the six read-only tools of a view token and no execute tool', async () => {
     const { tools } = await (await connect()).listTools();
 
     expect(tools.map((tool) => tool.name).toSorted()).toEqual([...TOOL_NAMES].toSorted());
@@ -128,42 +128,52 @@ describe('tools/call', () => {
     expect(answer.summary).toMatch(/bean|No bean/);
   });
 
-  it('change_status reports a bean, by id or branch', async () => {
-    const answer = await call('change_status', { bean: 'beans/t005' });
+  it('bean_status reports a bean, by id or branch, with its explorer link', async () => {
+    const answer = await call('bean_status', { bean: 'beans/t005' });
 
     expect(answer).toMatchObject({
       bean: 't005',
       branch: 'beans/t005',
       status: 'green',
+      checks: { total: expect.any(Number), red: expect.any(Number) },
       next: 'On the stalk. Done.',
       preview_url: `${WEB_URL}/runs/${RUN}?bean=t005`,
     });
+    expect(answer).not.toHaveProperty('blamed_by');
   });
 
-  it('checks_get gives structured failures and flags protected tests', async () => {
+  it('bean_status with checks gives structured failures and flags protected tests', async () => {
     const answer = z
       .object({
-        checks: z.object({ total: z.number(), red: z.number(), inherited: z.number() }),
-        history: z.array(z.object({ green: z.boolean() })),
-        failures: z.array(
-          z.object({
-            file: z.string(),
-            test: z.string(),
-            inherited: z.boolean(),
-            protected: z.boolean(),
-          }),
-        ),
-        summary: z.string(),
+        bean: z.literal('t010'),
+        status: z.string(),
+        checks: z.object({
+          total: z.number(),
+          red: z.number(),
+          inherited: z.number(),
+          history: z.array(z.object({ green: z.boolean() })),
+          failures: z.array(
+            z.object({
+              file: z.string(),
+              test: z.string(),
+              inherited: z.boolean(),
+              protected: z.boolean(),
+            }),
+          ),
+          summary: z.string(),
+        }),
+        blamed_by: z.array(z.unknown()),
+        preview_url: z.string(),
       })
-      .parse(await call('checks_get', { bean: 't010' }));
+      .parse(await call('bean_status', { bean: 't010', checks: true }));
 
     expect(answer.checks.red).toBeGreaterThan(0);
-    expect(answer.history.length).toBeGreaterThan(0);
-    expect(answer.summary).toContain('t010');
+    expect(answer.checks.history.length).toBeGreaterThan(0);
+    expect(answer.checks.summary).toContain('t010');
   });
 
-  it('run_status gives the lines, the window, work in flight and cost', async () => {
-    const answer = await call('run_status');
+  it('repo_status without a repository gives the run: lines, window, work in flight, cost, links', async () => {
+    const answer = await call('repo_status');
 
     expect(answer).toMatchObject({
       run: RUN,
@@ -172,18 +182,73 @@ describe('tools/call', () => {
       window: { size: WINDOW_SIZE },
       red_validations: { count: expect.any(Number) },
       cost_usd: expect.any(Number),
+      preview_urls: {
+        sprout: `${WEB_URL}/runs/${RUN}?ref=sprout`,
+        stalk: `${WEB_URL}/runs/${RUN}?ref=stalk`,
+      },
     });
     expect(answer).toHaveProperty('sprout.sha', expect.stringMatching(/^[0-9a-f]{40}$/));
   });
 
-  it('preview_link links a bean or a line, never both', async () => {
-    expect(await call('preview_link', { ref: 'stalk' })).toMatchObject({
-      url: `${WEB_URL}/runs/${RUN}?ref=stalk`,
+  it('repo_read reads a file, a line range, and lists a directory or a glob', async () => {
+    const tree = z
+      .object({ mode: z.literal('tree'), entries: z.array(z.object({ path: z.string() })) })
+      .parse(await call('repo_read', { glob: '*.ts' }));
+    const file = tree.entries[0]?.path ?? '';
+    expect(file).toMatch(/\.ts$/);
+    expect(tree.entries.every((entry) => entry.path.endsWith('.ts'))).toBe(true);
+
+    expect(await call('repo_read', { path: file, start: 1, end: 2 })).toMatchObject({
+      mode: 'files',
+      files: [{ path: file, start: 1, end: 2, content: expect.any(String) }],
     });
-    await expect(call('preview_link', { bean: 't005', ref: 'stalk' })).rejects.toThrow(/not both/);
+    const both = await call('repo_read', { paths: [file, 'no/such/file.ts'] });
+    expect(both).toMatchObject({
+      files: [
+        { path: file },
+        { path: 'no/such/file.ts', error: expect.stringContaining('no such') },
+      ],
+    });
+    const listed = await call('repo_read', { path: 'src' });
+    expect(listed).toMatchObject({ mode: 'tree' });
+  });
+
+  it('repo_read greps like rg --json, with context lines and a cursor', async () => {
+    const answer = z
+      .object({
+        mode: z.literal('grep'),
+        matches: z.number(),
+        shown: z.number(),
+        next_cursor: z.string().nullable(),
+        messages: z.array(
+          z.object({
+            type: z.enum(['begin', 'match', 'context', 'end']),
+            data: z.object({
+              path: z.object({ text: z.string() }),
+              line_number: z.number().optional(),
+              submatches: z
+                .array(z.object({ match: z.object({ text: z.string() }), start: z.number() }))
+                .optional(),
+            }),
+          }),
+        ),
+      })
+      .parse(await call('repo_read', { grep: 'export' }));
+
+    expect(answer.matches).toBeGreaterThan(0);
+    expect(answer.messages[0]?.type).toBe('begin');
+    const match = answer.messages.find((message) => message.type === 'match');
+    expect(match?.data.submatches?.[0]?.match.text).toBe('export');
+    expect(answer.messages.some((message) => message.type === 'context')).toBe(true);
+    if (answer.next_cursor !== null) {
+      const next = z
+        .object({ shown: z.number() })
+        .parse(await call('repo_read', { grep: 'export', cursor: answer.next_cursor }));
+      expect(next.shown).toBeGreaterThan(0);
+    }
   });
 
   it('reports an unknown bean as a tool error', async () => {
-    await expect(call('change_status', { bean: 't999' })).rejects.toThrow(/no bean t999/);
+    await expect(call('bean_status', { bean: 't999' })).rejects.toThrow(/no bean t999/);
   });
 });

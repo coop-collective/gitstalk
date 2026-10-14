@@ -32,7 +32,7 @@ Where it is applied:
 |---|---|---|
 | HTTPS git | `routes/git.ts` → `push/push-proxy.ts` `repoGit` | 404 for hidden; 403 with a `remote:` reason ("your role on this repository is read; to push beans you need the write role"); no credential: a public repository clones, anything else gets the connect hint (401) so git asks for a credential and a private repository looks missing |
 | SSH git | gateway RPC `sshGit` → the same `repoGit` | same |
-| MCP | `agentRepositoryAccess` RPC; `mcp/src/tools/repository-access.ts` (the helper every repository tool asks first) and the `repository_access` tool | the gateway's 404 / 403 passed through |
+| MCP | `agentRepositoryAccess` RPC; `mcp/src/tools/repository-access.ts` (the helper every repository tool asks first) and the `whoami` tool with `repo` (then `repository_access`) | the gateway's 404 / 403 passed through |
 | Web views | `getRepository`, `repositoryFiles`, `listRepositories` (registry RPC), the run routes `/runs/<engine>…` and `/api/runs/<engine>/…` (`engineAccess`, so a repository's engine id does not open it as a "race") | 404 page |
 | Web actions | settings and delete (`administer`), deploy tokens (`deploy-tokens`), decision cards on a repository engine (`decide`, answered as the person's handle), collaborators RPC | 403 / 404 messages |
 
@@ -64,4 +64,4 @@ Apply `beanstalk-forge` migration `0003_collaborators.sql` (`wrangler d1 migrati
 - Email invitations and invites to people without an account wait for the sender domain (`19` §6); invites are by handle only.
 - Orgs and teams (Phase 3.1) would add team principals to `repository_members`; `mayUseEngine` takes the person's best role, so a team role joins as one more fact.
 - Agents never decide or administer, even for an owner; if Coop wants a maintainer's agent to answer cards over MCP, it needs a grantable scope and one line in `withinScopes`.
-- MCP sessions still read one run for the existing read tools; `repository_access` is the first repository-addressed tool, and the MCP write tools lane should call `repositoryAccess` before each write.
+- MCP sessions still read one run for the existing read tools; `repository_access` (now `whoami` with `repo`) is the first repository-addressed tool, and the MCP write tools lane should call `repositoryAccess` before each write.

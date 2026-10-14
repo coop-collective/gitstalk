@@ -35,6 +35,8 @@ export type OwnerChoice = {
  */
 export function NewRepositoryForm(props: {
   readonly owners: readonly OwnerChoice[];
+  /** This deployment's host, shown before the owner (`gitstalk.dev /`). */
+  readonly host: string;
   readonly initialOwner: string;
 }) {
   const initial = props.owners.find((owner) => owner.handle === props.initialOwner);
@@ -71,6 +73,7 @@ export function NewRepositoryForm(props: {
           Name
         </label>
         <div className={styles.nameRow}>
+          <span className={styles.owner}>{props.host} /</span>
           {props.owners.length > 1 ? (
             <select
               name="owner"

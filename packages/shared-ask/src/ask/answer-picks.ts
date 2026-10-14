@@ -62,17 +62,17 @@ export async function pickRoute(input: {
 }
 
 /**
- * The router's own match stands when it found one: Jev's route decides only questions the
- * keywords could not place (`explore`). Jev's probabilities are flat on short questions, so
+ * The router's own match stands when it found one: the model's route decides only questions
+ * the keywords could not place (`explore`). Its probabilities are flat on short questions, so
  * overriding a clear keyword match would trade a right answer for a guess.
  */
 function keepKeywordMatch(receipt: PickReceipt, matched: QuestionClass): PickReceipt {
-  if (receipt.by !== 'jev' || matched === 'explore' || receipt.chosen[0] === matched)
+  if (receipt.model === null || matched === 'explore' || receipt.chosen[0] === matched)
     return receipt;
   return {
     ...receipt,
     chosen: [matched, ...receipt.chosen.filter((id) => id !== matched)].slice(0, 1),
-    why: `The keywords matched ${CATALOG[matched].label}, so that stands; Jev suggested ${receipt.chosen[0] ?? 'nothing'}.`,
+    why: `The keywords matched ${CATALOG[matched].label}, so that stands; ${receipt.model} suggested ${receipt.chosen[0] ?? 'nothing'}.`,
   };
 }
 

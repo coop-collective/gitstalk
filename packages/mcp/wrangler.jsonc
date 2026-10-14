@@ -14,7 +14,7 @@
     "LOG_LEVEL": "info",
     // This Worker's own origin: the OAuth issuer and the protected resource `<PUBLIC_URL>/mcp`.
     "PUBLIC_URL": "http://localhost:8788",
-    // The web app the tools link to (`preview_url`, `preview_link`) and where /authorize sends
+    // The web app the tools link to (`preview_url`, `preview_urls`) and where /authorize sends
     // people to sign in and approve a client (`/connect`).
     "WEB_URL": "http://localhost:5173",
     // Where git is served (the web host, as on GitHub): clone URLs and the host of
@@ -26,12 +26,13 @@
     // Ask's classifier, as in packages/web: keywords unless an AI binding is added.
     "ASK_CLASSIFIER": "keywords",
     "ASK_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
-    // Who orders what ask_repo returns, as in packages/web: "jev" (Jev on Workers AI through
-    // the AI Gateway in JEV_GATEWAY) or "rules". Answers carry the receipts either way.
-    "PICKER": "jev",
-    "JEV_GATEWAY": "default",
+    // Who orders what ask_repo returns, as in packages/web: "clef" (Clef Flash on Workers AI
+    // through the AI Gateway in DECISION_GATEWAY; the default), "clef-27b", "jev" or "rules".
+    // Answers carry the receipts either way.
+    "PICKER": "clef",
+    "DECISION_GATEWAY": "default",
   },
-  // Workers AI, for Jev; billed to the account, no API key involved.
+  // Workers AI, for Clef; billed to the account, no API key involved.
   "ai": { "binding": "AI", "remote": true },
   // Every read goes through the gateway over RPC; the run-token check too (`verifyMcpToken`).
   "services": [{ "binding": "GATEWAY", "service": "gitstalk-gateway" }],

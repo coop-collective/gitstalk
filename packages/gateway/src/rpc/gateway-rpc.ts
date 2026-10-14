@@ -37,7 +37,11 @@ const Ref = z.string().regex(REPO_REF_PATTERN, 'sprout, stalk, beans/<task> or a
 const Path = z.string().max(512).refine(isSafeRepoPath, 'a relative path inside the repo');
 const Paths = z.array(Path).max(MAX_PATHS);
 
-export function gatewayRpc(env: Env, deps: Deps): GatewayRpc {
+/** The surface, with the methods that are optional for callers of older gateways present. */
+export type GatewayRpcSurface = GatewayRpc &
+  Required<Pick<GatewayRpc, 'policyGet' | 'beanRoute' | 'approveBean'>>;
+
+export function gatewayRpc(env: Env, deps: Deps): GatewayRpcSurface {
   return {
     ...collaborationRpc(deps),
     async listRuns(limit = 50) {
@@ -92,6 +96,17 @@ export function gatewayRpc(env: Env, deps: Deps): GatewayRpc {
     beansByPath: (run, paths) =>
       checkedPaths(run, paths, async (id) => fromRun(await deps.run(id).beans(paths))),
     beanDetail: (run, bean) => forRun(run, async (id) => fromRun(await deps.run(id).bean(bean))),
+    policyGet: (run, ref) => {
+      if (ref !== undefined && !Ref.safeParse(ref).success)
+        return Promise.resolve(invalid('ref must be sprout, stalk, beans/<task> or a commit sha'));
+      return forRun(run, async (id) => fromRun(await deps.run(id).policy(ref ?? null)));
+    },
+    beanRoute: (run, bean) => forRun(run, async (id) => ok(await deps.run(id).beanRoute(bean))),
+    approveBean: (run, bean, actor) => {
+      const who = actorName(actor);
+      if (who === '') return Promise.resolve(invalid('name the person who approved'));
+      return forRun(run, async (id) => fromRun(await deps.run(id).approveBean(bean, who)));
+    },
     decisions: (run, paths) =>
       checkedPaths(run, paths ?? [], async (id) =>
         fromRun(await deps.run(id).decisionRecords(paths ?? null)),

@@ -104,6 +104,7 @@ function auxiliaryWorkers() {
         RUNS: { className: 'RunDO', useSQLite: true },
         RUN_INDEX: { className: 'RunIndex', useSQLite: true },
         RUN_STREAMS: { className: 'RunStreamDO', useSQLite: true },
+        DERIVED: { className: 'RepoDerivedDO', useSQLite: true },
         RUNNER_CAPACITY: { className: 'RunnerCapacity', useSQLite: true },
         RUNNER: { className: 'FakeRunner', scriptName: 'fake-artifacts' },
         ACTIONS_REPOS: { className: 'ActionsRepoDO', useSQLite: true },

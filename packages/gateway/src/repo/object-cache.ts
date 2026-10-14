@@ -8,6 +8,8 @@
 
 import { z } from 'zod';
 
+import type { CacheRead } from './cache-stats';
+
 /** The calls of an Artifacts repo handle that the explorer reads through. */
 export type RepoReader = Pick<
   ArtifactsRepo,
@@ -55,6 +57,14 @@ const StoredCommit = z.object({
   committedAt: z.number(),
 });
 
+/** What a cached reader keeps objects and refs in, and who counts its hits and misses. */
+export type ReadCache = {
+  readonly store: ObjectStore;
+  readonly refs: RefMemo;
+  readonly now: () => number;
+  readonly count?: (read: CacheRead) => void;
+};
+
 /** Ref heads resolved recently (`log({ ref, limit: 1 })`), by ref; concurrent reads share one. */
 export type RefMemo = Map<
   string,
@@ -64,15 +74,16 @@ export type RefMemo = Map<
 /**
  * A reader that answers object reads from `store` and fills it on a miss. `readFile` is
  * resolved through cached trees and blobs; `log` goes to Artifacts, except a one-commit
- * read of a named ref within `REF_MEMO_MS` of the last one (the ref's head).
+ * read of a named ref within `REF_MEMO_MS` of the last one (the ref's head). `count` hears
+ * every object read and ref head read as a hit or a miss (`cache-stats.ts`).
  */
-export function cachedReader(
-  handle: RepoReader,
-  cache: { readonly store: ObjectStore; readonly refs: RefMemo; readonly now: () => number },
-): RepoReader {
+export function cachedReader(handle: RepoReader, cache: ReadCache): RepoReader {
   const { store } = cache;
+  const count = (kind: CacheRead['kind'], isHit: boolean): void =>
+    cache.count?.({ kind, outcome: isHit ? 'hit' : 'miss' });
   const readTree = async (id: string): Promise<ArtifactsTreeEntry[] | null> => {
     const cached = store.tree(id);
+    count('tree', cached !== undefined);
     if (cached !== undefined) return cached;
     const entries = await handle.readTree(id);
     if (entries !== null) store.putTree(id, entries);
@@ -80,6 +91,7 @@ export function cachedReader(
   };
   const readBlob = async (id: string): Promise<Blob | null> => {
     const cached = store.blob(id);
+    count('blob', cached !== undefined);
     if (cached !== undefined) return new Blob([cached]);
     const blob = await handle.readBlob(id);
     if (blob === null) return null;
@@ -89,6 +101,7 @@ export function cachedReader(
   };
   const readCommit = async (id: string): Promise<ArtifactsCommitMetadata | null> => {
     const cached = store.commit(id);
+    count('commit', cached !== undefined);
     if (cached !== undefined) return cached;
     const commit = await handle.readCommit(id);
     if (commit !== null) store.putCommit(id, commit);
@@ -99,7 +112,9 @@ export function cachedReader(
     const isHeadRead = ref !== undefined && options?.limit === 1 && (options.offset ?? 0) === 0;
     if (!isHeadRead || COMMIT_ID.test(ref)) return handle.log(options);
     const memo = cache.refs.get(ref);
-    if (memo !== undefined && cache.now() - memo.atMs < REF_MEMO_MS) {
+    const isMemoHit = memo !== undefined && cache.now() - memo.atMs < REF_MEMO_MS;
+    count('ref', isMemoHit);
+    if (isMemoHit) {
       const head = await memo.head;
       return head === null ? [] : [head];
     }

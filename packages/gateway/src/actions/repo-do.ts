@@ -30,7 +30,12 @@ import { d1Registry } from '../repos/registry';
 import type { ActionsConfig } from './actions-config';
 import { readActionsConfig } from './actions-config';
 import type { Occurrence } from './automation-triggers';
-import { automationFires, occurrenceOf, occurrencePayload } from './automation-triggers';
+import {
+  automationFires,
+  needsChangedPaths,
+  occurrenceOf,
+  occurrencePayload,
+} from './automation-triggers';
 import { MIN_SCHEDULE_INTERVAL_MS, nextFireMs, parseCron } from '@gitstalk/shared-race/cron';
 import type { RepoFacts } from './event-payload';
 import { dispatchPayload, pushPayload, schedulePayload } from './event-payload';
@@ -603,7 +608,13 @@ export class ActionsRepoDO extends DurableObject<Env> {
     facts: RepoFacts,
     input: { readonly automations: readonly WorkflowSummary[]; readonly event: RepoEvent },
   ): Promise<void> {
-    const occurrence = await this.#withActor(repoId, occurrenceOf(input.event));
+    const withActor = await this.#withActor(repoId, occurrenceOf(input.event));
+    const occurrence = needsChangedPaths(
+      input.automations.map((automation) => automation.triggers),
+      withActor,
+    )
+      ? { ...withActor, changedPaths: await this.#commitPaths(repoId, withActor.sha) }
+      : withActor;
     for (const automation of input.automations) {
       const info = automation.automation;
       if (info === undefined || !automationFires(automation.triggers, occurrence, info.actor))
@@ -615,6 +626,26 @@ export class ActionsRepoDO extends DurableObject<Env> {
         actor: occurrence.actor ?? 'gitstalk',
         origin: 'event',
       });
+    }
+  }
+
+  /**
+   * The files a landed or revert commit changed against its first parent, for `paths:`
+   * filters; null when unknown (no parent, too many files, or unreadable).
+   */
+  async #commitPaths(repoId: string, sha: string | null): Promise<string[] | null> {
+    const record = sha === null ? null : await d1Registry(this.env.FORGE).byId(repoId);
+    if (sha === null || record === null) return null;
+    const explorer = repoExplorer(this.env.REPOS, record.artifacts_repo);
+    try {
+      const parent = (await explorer.log(sha, null, 1)).commits[0]?.parents[0];
+      return parent === undefined ? null : await changedBetween(explorer, parent, sha);
+    } catch (error: unknown) {
+      this.#log.warn('changed files of a commit not read; paths filters let it through', {
+        sha,
+        error,
+      });
+      return null;
     }
   }
 

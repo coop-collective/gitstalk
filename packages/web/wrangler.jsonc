@@ -53,11 +53,12 @@
     // "workers-ai", which also needs an `ai` binding named AI (see README).
     "ASK_CLASSIFIER": "keywords",
     "ASK_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
-    // Who decides what the Plot shows (docs/claude-opus/14 §5): "jev" (TypeSafe's Jev on
-    // Workers AI, through the AI Gateway named in JEV_GATEWAY; unified billing) or "rules".
-    // Any Jev failure falls back to the rules, and every pick leaves a receipt.
-    "PICKER": "jev",
-    "JEV_GATEWAY": "default",
+    // Who decides what the Plot shows (docs/claude-opus/14 §5): a decision model on Workers AI,
+    // through the AI Gateway named in DECISION_GATEWAY (unified billing): "clef" (Cloudflare's
+    // Clef Flash, the default), "clef-27b" (Clef, more precise, slower), "jev" (TypeSafe's Jev),
+    // or "rules". Any model failure falls back to the rules, and every pick leaves a receipt.
+    "PICKER": "clef",
+    "DECISION_GATEWAY": "default",
     // Email sign-in (six-digit codes, docs/claude-opus/19 §6): the domain mail comes from
     // (`Gitstalk <signin@<domain>>`), onboarded to Cloudflare Email Sending. Empty: email
     // sign-in is off and hidden. Set per environment (env.jsonc overrides.web.vars). Also needs
@@ -100,7 +101,7 @@
     // Set it per environment in env.jsonc: overrides.web.vars.PLATFORM_ADMINS.
     "PLATFORM_ADMINS": "",
   },
-  // Workers AI: Jev (typesafe/jev) for the picker, and the optional Ask classifier model.
+  // Workers AI: Clef (@cf/cloudflare/clef-flash) for the picker, and the optional Ask classifier model.
   // Billed to the account; no API key is involved. `remote` makes local dev call it too.
   "ai": { "binding": "AI", "remote": true },
   // Cloudflare Email Service (Email Sending): sign-in codes. Locally Miniflare simulates it and

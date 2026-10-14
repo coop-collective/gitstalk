@@ -261,7 +261,7 @@ describe('the authorization code flow', () => {
     const client = await mcpClient(tokens.access_token);
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(['ask_repo', 'run_status', 'whoami', 'git_credentials', 'repo_list']),
+      expect.arrayContaining(['ask_repo', 'repo_status', 'whoami', 'git_credentials', 'repo_list']),
     );
     expect(tools.map((tool) => tool.name)).not.toContain('bean_update');
     expect(await callTool(client, 'whoami')).toMatchObject({

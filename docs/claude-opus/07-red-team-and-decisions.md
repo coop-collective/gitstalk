@@ -84,7 +84,7 @@ Our forks with scoped tokens, previews and why-blame are *table stakes*, not cla
 
 - **Names:** a bean is an agent's change, the sprout is the staged line, the stalk is the stable line.
 - **Agents in the race are real:** Claude Code with Sonnet on the subscription, capped at $75 a run.
-- **Licence (2026-10-04):** FSL-1.1-ALv2 (`LICENSE.md`), with Coop as licensor. This knowingly risks eligibility, since the rules list MIT, Apache-2.0 or BSD. It supersedes item 3.
+- **Licence (2026-10-14):** Apache-2.0 (`LICENSE`, `NOTICE`, `TRADEMARKS.md`), copyright Coop, as the competition rules require; this settles item 3. From 2026-10-04 to 2026-10-14 the repository was under FSL-1.1-ALv2.
 - **Code mode (2026-10-04):** Coop tested code mode and is not happy with it. An `execute` tool, where the agent writes code against a typed API, stays out of everything we ship and remains highly experimental. The MCP surface is plain, task-shaped tools.
 
 ## 4. Experiments for the first 48 hours, in order

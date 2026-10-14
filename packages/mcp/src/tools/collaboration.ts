@@ -15,6 +15,8 @@ import type {
   BeanUpdateInput,
 } from '@gitstalk/shared-race/collaboration';
 
+import { BeanCommitResult } from '@gitstalk/shared-race/bean-commit';
+import type { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 import type { TaskId } from '@gitstalk/shared-race/ids';
 
 import { ForgeError } from '@gitstalk/shared-ask/forge/forge-errors';
@@ -42,6 +44,16 @@ export async function beanUpdate(
   const token = contributorToken(ctx);
   if (typeof ctx.gateway.beanUpdate !== 'function') throw unavailable();
   return unwrap(await ctx.gateway.beanUpdate(token, input), BeanUpdateResult);
+}
+
+/** A commit on your own bean branch, built by the gateway; a moved branch answers `conflict`. */
+export async function beanCommit(
+  ctx: ToolContext,
+  input: BeanCommitInput,
+): Promise<BeanCommitResult> {
+  const token = contributorToken(ctx);
+  if (typeof ctx.gateway.beanCommit !== 'function') throw unavailable();
+  return unwrap(await ctx.gateway.beanCommit(token, input), BeanCommitResult);
 }
 
 export async function beanThreadPost(

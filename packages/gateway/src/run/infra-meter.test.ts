@@ -1,4 +1,7 @@
+import { env, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
+
+import type { CacheRead } from '../repo/cache-stats';
 
 import {
   INFRA_PRICES,
@@ -7,9 +10,19 @@ import {
   countRequest,
   emptyMeter,
   infraReport,
+  recordCacheRead,
   recordRunnerCall,
   recordWarmStart,
 } from './infra-meter';
+import type { InfraMeter } from './infra-meter';
+import { loadMeter, saveMeter } from './run-store';
+
+function withReads(meter: InfraMeter, reads: readonly CacheRead[]): InfraMeter {
+  return reads.reduce(recordCacheRead, meter);
+}
+
+const HIT = (kind: CacheRead['kind']): CacheRead => ({ kind, outcome: 'hit' });
+const MISS = (kind: CacheRead['kind']): CacheRead => ({ kind, outcome: 'miss' });
 
 describe('the infra meter', () => {
   it('counts an instance’s up time once when calls overlap its sleepAfter tail', () => {
@@ -56,5 +69,66 @@ describe('the infra meter', () => {
       report.usd.workers + report.usd.durable_objects + report.usd.artifacts,
       6,
     );
+  });
+});
+
+describe('the read index’s counts on the meter', () => {
+  it('reports each kind’s hit rate, objects together and the ref memo apart', () => {
+    const meter = withReads(emptyMeter(0), [
+      MISS('tree'),
+      HIT('tree'),
+      HIT('tree'),
+      HIT('tree'),
+      MISS('blob'),
+      HIT('commit'),
+      MISS('ref'),
+      HIT('ref'),
+      HIT('ref'),
+    ]);
+
+    const { cache } = infraReport(meter, 0);
+
+    expect(cache.tree).toEqual({ hits: 3, misses: 1, hit_rate: 0.75 });
+    expect(cache.blob).toEqual({ hits: 0, misses: 1, hit_rate: 0 });
+    expect(cache.commit).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(cache.objects).toEqual({ hits: 4, misses: 2, hit_rate: 0.6667 });
+    expect(cache.ref_memo).toEqual({ hits: 2, misses: 1, hit_rate: 0.6667 });
+  });
+
+  it('reports no rate before anything was read', () => {
+    expect(infraReport(emptyMeter(0), 0).cache.objects).toEqual({
+      hits: 0,
+      misses: 0,
+      hit_rate: null,
+    });
+  });
+
+  it('keeps the counts across a flush to storage and a reload', async () => {
+    const meter = withReads(emptyMeter(0), [MISS('blob'), HIT('blob'), HIT('ref')]);
+
+    const reloaded = await runInDurableObject(
+      env.RUNS.getByName('meter-flush-test'),
+      (_, state) => {
+        saveMeter(state.storage, meter);
+        return loadMeter(state.storage, 1000);
+      },
+    );
+
+    expect(reloaded?.cache).toEqual(meter.cache);
+  });
+
+  it('starts the counts at zero for a meter stored before they existed', async () => {
+    const { cache: _cache, ...older } = emptyMeter(0);
+
+    const reloaded = await runInDurableObject(
+      env.RUNS.getByName('meter-older-test'),
+      (_, state) => {
+        state.storage.kv.put('infra-meter', { ...older, requests: 7 });
+        return loadMeter(state.storage, 1000);
+      },
+    );
+
+    expect(reloaded?.requests).toBe(7);
+    expect(infraReport(reloaded ?? emptyMeter(0), 0).cache.objects.hit_rate).toBeNull();
   });
 });

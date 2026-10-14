@@ -10,6 +10,8 @@
  * Engine decisions and separately scoped collaboration metadata have write methods.
  * Output sizes are bounded, and a `truncated` flag says when a bound was hit.
  */
+import type { RouteReceipt } from './approval-policy';
+import type { ApprovalPolicyView } from './policy-file';
 import type {
   BeanContext,
   BeanContextInput,
@@ -26,6 +28,7 @@ import type {
   BeanUpdateResult,
   ContributorTokenClaims,
 } from './collaboration';
+import type { BeanCommitInput, BeanCommitResult } from './bean-commit';
 import type { StreamFile } from './driver';
 import type { FinalCheckFields } from './events';
 import type { PolicyName, RunPreset } from './run-config';
@@ -226,6 +229,27 @@ export type RunView = {
   readonly ci: CiView;
   readonly policy_state: PolicyView | null;
   readonly final: FinalView | null;
+  /**
+   * The engine's read index (git objects by id in its SQLite, plus a 5 s ref memo): hits and
+   * misses since the run was created. Absent from gateways older than the counts.
+   */
+  readonly cache?: CacheView;
+};
+
+/** Hits and misses of one tier or kind; `hit_rate` is null until something was read. */
+export type CacheCountView = {
+  readonly hits: number;
+  readonly misses: number;
+  readonly hit_rate: number | null;
+};
+
+export type CacheView = {
+  /** Commits, trees and blobs together. */
+  readonly objects: CacheCountView;
+  readonly commit: CacheCountView;
+  readonly tree: CacheCountView;
+  readonly blob: CacheCountView;
+  readonly ref_memo: CacheCountView;
 };
 
 /** `runEvents`: one page of `events.jsonl` lines (parse each as a `RaceEvent`). */
@@ -466,6 +490,8 @@ export type BeanDetail = BeanSummary & {
   readonly checks: readonly BeanCheck[];
   readonly reworks: readonly BeanRework[];
   readonly decisions: readonly DecisionRecord[];
+  /** The approval rules' receipt of its last pre-land check (absent: none, or an older gateway). */
+  readonly route?: RouteReceipt | null;
 };
 
 /** A decision card and what it did (`decisions`, and in `beanDetail`). */
@@ -548,6 +574,22 @@ export type GatewayRpc = Partial<CollaborationRpc> & {
   ): Promise<RpcResult<RepoGrep>>;
   beansByPath(run: string, paths: readonly string[]): Promise<RpcResult<readonly BeanSummary[]>>;
   beanDetail(run: string, bean: string): Promise<RpcResult<BeanDetail>>;
+  /**
+   * Approval rules (`approval-policy.ts`): the policy on `ref` (the stalk by default), the
+   * commit it was read at and what is wrong with it. Absent on a gateway before them.
+   */
+  policyGet?(run: string, ref?: string): Promise<RpcResult<ApprovalPolicyView>>;
+  /** The approval rules' receipt of a bean's last pre-land check; null when none was routed. */
+  beanRoute?(run: string, bean: string): Promise<RpcResult<RouteReceipt | null>>;
+  /**
+   * A person approves a bean a `card` route holds (the caller checked they may decide); a
+   * repository's bean is re-submitted at its pushed head.
+   */
+  approveBean?(
+    run: string,
+    bean: string,
+    actor: string,
+  ): Promise<RpcResult<{ readonly approved: true; readonly resubmitted: boolean }>>;
   decisions(run: string, paths?: readonly string[]): Promise<RpcResult<readonly DecisionRecord[]>>;
   testsFor(run: string, paths: readonly string[]): Promise<RpcResult<readonly TestCoverage[]>>;
   /**
@@ -582,6 +624,8 @@ export type CollaborationRpc = {
     beans: readonly string[],
   ): Promise<RpcResult<readonly BeanPeerSummary[]>>;
   beanUpdate(token: string, input: BeanUpdateInput): Promise<RpcResult<BeanUpdateResult>>;
+  /** `bean_commit`: a commit on the contributor's own bean branch, built by the gateway. */
+  beanCommit(token: string, input: BeanCommitInput): Promise<RpcResult<BeanCommitResult>>;
   beanThreadPost(
     token: string,
     input: BeanThreadPostInput,

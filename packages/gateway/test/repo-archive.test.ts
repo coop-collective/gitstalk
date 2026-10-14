@@ -94,7 +94,7 @@ describe('archiving a repository', () => {
       await gateway.updateRepository(owner.id, repo.id, { description: 'changed' }),
     ).toMatchObject({ ok: false, error: { code: 'archived' } });
 
-    // MCP: the repository tools and `repository_access` ask the same rule, with the same reason.
+    // MCP: the repository tools and `whoami` with a repo ask the same rule, with the same reason.
     const agent = {
       user: { id: maintainer.id, handle: maintainer.handle },
       scopes: ['read', 'write'],

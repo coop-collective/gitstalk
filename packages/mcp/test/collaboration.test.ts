@@ -12,6 +12,7 @@ import {
   BeanThreadPostInput,
   BeanUpdateInput,
 } from '@gitstalk/shared-race/collaboration';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 import type { GatewayRpc } from '@gitstalk/shared-race/rpc';
 
 import { createApp } from '../src/app';
@@ -118,6 +119,23 @@ function collaborationGateway() {
   const inboxAck = vi.fn((_token: string, _input: unknown) =>
     Promise.resolve({ ok: true, value: { acknowledged: [8], unread: 0 } }),
   );
+  const commit = vi.fn((_token: string, input: unknown) => {
+    const parsed = BeanCommitInput.parse(input);
+    return Promise.resolve({
+      ok: true,
+      value: {
+        kind: 'committed',
+        bean: parsed.bean,
+        branch: `beans/${parsed.bean}`,
+        commit: 'c'.repeat(40),
+        parent: 'b'.repeat(40),
+        tree: 'd'.repeat(40),
+        files: parsed.changes.length,
+        objects: 4,
+        trees_read: 2,
+      },
+    });
+  });
   const context = vi.fn((_run: string, _input: unknown) =>
     Promise.resolve({ ok: true, value: FOCUS }),
   );
@@ -150,11 +168,12 @@ function collaborationGateway() {
     },
     beanContext: context,
     beanUpdate: update,
+    beanCommit: commit,
     beanThreadPost: thread,
     beanInboxRead: inboxRead,
     beanInboxAck: inboxAck,
   });
-  return { gateway, update, thread, inboxRead, inboxAck, context };
+  return { gateway, update, commit, thread, inboxRead, inboxAck, context };
 }
 
 async function connect(gateway: ReturnType<typeof fakeGateway>, token: string): Promise<Client> {
@@ -231,6 +250,33 @@ describe('contributor MCP capabilities', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
+  it('commits files to the contributor bean through the gateway with the signed token', async () => {
+    const { gateway, commit } = collaborationGateway();
+    const client = await connect(gateway, CONTRIBUTOR_TOKEN);
+    const { tools } = await client.listTools();
+    expect(tools.find((tool) => tool.name === 'bean_commit')?.inputSchema).toMatchObject({
+      type: 'object',
+      properties: { bean: expect.anything(), changes: expect.anything() },
+    });
+    const input = {
+      expected_head: null,
+      changes: [
+        { path: 'docs/a.md', content: '# A\n' },
+        { path: 'old.md', delete: true },
+      ],
+      message: 'Docs',
+      idempotency_key: 'commit-1',
+    };
+    expect(await call(client, 'bean_commit', { ...input, bean: 'beans/t021' })).toHaveProperty(
+      'value.kind',
+      'committed',
+    );
+    expect(commit).toHaveBeenCalledWith(CONTRIBUTOR_TOKEN, { ...input, bean: 't021' });
+    const unsafe = { ...input, bean: 't021', changes: [{ path: '../x', content: '' }] };
+    expect(await call(client, 'bean_commit', unsafe)).toHaveProperty('error');
+    expect(commit).toHaveBeenCalledTimes(1);
+  });
+
   it('accepts a bean branch handle in the collaboration tools and still advertises an object schema', async () => {
     const { gateway, update, context } = collaborationGateway();
     const client = await connect(gateway, CONTRIBUTOR_TOKEN);
@@ -286,8 +332,8 @@ describe('contributor MCP capabilities', () => {
     const cases = [
       ['ask_repo', { question: 'show bean t021' }],
       ['work_overlaps', { paths: ['src/notifications'] }],
-      ['change_status', { bean: 't021' }],
-      ['run_status', {}],
+      ['bean_status', { bean: 't021' }],
+      ['repo_status', {}],
       ['bean_context', { bean: 't021' }],
     ] satisfies readonly [string, Record<string, unknown>][];
     const responses = await Promise.all(cases.map(([name, input]) => call(client, name, input)));
@@ -357,7 +403,7 @@ describe('contributor MCP capabilities', () => {
       return Promise.resolve({ ok: true, value: BeanInboxPage.parse({ ...INBOX, events }) });
     };
     const client = await connect(gateway, CONTRIBUTOR_TOKEN);
-    expect(await call(client, 'run_status')).toHaveProperty('value.inbox.events.0.event_id', 8);
+    expect(await call(client, 'repo_status')).toHaveProperty('value.inbox.events.0.event_id', 8);
     expect(inboxAck).not.toHaveBeenCalled();
   });
 

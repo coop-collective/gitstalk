@@ -35,3 +35,13 @@ export function pictureNote(value: string | undefined): PictureNote | null {
 function isPictureCode(value: string): value is PictureCode {
   return Object.hasOwn(NOTES, value);
 }
+
+/** The code a `?picture=` value names, or null for anything not in the table. */
+export function pictureCode(value: string | null | undefined): PictureCode | null {
+  return typeof value === 'string' && isPictureCode(value) ? value : null;
+}
+
+/** The note for a code this app produced itself (the browser's own checks). */
+export function noteFor(code: PictureCode): PictureNote {
+  return NOTES[code];
+}

@@ -58,7 +58,7 @@ export type ToolScope = {
   readonly agents?: AgentReposRpc;
   /** The gateway's Actions RPC (sessions only). */
   readonly actions?: AgentActionsRpc;
-  /** The gateway binding, for `repository_access` (`repository-access.ts`). */
+  /** The gateway binding, for `whoami` with a repository (`repository-access.ts`). */
   readonly gateway: object;
   /** The gateway's public origin, for clone URLs and credentials. */
   readonly gitOrigin: string;

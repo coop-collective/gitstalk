@@ -50,6 +50,8 @@ export const WorkflowTrigger = z.discriminatedUnion('event', [
     name: z.enum(GITSTALK_EVENTS),
     beans: z.array(z.string()),
     authors: z.array(z.string()),
+    /** Changed-file globs (landings and reverts); empty: any files. */
+    paths: z.array(z.string()).default([]),
   }),
   z.object({
     event: z.literal('other'),

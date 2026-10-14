@@ -130,6 +130,7 @@ export function triggerLabel(trigger: WorkflowTrigger): string {
         EVENT_WORDS[trigger.name],
         trigger.beans.length === 0 ? null : `beans ${trigger.beans.join(', ')}`,
         trigger.authors.length === 0 ? null : `by ${trigger.authors.join(', ')}`,
+        trigger.paths.length === 0 ? null : `under ${trigger.paths.join(', ')}`,
       ]
         .filter((part) => part !== null)
         .join(' · ');

@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { IntentLink as Link } from '../../../components/shell/intent-link';
 
 import styles from '../../../components/account/account.module.css';
-import { CopyButton } from '../../../components/repository/copy-button';
+import { AgentInstallTabs } from '../../../components/account/agent-install-tabs';
 import { currentUser } from '../../../src/auth/user';
 import { agentInstalls } from '../../../src/setup/agent-installs';
 import { publicPageMetadata } from '../../../src/site/page-metadata';
@@ -44,24 +44,7 @@ export default async function AgentSignupPage() {
             No agent handy? <Link href="/signup">Create an account in the browser</Link>.
           </p>
         ) : null}
-        <ul className={styles.installs}>
-          {installs.map((install) => (
-            <li key={install.id} className={styles.install}>
-              <div className={styles.installHead}>
-                <h2 className={styles.sectionTitle}>{install.name}</h2>
-                <span className={styles.hint}>{install.where}</span>
-              </div>
-              <div className={styles.installCode}>
-                <code>{install.code}</code>
-                <CopyButton text={install.code} label={`Copy the ${install.name} command`} />
-              </div>
-              <p className={styles.hint}>
-                {install.after}
-                {install.verified ? null : ' (Follows the client’s documented MCP sign-in.)'}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <AgentInstallTabs installs={installs} />
         <p className={styles.note}>
           {user === null ? (
             <>

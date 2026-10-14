@@ -57,10 +57,11 @@ export function InfoReceipt({ receipt }: { readonly receipt: PickReceipt }) {
 /** The status line's picks button and the drawer listing every pick the page made. */
 export function PicksDrawer(props: {
   readonly receipts: readonly PickReceipt[];
-  readonly picker: 'jev' | 'rules';
+  /** The model that orders the lists (`Clef Flash`); null when fixed rules do. */
+  readonly pickerModel: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const jev = props.receipts.filter((receipt) => receipt.by === 'jev').length;
+  const byModel = props.receipts.filter((receipt) => receipt.model !== null).length;
   return (
     <>
       <button
@@ -69,7 +70,7 @@ export function PicksDrawer(props: {
         title="How this page chose the order of its lists"
         onClick={() => setOpen(true)}
       >
-        {picksLabel(props.receipts.length, jev)}
+        {picksLabel(props.receipts.length, byModel)}
       </button>
       {open ? (
         <div className={styles.drawer} role="dialog" aria-label="Every pick on this page">
@@ -78,9 +79,9 @@ export function PicksDrawer(props: {
           </button>
           <h3>Every pick on this page</h3>
           <p className={styles.status}>
-            {props.picker === 'jev'
-              ? 'Jev (TypeSafe’s decision model, on Workers AI through AI Gateway) orders each candidate list. When it does not answer in time, the decision’s rule does.'
-              : 'Fixed rules order each candidate list.'}{' '}
+            {props.pickerModel === null
+              ? 'Fixed rules order each candidate list.'
+              : `${props.pickerModel} (a typed decision model on Workers AI, through AI Gateway) orders each candidate list. When it does not answer in time, the decision’s rule does.`}{' '}
             Code computes every candidate and every sentence; the picker only chooses among them.
           </p>
           {props.receipts.toReversed().map((receipt, index) => (
@@ -115,10 +116,10 @@ function Receipt({ receipt }: { readonly receipt: PickReceipt }) {
         ))}
       </ul>
       <p className={styles.by}>
-        {receipt.by === 'jev'
-          ? `Jev picked${receipt.confidence === null ? '' : `, confidence ${receipt.confidence.toFixed(2)}`}, ${receipt.ms} ms. ${receipt.why}`
-          : `Rules picked. ${receipt.why}`}{' '}
-        Jev reads {receipt.inputBytes.toLocaleString('en')} bytes: the question and these
+        {receipt.model === null
+          ? `Rules picked. ${receipt.why}`
+          : `${receipt.model} picked${receipt.confidence === null ? '' : `, confidence ${receipt.confidence.toFixed(2)}`}, ${receipt.ms} ms. ${receipt.why}`}{' '}
+        The model reads {receipt.inputBytes.toLocaleString('en')} bytes: the question and these
         descriptions, never file contents.
       </p>
     </div>

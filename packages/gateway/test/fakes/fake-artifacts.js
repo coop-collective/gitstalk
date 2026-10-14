@@ -281,9 +281,9 @@ export class FakeGitRemote extends WorkerEntrypoint {
     const commands = match[3] === 'git-receive-pack' ? pushCommands(bytes) : [];
     for (const command of commands) repo.refs.set(command.ref, command.newSha);
     if (commands.length > 0) storePayload(repo, bytes);
-    // A real pack of a bean (the automation builder's saves) is read whole; the gateway's seed
+    // A real pack of a bean (automation saves, bean_commit) is read whole; the gateway's seed
     // packs stay unread, so a new repository's first commit is the known, empty one below.
-    if (commands.some((command) => command.ref.startsWith('refs/heads/bean/')))
+    if (commands.some((command) => /^refs\/heads\/beans?\//.test(command.ref)))
       storeRealPack(repo, packOf(bytes));
     // A pack without objects (the first commit's ref updates) leaves a known, empty commit.
     for (const command of commands)

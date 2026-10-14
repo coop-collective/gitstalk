@@ -25,6 +25,9 @@ import type { RunnerPort, RunnerRemote } from '../runner/runner-client';
 import { continuousRef } from '../push/bean-refs';
 import type { RepositoryChecksHost } from '../checks/repository-checks';
 import { planCheck } from '../checks/repository-checks';
+import type { LandingTree } from '../checks/check-store';
+import type { ApprovalHost } from '../approval/approval-gate';
+import { judgeLanding } from '../approval/approval-gate';
 import { ciInstance, committerInstance, poolSandboxInstance, sandboxInstance } from './run-names';
 
 /** Re-mint a cached token when it has less than this left. */
@@ -89,6 +92,20 @@ export type JobContext = {
    * `.gitstalk/checks.toml` from its tree, and `suite` is not used. Absent: `suite` always.
    */
   readonly checks?: RepositoryChecksHost;
+  /**
+   * Approval rules (`approval_rules`, `approval/approval-gate.ts`): each pre-land check of a
+   * bean merge is judged before its suite runs. Absent: off, as before.
+   */
+  readonly approval?: ApprovalJobHost;
+};
+
+/** What the approval gate needs around a job: its host, the bean merges, the push lines. */
+export type ApprovalJobHost = {
+  readonly gate: ApprovalHost;
+  saveLandingTree(tree: LandingTree): void;
+  landingTree(sha: string): LandingTree | null;
+  /** Puts the gate's lines before the lines the check of `sha` already gave. */
+  note(sha: string, lines: readonly string[]): void;
 };
 
 /** Runs one job; failures come back as outcomes, never as exceptions. */
@@ -148,7 +165,7 @@ async function squash(
     structural: spec.structural,
   });
   if (outcome.result === 'clean')
-    context.checks?.saveLandingTree({
+    (context.checks ?? context.approval)?.saveLandingTree({
       sha: outcome.sha,
       task: spec.changeKey,
       onto: spec.onto,
@@ -201,10 +218,16 @@ async function check(
   spec: Extract<JobSpec, { kind: 'check' }>,
   context: JobContext,
 ): Promise<JobResult> {
+  const judged = await judgeCheck(spec, context);
+  if (judged !== null && judged.hold !== null) {
+    context.approval?.note(spec.sha, judged.lines);
+    return { kind: 'check', check: judged.hold };
+  }
   const plan =
     context.checks === undefined
       ? { kind: 'run' as const, suite: context.suite }
       : await planCheck(context.checks, spec, context.suite);
+  if (judged !== null) context.approval?.note(spec.sha, judged.lines);
   if (plan.kind === 'answer') return { kind: 'check', check: plan.result };
   const suited: JobContext = { ...context, suite: plan.suite };
   const instance = checkInstance(suited, spec.instance);
@@ -218,6 +241,16 @@ async function check(
     if (spec.instance.kind === 'ci') return { kind: 'check', check: result };
     throw suiteTimeout(suited, { instance, attempt });
   }
+}
+
+/** The approval gate's judgement of a bean merge's pre-land check; null when it judges none. */
+async function judgeCheck(
+  spec: Extract<JobSpec, { kind: 'check' }>,
+  context: JobContext,
+): Promise<Awaited<ReturnType<typeof judgeLanding>> | null> {
+  if (context.approval === undefined || spec.instance.kind !== 'sandbox') return null;
+  const landing = context.approval.landingTree(spec.sha);
+  return landing === null ? null : judgeLanding(context.approval.gate, landing, spec.instance);
 }
 
 async function runCheck(

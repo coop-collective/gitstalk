@@ -329,17 +329,23 @@
           <div class="sechead">
             <h2 id="automations-title">Automations are agents that live in your repo.</h2>
             <p class="intro">
-              Each one is a file, with its own memory. It wakes on a red bean, a landing or a
-              schedule, and pushes beans like any teammate.
+              Each one is a file with its own memory: a trigger, an agent on a model you pick, a
+              prompt and a spending cap. Fill in the form or write the YAML, save it as a bean, and
+              test-run it by hand before a real event wakes it.
             </p>
           </div>
           <figure class="app audemo" data-audemo>
             <figcaption class="sr-only">
-              A recreation of the automation builder. The template Fix red beans is picked, the
-              bean_red trigger is switched on and a prompt is typed, while the YAML beside the form
-              follows each change. Save turns the file into a bean, which is checked and lands.
-              Later a red bean starts the automation: it pushes a fix bean, which lands, and writes
-              a note to its memory.
+              A recreation of the automation builder. The Blank template is picked and named Billing
+              watcher. The Prompt harness stays chosen and the model glm-5.3 is picked from the
+              model list. The bean_landed trigger is switched on, taking the place of the
+              manual-only workflow_dispatch line, with a paths filter of src/billing/**, the
+              spending cap is set to 0.25 dollars and a review prompt is typed, while the YAML
+              beside the form follows each change and the live check flags a cap of 0 until it is
+              fixed. Save turns the file into a bean, which is checked and lands. Test run then runs
+              it once by hand: the checkout, the memory restore and the agent's tool calls stream
+              in, and the run finishes green in 1 minute 46 seconds with 8 cents of model spend and
+              a one-line verdict.
             </figcaption>
             <div class="app-top">
               <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -351,112 +357,230 @@
             <div aria-hidden="true">
               <div class="au-templates">
                 <span class="au-label">Start from</span>
-                <span class="au-tpl" data-au-tpl>Fix red beans</span>
+                <span class="au-tpl">Fix red beans</span>
+                <span class="au-tpl">Area watcher</span>
                 <span class="au-tpl">Weekly dependency bump</span>
                 <span class="au-tpl">Summarize landed work</span>
                 <span class="au-tpl">Triage decision cards</span>
                 <span class="au-tpl">Shell heartbeat</span>
-                <span class="au-tpl">Blank</span>
+                <span class="au-tpl on" data-au-tpl>Blank</span>
               </div>
               <div class="au-body">
-                <div class="au-form">
+                <div class="au-form" data-au-form>
                   <div class="au-field">
                     <span class="au-label">Name</span>
-                    <span class="au-input" data-au-name>Fix red beans</span>
+                    <span class="au-input" data-au-namebox
+                      ><span data-au-name>Billing watcher</span
+                      ><i class="au-caret" data-au-ncaret hidden></i
+                    ></span>
+                    <span class="au-file"
+                      >File <code>.gitstalk/automations/</code
+                      ><code class="au-fname" data-au-file>billing-watcher</code><code>.yml</code
+                      ><span class="au-use gone" data-au-use>Use billing-watcher.yml</span></span
+                    >
                   </div>
                   <div class="au-field">
-                    <span class="au-label">When</span>
+                    <span class="au-label">Triggers</span>
                     <span class="au-chips">
-                      <span class="au-chip" data-au-chip="bean_red"
-                        >bean_red<small>not fix-*</small></span
-                      >
-                      <span class="au-chip">bean_landed</span>
+                      <span class="au-chip">bean_opened</span>
+                      <span class="au-chip on" data-au-chip>bean_landed</span>
+                      <span class="au-chip">bean_red</span>
+                      <span class="au-chip">bean_reverted</span>
                       <span class="au-chip">validation_red</span>
                       <span class="au-chip">decision_opened</span>
-                      <span class="au-chip">stalk_moved</span>
-                      <span class="au-chip">schedule</span>
                     </span>
-                    <span class="au-hint">Manual runs are always available.</span>
+                    <span class="au-filter" data-au-filter>
+                      <span class="au-ftitle"><code>bean_landed</code>: when a bean lands</span>
+                      <span class="au-inline">
+                        <span class="au-sub">Paths</span>
+                        <span class="au-input au-mono" data-au-pathbox
+                          ><span data-au-paths>src/billing/**</span
+                          ><i class="au-caret" data-au-pcaret hidden></i
+                        ></span>
+                      </span>
+                    </span>
+                    <span class="au-hint">▸ Manual: always available (Run on its page).</span>
+                  </div>
+                  <div class="au-field">
+                    <span class="au-label">Harness</span>
+                    <span class="au-seg">
+                      <span class="on" data-au-harness>Prompt</span><span>Shell</span>
+                    </span>
+                    <span class="au-inline au-modelrow">
+                      <span class="au-sub">Model</span>
+                      <span class="au-input au-mono au-select" data-au-model
+                        >@cf/zai-org/glm-5.3</span
+                      >
+                      <span class="au-menu" data-au-menu hidden>
+                        <span data-au-opt>@cf/moonshotai/kimi-k2.7-code (default)</span>
+                        <span data-au-opt>@cf/moonshotai/kimi-k2.6</span>
+                        <span data-au-opt>@cf/openai/gpt-oss-120b</span>
+                        <span data-au-opt>@cf/openai/gpt-oss-20b</span>
+                        <span data-au-opt>@cf/zai-org/glm-5.3</span>
+                        <span data-au-opt>@cf/zai-org/glm-5.3-flash</span>
+                        <span data-au-opt>@cf/qwen/qwen3.8-27b</span>
+                        <span data-au-opt>@cf/deepseek-ai/deepseek-v4-pro-0813</span>
+                        <span data-au-opt>@cf/deepseek-ai/deepseek-v4-flash-0731</span>
+                      </span>
+                    </span>
                   </div>
                   <div class="au-field">
                     <span class="au-label">Prompt</span>
-                    <span class="au-input au-prompt"
+                    <span class="au-input au-prompt" data-au-promptbox
                       ><span data-au-prompt
-                        >Read why the bean went red. Check your memory for this failure. Fix it in a
-                        new bean and note what you learned.</span
+                        >Review the newest landing under src/billing/: the trigger's commit, or when
+                        run by hand, git log -1 -- src/billing/. Read your memory first, then the
+                        diff and the area's last 20 landings. Write the verdict (fine, drift or
+                        regression) and the evidence to reviews/ in your memory, and finish with the
+                        verdict.</span
                       ><i class="au-caret" data-au-caret hidden></i
                     ></span>
                   </div>
                   <div class="au-row">
                     <div class="au-field">
-                      <span class="au-label">Agent</span>
-                      <span class="au-input">Kimi K2.7 code</span>
+                      <span class="au-label">Permissions</span>
+                      <span class="au-check"
+                        ><b class="au-box"></b>May push beans <code>beans: write</code></span
+                      >
                     </div>
                     <div class="au-field">
-                      <span class="au-label">May</span>
-                      <span class="au-input"><b class="au-on">✓</b> push beans</span>
-                    </div>
-                  </div>
-                  <div class="au-row">
-                    <div class="au-field">
-                      <span class="au-label">Limits</span>
-                      <span class="au-input">30 min · 40 turns · $0.50</span>
-                    </div>
-                    <div class="au-field">
-                      <span class="au-label">Memory</span>
-                      <span class="au-input"><b class="au-on">✓</b> kept in git</span>
+                      <span class="au-label">Max cost (USD)</span>
+                      <span class="au-input au-mono" data-au-costbox
+                        ><span data-au-cost>0.25</span><i class="au-caret" data-au-ccaret hidden></i
+                      ></span>
+                      <span class="au-note" data-au-cnote>at most $5 a run</span>
                     </div>
                   </div>
                   <div class="au-save">
-                    <span class="au-valid" data-au-valid>✓ valid</span>
+                    <span class="au-valid" data-au-valid>✓ no problems</span>
                     <span class="au-btn" data-au-save>Save as bean</span>
+                    <span class="au-btn au-ghost" data-au-test>Test run</span>
                   </div>
                   <p class="au-status" data-au-status>
-                    <span class="au-bean"></span><b>automation-fix-red-3f9a2</b>
+                    <span class="au-bean"></span><b>bean/automation-billing-watcher-a91d0</b>
                     <span class="au-phase landed" data-au-phase>landed</span>
-                    <span data-au-saved>Saved. Live when the stalk takes it.</span>
+                    <span data-au-saved>as 7c1e4b2. Live when the stalk takes it.</span>
                   </p>
                 </div>
-                <div class="au-yaml">
-                  <div class="au-yhead">
-                    <b>YAML</b><span>.gitstalk/automations/fix-red.yml</span>
-                  </div>
-                  <pre data-au-yaml>
-<span>name: Fix red beans</span>
+                <div class="au-side">
+                  <div class="au-yaml">
+                    <div class="au-yhead">
+                      <b>YAML</b><span data-au-path>.gitstalk/automations/billing-watcher.yml</span>
+                    </div>
+                    <pre data-au-yaml>
+<span>name: "Billing watcher"</span>
 <span>on:</span>
-<span>  bean_red:</span>
-<span>    beans: ['*', '!fix-*']</span>
-<span>harness: agent</span>
-<span>permissions:</span>
-<span>  beans: write</span>
-<span>max-cost-usd: 0.50</span>
-<span>memory: true</span>
+<span>  bean_landed:</span>
+<span>    paths: [ src/billing/** ]</span>
 <span>prompt: |</span>
-<span>  Read why the bean went red. Check your</span>
-<span>  memory for this failure. Fix it in a new</span>
-<span>  bean and note what you learned.</span></pre>
+<span>  Review the newest landing under src/billing/:</span>
+<span>  the trigger's commit, or when run by hand,</span>
+<span>  git log -1 -- src/billing/. Read your memory</span>
+<span>  first, then the diff and the area's last 20</span>
+<span>  landings. Write the verdict (fine, drift or</span>
+<span>  regression) and the evidence to reviews/ in</span>
+<span>  your memory, and finish with the verdict.</span>
+<span>model: "@cf/zai-org/glm-5.3"</span>
+<span>max-cost-usd: 0.25</span></pre>
+                  </div>
+                  <div class="au-runbox" data-au-runbox>
+                    <p class="au-idle" data-au-idle hidden>
+                      No runs yet. Test run runs the file once by hand on the stalk head; after
+                      that, every landing that changes src/billing/** starts it.
+                    </p>
+                    <div class="au-rbody" data-au-rbody>
+                      <div class="au-rhead">
+                        <span class="au-rstate ok" data-au-rstate>Success</span>
+                        <b>Billing watcher #1</b>
+                        <span class="au-rmeta">test run, by hand, on stalk 7c1e4b2</span>
+                        <span class="au-rtime" data-au-rtime>1m 46s</span>
+                      </div>
+                      <p class="au-job">prompt (@cf/zai-org/glm-5.3)</p>
+                      <ol class="au-steps">
+                        <li class="ok" data-au-rstep>
+                          <span class="au-st"
+                            ><i></i>Check out the triggering commit<em>2s</em></span
+                          >
+                        </li>
+                        <li class="ok" data-au-rstep>
+                          <span class="au-st"><i></i>Restore memory<em>1s</em></span>
+                          <span class="au-log" data-au-log
+                            >No memory yet at refs/automations/billing-watcher/memory: starting
+                            empty</span
+                          >
+                        </li>
+                        <li class="ok" data-au-rstep>
+                          <span class="au-st"><i></i>Run the agent<em>1m 38s</em></span>
+                          <span class="au-log" data-au-log
+                            >Agent loop on @cf/zai-org/glm-5.3, at most 40 turns, tools: bash,
+                            read_file, write_file, edit_file, list_files, finish</span
+                          >
+                          <span class="au-log au-call" data-au-log
+                            >→ bash git log -1 --format='%h %s' --stat -- src/billing/</span
+                          >
+                          <span class="au-log au-res" data-au-log
+                            >← exit 0 3f2c9a1 Round tax per line, not per invoice src/billing/tax.ts
+                            | 14 ++++++++------ 1 file changed, 8 insertions(+), 6
+                            deletions(-)</span
+                          >
+                          <span class="au-log au-call" data-au-log
+                            >→ bash git log -20 --oneline -- src/billing/</span
+                          >
+                          <span class="au-log au-res" data-au-log
+                            >← exit 0 3f2c9a1 Round tax per line, not per invoice 9be0d44 Credit
+                            notes keep the original tax rate 41a7c2e Add EUR rounding…</span
+                          >
+                          <span class="au-log au-call" data-au-log
+                            >→ bash pnpm vitest run src/billing</span
+                          >
+                          <span class="au-log au-res" data-au-log
+                            >← exit 0 ✓ src/billing/tax.test.ts (18 tests) ✓
+                            src/billing/invoice.test.ts (24 tests) Test Files 2 passed (2)</span
+                          >
+                          <span class="au-log au-call" data-au-log
+                            >→ write_file /tmp/gitstalk/memory/reviews/3f2c9a1.md</span
+                          >
+                          <span class="au-log au-res" data-au-log
+                            >← wrote /tmp/gitstalk/memory/reviews/3f2c9a1.md</span
+                          >
+                          <span class="au-log" data-au-log
+                            >Agent finished after 5 turns, model spend $0.0794</span
+                          >
+                        </li>
+                        <li class="ok" data-au-rstep>
+                          <span class="au-st"><i></i>Report<em>0s</em></span>
+                          <span class="au-log" data-au-log>No beans pushed</span>
+                        </li>
+                      </ol>
+                      <div class="au-out" data-au-out>
+                        <p class="au-summary">
+                          <b>Summary</b> fine: 3f2c9a1 moves tax rounding from the invoice to each
+                          line, as its message says; the 42 billing tests pass and no reverted fix
+                          comes back.
+                        </p>
+                        <dl class="au-facts">
+                          <div>
+                            <dt>Model spend</dt>
+                            <dd>$0.08 of $0.25</dd>
+                          </div>
+                          <div>
+                            <dt>Turns</dt>
+                            <dd>5 of 40</dd>
+                          </div>
+                          <div>
+                            <dt>Beans pushed</dt>
+                            <dd>none</dd>
+                          </div>
+                          <div>
+                            <dt>Memory</dt>
+                            <dd>not saved: a test run never writes it</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <ol class="au-run" data-au-run>
-                <li class="idle" data-au-idle hidden>
-                  <span class="au-dot"></span>No runs yet: it waits for a red bean, or a hand on
-                  Run.
-                </li>
-                <li class="red" data-au-step="1">
-                  <span class="au-dot"></span><b>bean word-count</b> went red: 2 failing tests
-                </li>
-                <li data-au-step="2">
-                  <span class="au-dot"></span><b>Fix red beans #1</b> started by
-                  <code>bean_red</code>, in a fresh container
-                </li>
-                <li class="ok" data-au-step="3">
-                  <span class="au-dot"></span>pushed <b>bean fix-word-count</b>: checked, landed
-                </li>
-                <li class="mem" data-au-step="4">
-                  <span class="au-dot"></span>wrote <code>notes.md</code> to
-                  <code>refs/automations/fix-red/memory</code>
-                </li>
-              </ol>
             </div>
           </figure>
           <p class="aunote">
@@ -874,8 +998,13 @@ claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin i
             <h2 id="f-legal">Legal</h2>
             <ul>
               <li>
-                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE.md"
-                  >Licence (FSL → Apache-2.0)</a
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
                 >
               </li>
               <li><a href="/privacy">Privacy</a></li>
@@ -885,7 +1014,7 @@ claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin i
         </div>
         <div class="base">
           <span>© 2026 Gitstalk</span>
-          <span>Source available (FSL). Each release becomes Apache-2.0 after two years.</span>
+          <span>Open source under the Apache License 2.0.</span>
         </div>
       </div>
     </footer>

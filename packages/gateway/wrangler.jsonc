@@ -53,6 +53,9 @@
     "Runner": { "type": "durable-object", "storage": "sqlite" },
     // stream_diffs: one per run, beside its RunDO (docs/claude-17-streaming-diffs.md).
     "RunStreamDO": { "type": "durable-object", "storage": "sqlite" },
+    // Derived history (blame by bean, path history): one per repository engine, fed by the
+    // repo-events consumer (docs/claude-opus/34-derived-data-and-blame.md).
+    "RepoDerivedDO": { "type": "durable-object", "storage": "sqlite" },
     // One instance ("pool"): race reservations and repositories' pre-land sandbox leases.
     "RunnerCapacity": { "type": "durable-object", "storage": "sqlite" },
     // Actions (doc 25 §3.1): one per repository (index, schedules, run numbers, minutes) and
@@ -66,6 +69,7 @@
       { "name": "RUN_INDEX", "class_name": "RunIndex" },
       { "name": "RUNNER", "class_name": "Runner" },
       { "name": "RUN_STREAMS", "class_name": "RunStreamDO" },
+      { "name": "DERIVED", "class_name": "RepoDerivedDO" },
       { "name": "RUNNER_CAPACITY", "class_name": "RunnerCapacity" },
       { "name": "ACTIONS_REPOS", "class_name": "ActionsRepoDO" },
       { "name": "ACTIONS_RUNS", "class_name": "ActionsRunDO" },

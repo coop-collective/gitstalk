@@ -28,6 +28,8 @@ export const RepoEngineOverrides = z.strictObject({
   audit_every: z.number().int().min(0).max(100).optional(),
   /** `suite`: run the engine's suite and ignore `.gitstalk/checks.toml` (the default reads it). */
   checks_source: z.enum(['suite', 'repository']).optional(),
+  /** Approval rules from `.gitstalk/policy.toml` on the stalk; absent: on with repository checks. */
+  approval_rules: z.boolean().optional(),
 });
 export type RepoEngineOverrides = z.infer<typeof RepoEngineOverrides>;
 

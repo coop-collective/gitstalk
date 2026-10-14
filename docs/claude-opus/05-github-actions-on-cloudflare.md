@@ -173,7 +173,7 @@ Dynamic Workers are V8 isolates. They have no child processes, no native add-ons
 
 ## 8. Better than Actions, because we own the server
 
-- **Structured failures.** Annotations and step summaries become typed objects (file, line, test, error) through MCP (`checks_get`), not log text the agent must scrape.
+- **Structured failures.** Annotations and step summaries become typed objects (file, line, test, error) through MCP (`bean_status` with `checks: true`), not log text the agent must scrape.
 - **Evidence reuse.** Results keyed by `(tree hash, job definition hash)` are reused across forks and re-runs. Thousands of agents on near-identical trees shouldn't pay for the same test twice.
 - **Test impact analysis on the fast lane.** The validator in `02` runs *affected* jobs and tests. The full suite runs on green promotion. Anthropic reported a 25x rise in CI jobs from agents; most of that should never run.
 - **Speculative warmup.** Run the predicted footprint's tests on the fork's latest push before the agent finishes (idea #33).

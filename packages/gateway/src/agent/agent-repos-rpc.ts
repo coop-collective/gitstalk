@@ -3,6 +3,8 @@
  * the gateway. Every call opens the repository through `agent-access.ts` (the git rule), then
  * reads or writes the engine's own state: pushed beans, reservations, claims, the backlog file.
  */
+import { z } from 'zod';
+
 import type {
   AgentAutomations,
   AgentBean,
@@ -22,6 +24,8 @@ import {
   BeanWaitUntil,
   MAX_BEAN_WAIT_SECONDS,
 } from '@gitstalk/shared-race/agent-repos';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
+import type { BeanCommitResult } from '@gitstalk/shared-race/bean-commit';
 import { AUTOMATION_PATH_PATTERNS, isAutomationPath } from '@gitstalk/shared-race/actions';
 import { TaskId } from '@gitstalk/shared-race/ids';
 import type { RpcResult } from '@gitstalk/shared-race/rpc';
@@ -79,10 +83,14 @@ export function agentReposRpc(deps: Deps): Required<AgentReposRpc> {
       ),
     agentAutomations: (principal, repo) =>
       within(deps, { principal, repo, need: READ }, (opened) => automationsOf(deps, opened)),
+    agentCommitBean: (principal, repo, input) =>
+      within(deps, { principal, repo, need: COMMIT_BEAN }, (opened) =>
+        commitBean(opened, principal, input),
+      ),
   };
 }
 
-/** Runs `automation_list` shows. */
+/** Runs `automation_get` lists. */
 const AUTOMATION_RUNS = 20;
 
 async function automationsOf(deps: Deps, opened: Opened): Promise<RpcResult<AgentAutomations>> {
@@ -139,6 +147,7 @@ async function automationsOf(deps: Deps, opened: Opened): Promise<RpcResult<Agen
 
 const READ = { kind: 'read' } as const;
 const OPEN_BEAN = { kind: 'act', scopes: ['write'], what: 'Opening a bean' } as const;
+const COMMIT_BEAN = { kind: 'act', scopes: ['write'], what: 'Committing to a bean' } as const;
 const RELEASE_TASK = {
   kind: 'act',
   scopes: ['write'],
@@ -305,6 +314,27 @@ async function openBean(
     task: reserved.value.task,
     sprout: sprout.ok ? (sprout.value.commits[0]?.sha ?? null) : null,
     expires_at: new Date(reserved.value.expiresMs).toISOString(),
+  });
+}
+
+/**
+ * `bean_commit` for a session (doc 33): the engine builds the commit on `bean/<name>` and
+ * submits it. An agent session never vouches for protected paths, as for its git pushes.
+ */
+async function commitBean(
+  opened: Opened,
+  principal: AgentPrincipal,
+  raw: unknown,
+): Promise<RpcResult<BeanCommitResult>> {
+  const input = BeanCommitInput.safeParse(raw);
+  if (!input.success) return failure('invalid_request', 400, z.prettifyError(input.error));
+  const handle = principal.user.handle;
+  const role = opened.repository.role ?? 'no role';
+  return opened.engine.repoBeanCommit({
+    actor: handle,
+    client: principal.label || 'MCP',
+    protectedAccess: { allowed: false, who: `@${handle} (${role}, with an MCP session)` },
+    input: input.data,
   });
 }
 

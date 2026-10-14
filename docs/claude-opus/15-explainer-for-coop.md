@@ -178,14 +178,14 @@ Sizes: **S** is under a day, **M** is 1–3 days, **L** is a week or more. Sizes
 | | Shared legacy account, container cap 48 (one 20-agent run uses 23) | Known limit | — |
 | **Competition (2026-10-14)** | 5–10 min video. The 8-min script exists (`12`) but quotes v2.0 numbers (13.8 / 17.5) and still lists a fresh v2.2 run as a must | Script done, not recorded | M |
 | | Run instructions. The README's "Run it" exists; it hasn't been tested on a fresh account | Mostly done | S |
-| | Licence note. FSL-1.1-ALv2 is your informed choice (`AGENTS.md`), but the rules list MIT, Apache-2.0 or BSD. The note should state this plainly. The script's close also says "open source", which FSL isn't in the OSI sense | Decided; the note isn't written | S |
+| | Licence note. Apache-2.0 since 2026-10-14 (your decision), as the rules require; `LICENSE`, `NOTICE`, `TRADEMARKS.md`, the README, the site and `AGENTS.md` say so, and the script's close ("open source") is accurate | Done | S |
 | | Entrant eligibility (US/Canada residency) | Settled: `AGENTS.md` records you as eligible. The winner must be in SF on 10-21 | — |
 
 ### Top 5, in order
 
 1. **Run v2.4 against the queue on 2–3 more seeds on Cloudflare (M).** Today's headline rests on one seed. Replay agents are free, but real agents are what convinced.
 2. **Record the video from an updated script (M).** Use the v2.4 numbers: 37 green, 30th at 8.9 against 19.9, done 2.3x sooner. Rehearse the human-mode decision card.
-3. **Finish the submission text (S).** Test the run instructions on a clean account, write the licence note, and fix "open source" in the close.
+3. **Finish the submission text (S).** Test the run instructions on a clean account. (The licence note is done: Apache-2.0 since 2026-10-14, so "open source" in the close is accurate.)
 4. **An MCP write path: `task_next`/`task_claim` plus `change_submit` (M–L).** With these, a stock Claude Code session with the plugin can join a run without the Python driver. That's the step from "a race rig" to "a forge an agent can use".
 5. **A cost guard (S–M).** Auto-reap after every run, a per-run spend cap, and a measured infra cost, before Artifacts billing starts around 10-14.
 
@@ -225,10 +225,9 @@ The deployed URL answers 401 without a token, as expected.
 |---|---|---|
 | `ask_repo(question, ref?)` | The web app's Ask view as JSON: spec, resolved files, beans, decisions, the picker's `picks` (Jev or rules), `preview_url` | Shared Ask pipeline over gateway RPC: `repoTree`, `repoFile`, `repoDiff`, `repoLog`, `beansByPath`, `decisions`, … |
 | `work_overlaps(paths)` | Beans in flight, on the sprout, or green in the last 15 min on those paths, with intent and status | `beansByPath` RPC, plus the event log |
-| `change_status(bean)` | Status, phase, checks, reworks, card, and a `next` instruction | `beanDetail` RPC (built from the event log) |
-| `checks_get(bean)` | The latest check's failures, with `inherited` and `protected` flags, history, `blamed_by` | Event log |
-| `run_status()` | Sprout and stalk heads, the window, beans in flight, open cards, red validations, cost | Event log, plus `runView` RPC (for the window) |
-| `preview_link(bean \| ref)` | A URL into the web explorer (never carries the token) | Nothing: it builds a link |
+| `bean_status(bean, checks?)` | Status, phase, checks, reworks, card, a `next` instruction and a `preview_url`; with `checks: true` the latest check's failures, with `inherited` and `protected` flags, history, `blamed_by` | `beanDetail` RPC (built from the event log) and the event log |
+| `repo_status()` | Sprout and stalk heads, the window, beans in flight, open cards, red validations, cost, `preview_urls` for both lines | Event log, plus `runView` RPC (for the window) |
+| `repo_read(path \| paths \| glob \| grep)` | Files with a line range, a tree listing, or `rg --json`-shaped grep results | `repoFile`, `repoTree`, `repoGrep` RPCs |
 
 Tests run the Worker against a fake gateway that answers from a recorded v2 run.
 
@@ -236,7 +235,7 @@ Tests run the Worker against a fake gateway that answers from a recorded v2 run.
 
 | File | What it does |
 |---|---|
-| `.claude-plugin/plugin.json` | Manifest: name `beanstalk`, v0.1.0, licence FSL-1.1-ALv2 |
+| `.claude-plugin/plugin.json` | Manifest: name `beanstalk`, v0.1.0, licence MIT (the plugin repository is MIT; Gitstalk itself is Apache-2.0) |
 | `.mcp.json` | One HTTP server. URL from `BEANSTALK_MCP_URL` (defaults to the deployed `beanstalk-mcp…workers.dev/mcp`), header `Bearer ${BEANSTALK_TOKEN}` |
 | `skills/beanstalk/SKILL.md` | The working loop (below) |
 
@@ -244,9 +243,9 @@ The skill's working loop:
 
 1. Orient with `ask_repo`.
 2. Call `work_overlaps` before editing, and fit the change to other beans' intents.
-3. After submitting, poll `change_status` with backoff and act on `next`.
-4. On a red check, read `checks_get`. Ignore `inherited` reds, and **never edit protected tests**.
-5. Use `preview_link` to show a person.
+3. After submitting, poll `bean_status` with backoff and act on `next`.
+4. On a red check, read `bean_status` with `checks: true`. Ignore `inherited` reds, and **never edit protected tests**.
+5. Show a person the `preview_url` the answers carry.
 
 Load it with `claude --plugin-dir packages/claude-plugin`.
 
@@ -268,6 +267,6 @@ That's coordination awareness, the thing a plain git host lacks.
 - **Submitting over MCP:** `change_submit`. Today the agent pushes with git, and the driver posts the result.
 - **Asking a human:** `decision_request`. Cards are raised only by the engine.
 - **Context and notes:** `context_read`, which would log reads into the read set, and `marker_drop`.
-- **Previews:** `preview_link` is only a link into the explorer, not a running app. `preview_ensure`, `_http`, `_browse`, `_compare` and `_logs`, plus `attest`, are designed (`06` §5) but not built.
+- **Previews:** `preview_url` is only a link into the explorer, not a running app. `preview_ensure`, `_http`, `_browse`, `_compare` and `_logs`, plus `attest`, are designed (`06` §5) but not built.
 - **Real sign-in:** OAuth for MCP clients. Today an operator mints and pastes a view token.
-- **Live work in progress:** with `stream_diffs`, `change_status` reports `editing_now` and `work_overlaps` counts the files a bean's agent is editing now, so overlap warnings fire before a commit exists (`14` streaming note).
+- **Live work in progress:** with `stream_diffs`, `bean_status` reports `editing_now` and `work_overlaps` counts the files a bean's agent is editing now, so overlap warnings fire before a commit exists (`14` streaming note).

@@ -49,6 +49,8 @@ export type AskAnswer = {
     readonly decision: string;
     readonly chosen: readonly string[];
     readonly by: string;
+    /** The model that answered (`Clef Flash`); null when the rule did. */
+    readonly model: string | null;
     readonly confidence: number | null;
   }[];
   readonly preview_url: string;
@@ -97,6 +99,7 @@ export async function askRepo(
       decision: receipt.decision,
       chosen: receipt.chosen,
       by: receipt.by,
+      model: receipt.model,
       confidence: receipt.confidence,
     })),
     preview_url: previewUrl(ctx.webUrl, ctx.run, { kind: 'ask', question, ref }),

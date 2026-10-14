@@ -19,6 +19,9 @@ import type { ToolScope } from '../tools/tool-context';
 
 const DEFAULT_WAIT_SECONDS = 600;
 
+/** What `actions_config_*` manage: write-only secrets or plain variables. */
+export type ConfigKind = 'secret' | 'variable';
+
 type Session = {
   readonly actions: AgentActionsRpc;
   readonly principal: AgentPrincipal;
@@ -147,33 +150,53 @@ export async function waitForRun(
   };
 }
 
+/** `actions_config_list`: secret names, variables with values, or (no kind) both. */
 export async function entriesList(
   scope: ToolScope,
-  input: { readonly repo: string; readonly kind: 'secrets' | 'variables' },
+  input: { readonly repo: string; readonly kind?: ConfigKind | undefined },
 ): Promise<object> {
   const session = actionsOf(scope);
   const entries = valueOf(await session.actions.agentActionsEntries(session.principal, input.repo));
-  const settings = settingsUrl(session, input.repo);
-  if (input.kind === 'secrets')
-    return {
-      repo: entries.repo,
-      org: entries.org,
-      can_manage: entries.can_manage,
-      secrets: entries.secrets,
-      settings_url: settings,
-      summary: `${count(entries.secrets.length, 'secret')} (names only; values are never shown). Workflows read them as \${{ secrets.NAME }}. A missing one: ask the person to add it at settings_url, or to give you the value for actions_secret_set.`,
-    };
-  return {
-    repo: entries.repo,
-    org: entries.org,
-    can_manage: entries.can_manage,
-    variables: entries.variables,
-    settings_url: settings,
-    summary: `${count(entries.variables.length, 'variable')}. Workflows read them as \${{ vars.NAME }}.`,
-  };
+  const listed = { repo: entries.repo, org: entries.org, can_manage: entries.can_manage };
+  const settings_url = settingsUrl(session, input.repo);
+  const secrets = `${count(entries.secrets.length, 'secret')} (names only; values are never shown); workflows read them as \${{ secrets.NAME }}. A missing one: ask the person to add it at settings_url, or to give you the value for actions_config_set with kind secret.`;
+  const variables = `${count(entries.variables.length, 'variable')}; workflows read them as \${{ vars.NAME }}.`;
+  switch (input.kind) {
+    case 'secret':
+      return { ...listed, secrets: entries.secrets, settings_url, summary: secrets };
+    case 'variable':
+      return { ...listed, variables: entries.variables, settings_url, summary: variables };
+    case undefined:
+      return {
+        ...listed,
+        secrets: entries.secrets,
+        variables: entries.variables,
+        settings_url,
+        summary: `${secrets} ${variables}`,
+      };
+    default:
+      return assertNever(input.kind);
+  }
 }
 
-export async function secretSet(
+/** `actions_config_set`: a secret (only a value the person gave) or a plain variable. */
+export async function configSet(
+  scope: ToolScope,
+  input: {
+    readonly repo: string;
+    readonly kind: ConfigKind;
+    readonly name: string;
+    readonly value: string;
+    readonly level?: 'repository' | 'organization' | undefined;
+  },
+): Promise<object> {
+  const { kind, ...entry } = input;
+  if (kind === 'variable') return variableSet(scope, entry);
+  if (entry.value.length === 0) throw new ToolError('a secret value cannot be empty');
+  return secretSet(scope, entry);
+}
+
+async function secretSet(
   scope: ToolScope,
   input: { readonly repo: string } & Parameters<AgentActionsRpc['agentPutSecret']>[2],
 ): Promise<object> {
@@ -190,7 +213,7 @@ export async function secretSet(
   };
 }
 
-export async function variableSet(
+async function variableSet(
   scope: ToolScope,
   input: { readonly repo: string } & Parameters<AgentActionsRpc['agentPutVariable']>[2],
 ): Promise<object> {
@@ -210,7 +233,7 @@ export async function entryDelete(
     readonly repo: string;
     readonly name: string;
     readonly level?: 'repository' | 'organization' | undefined;
-    readonly kind: 'secret' | 'variable';
+    readonly kind: ConfigKind;
   },
 ): Promise<object> {
   const session = actionsOf(scope);
@@ -313,7 +336,7 @@ function waitNext(waited: AgentRunWaited): string {
   switch (waited.outcome) {
     case 'completed':
       if (waited.runs.some((run) => run.failures.length > 0))
-        return 'read failures[].log_tail (actions_job_log for more), fix the cause in a new bean, push, and wait again; for a missing secret ask the person (actions_secret_list shows names)';
+        return 'read failures[].log_tail (actions_job_log for more), fix the cause in a new bean, push, and wait again; for a missing secret ask the person (actions_config_list shows names)';
       return waited.runs.every((run) => run.conclusion === 'success')
         ? 'all runs succeeded'
         : `ended ${waited.runs.map((run) => run.conclusion ?? run.status).join(', ')}: actions_rerun runs one again`;
@@ -326,4 +349,8 @@ function waitNext(waited: AgentRunWaited): string {
     default:
       return 'see the runs';
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`unexpected config kind ${String(value)}`);
 }

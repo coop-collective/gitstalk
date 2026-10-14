@@ -17,7 +17,7 @@ import { editorClient } from '../automations/editor-client';
 import { lookupRepository } from '../repositories/flows';
 import { repositoryPath } from '../repositories/paths';
 import { registryClient } from '../repositories/registry-client';
-import { field, signedInForm } from './signed-in-form';
+import { field, idempotencyOf, signedInForm } from './signed-in-form';
 
 export type SaveState =
   | { readonly kind: 'saved'; readonly result: SaveResult }
@@ -42,6 +42,7 @@ export async function saveAutomationAction(form: FormData): Promise<SaveState> {
     base: base.data,
     content: field(form, 'mode') === 'delete' ? null : field(form, 'content'),
     ...(field(form, 'message') === '' ? {} : { message: field(form, 'message') }),
+    ...idempotencyOf(form),
   });
   if (!saved.ok) return refused(saved.message);
   // No revalidation here: nothing changes on the stalk until the bean lands (the bean's status

@@ -1,5 +1,5 @@
-// Gitstalk marketing site: theme toggle, the sign-up choice, the install picker with its copy
-// button, the lifecycle stalk, the parallel checks and the race tally. The hero's app replay
+// Gitstalk marketing site: theme toggle, the sign-up choice, the agent tabs with their copy
+// buttons, the lifecycle stalk, the parallel checks and the race tally. The hero's app replay
 // lives in app-demo.js. No framework.
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,8 @@ const INSTALLS = [
     kind: 'shell',
     verified: true,
     code: `claude plugin marketplace add ${PLUGIN_REPO} && claude plugin install ${PLUGIN}@${MARKETPLACE} && claude mcp login ${CLAUDE_SERVER}`,
+    after:
+      'Your browser opens once: sign in (or create your account) and approve the session. Already in a session? Type /mcp and pick gitstalk.',
   },
   {
     id: 'codex',
@@ -31,6 +33,7 @@ const INSTALLS = [
     kind: 'shell',
     verified: true,
     code: `codex plugin marketplace add ${PLUGIN_REPO} && codex plugin add ${PLUGIN}@${MARKETPLACE} && codex mcp login ${PLUGIN}`,
+    after: 'The last step opens your browser: sign in and approve the session.',
   },
   {
     id: 'cursor',
@@ -39,6 +42,7 @@ const INSTALLS = [
     kind: 'shell',
     verified: false,
     code: `{ "mcpServers": { "${PLUGIN}": { "url": "${MCP_URL}" } } }\ncursor-agent mcp login ${PLUGIN}`,
+    after: 'Or open Cursor Settings › MCP and click “Needs login” next to gitstalk.',
   },
   {
     id: 'gemini',
@@ -47,14 +51,17 @@ const INSTALLS = [
     kind: 'shell',
     verified: false,
     code: `gemini mcp add --transport http ${PLUGIN} ${MCP_URL}\n/mcp auth ${PLUGIN}`,
+    after: 'The second line runs inside Gemini CLI and opens the browser sign-in.',
   },
   {
     id: 'mcp',
-    name: 'Other MCP',
+    name: 'Other MCP client',
     where: 'add as a remote (HTTP) MCP server',
     kind: 'url',
     verified: false,
     code: MCP_URL,
+    after:
+      'The client’s first call opens the same browser sign-in; approve it and it is connected.',
   },
 ];
 
@@ -149,9 +156,14 @@ function setupSignup() {
 }
 
 // ---------------------------------------------------------------------------
-// Install picker: a horizontal list of agents; the selected one's command shows below
-// with one copy button. A hash such as /agent#codex preselects an agent.
+// Agent tabs: one tabbed selector for every install block (WAI-ARIA tabs, automatic activation).
+// A page carries either [data-install], which is filled from INSTALLS above, or
+// [data-agent-tabs] holding one <section data-agent="id" data-name="Name"> per harness. Without
+// JS every section shows, each with its own header. The choice is remembered in this browser
+// and every selector on the page follows it. A hash such as /agent#codex preselects an agent.
 // ---------------------------------------------------------------------------
+const AGENT_KEY = 'gitstalk-agent';
+
 function escapeHtml(text) {
   return text.replace(
     /[&<>"]/g,
@@ -159,57 +171,135 @@ function escapeHtml(text) {
   );
 }
 
-function renderInstallPanel(host, item) {
-  const panel = host.querySelector('[role="tabpanel"]');
-  if (!panel) return;
-  panel.setAttribute('aria-labelledby', `${host.id}-tab-${item.id}`);
-  panel.innerHTML = `
-    <header><span>${item.name}: ${item.where}</span>${item.verified ? '' : '<span class="chip soon">untested</span>'}
-      <button type="button" class="btn small copy" data-copy="#${host.id}-code">Copy</button></header>
-    <pre class="${item.kind}" id="${host.id}-code" tabindex="0"><code>${escapeHtml(item.code)}</code></pre>
-    <p class="copyhint" hidden role="status"></p>`;
+function readStoredAgent() {
+  try {
+    return localStorage.getItem(AGENT_KEY);
+  } catch {
+    return null;
+  }
 }
 
-function selectInstall(host, id, focus) {
-  const item = INSTALLS.find((i) => i.id === id) ?? INSTALLS[0];
+function storeAgent(id) {
+  try {
+    localStorage.setItem(AGENT_KEY, id);
+  } catch {
+    // Storage refused (private window): the choice lasts for this page only.
+  }
+}
+
+/** The INSTALLS entries as static panels, the same markup a docs page writes by hand. */
+function installPanelsHtml() {
+  return INSTALLS.map(
+    (item) => `
+    <section class="cmd" data-agent="${item.id}" data-name="${escapeHtml(item.name)}">
+      <header><span>${escapeHtml(item.name)}: ${escapeHtml(item.where)}</span>${item.verified ? '' : '<span class="chip soon">untested</span>'}</header>
+      <pre class="${item.kind}"><code>${escapeHtml(item.code)}</code></pre>
+      ${item.after ? `<p class="cmd-note">${escapeHtml(item.after)}</p>` : ''}
+    </section>`,
+  ).join('');
+}
+
+function panelsOf(host) {
+  return [...host.querySelectorAll(':scope > [data-agent]')];
+}
+
+/** Turns one host's sections into tab panels under a tablist, each with a copy button. */
+function buildAgentTabs(host, index) {
+  const base = host.id === '' ? `agents-${index}` : host.id;
+  const panels = panelsOf(host);
+  const tablist = document.createElement('div');
+  tablist.className = 'picker';
+  tablist.setAttribute('role', 'tablist');
+  tablist.setAttribute('aria-label', host.dataset.label ?? 'Choose your agent');
+  for (const panel of panels) {
+    const id = panel.dataset.agent;
+    const name = panel.dataset.name ?? id;
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.setAttribute('role', 'tab');
+    tab.id = `${base}-tab-${id}`;
+    tab.dataset.agent = id;
+    tab.setAttribute('aria-controls', `${base}-panel-${id}`);
+    tab.textContent = name;
+    tablist.append(tab);
+
+    panel.id = `${base}-panel-${id}`;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', tab.id);
+    const pre = panel.querySelector('pre');
+    if (pre) {
+      pre.id = `${base}-code-${id}`;
+      pre.tabIndex = 0;
+      panel
+        .querySelector('header')
+        ?.insertAdjacentHTML(
+          'beforeend',
+          `<button type="button" class="btn small copy" data-copy="#${pre.id}" aria-label="Copy the ${escapeHtml(name)} command">Copy</button>`,
+        );
+      pre.insertAdjacentHTML('afterend', '<p class="copyhint" role="status"></p>');
+    }
+  }
+  host.prepend(tablist);
+  host.classList.add('tabbed');
+  tablist.addEventListener('click', (event) => {
+    const tab = event.target instanceof Element ? event.target.closest('[role="tab"]') : null;
+    if (tab instanceof HTMLElement) chooseAgent(tab.dataset.agent);
+  });
+  tablist.addEventListener('keydown', (event) => onTabKey(host, event));
+}
+
+function onTabKey(host, event) {
+  const tabs = [...host.querySelectorAll('[role="tab"]')];
+  const current = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+  const last = tabs.length - 1;
+  const moves = { ArrowRight: current + 1, ArrowLeft: current - 1, Home: 0, End: last };
+  const next = moves[event.key];
+  if (next === undefined) return;
+  event.preventDefault();
+  const tab = tabs[(next + tabs.length) % tabs.length];
+  chooseAgent(tab.dataset.agent);
+  tab.focus();
+}
+
+/** Shows `id` in one host; a host without that harness shows its first tab instead. */
+function showAgent(host, id) {
+  const panels = panelsOf(host);
+  const shown = panels.some((panel) => panel.dataset.agent === id) ? id : panels[0]?.dataset.agent;
   for (const tab of host.querySelectorAll('[role="tab"]')) {
-    const on = tab instanceof HTMLElement && tab.dataset.agent === item.id;
+    const on = tab.dataset.agent === shown;
     tab.setAttribute('aria-selected', String(on));
     tab.tabIndex = on ? 0 : -1;
-    if (on && focus && tab instanceof HTMLElement) tab.focus();
   }
-  renderInstallPanel(host, item);
+  for (const panel of panels) panel.hidden = panel.dataset.agent !== shown;
 }
 
-function setupInstalls() {
-  const fromHash = location.hash.slice(1);
+function showAgentEverywhere(id) {
+  for (const host of document.querySelectorAll('.tabbed')) showAgent(host, id);
+}
+
+/** A person's pick: every selector follows it, and it is remembered for the next page. */
+function chooseAgent(id) {
+  if (!id) return;
+  storeAgent(id);
+  showAgentEverywhere(id);
+}
+
+function setupAgentTabs() {
   for (const host of document.querySelectorAll('[data-install]')) {
-    host.innerHTML = `
-      <div class="picker" role="tablist" aria-label="Choose your agent">
-        ${INSTALLS.map(
-          (item) =>
-            `<button type="button" role="tab" id="${host.id}-tab-${item.id}" data-agent="${item.id}" aria-controls="${host.id}-panel">${item.name}</button>`,
-        ).join('')}
-      </div>
-      <div class="cmd" role="tabpanel" id="${host.id}-panel"></div>`;
-    const ids = INSTALLS.map((i) => i.id);
-    selectInstall(host, ids.includes(fromHash) ? fromHash : ids[0], false);
-    host.querySelector('.picker')?.addEventListener('click', (event) => {
-      const tab = event.target instanceof Element ? event.target.closest('[role="tab"]') : null;
-      if (tab instanceof HTMLElement && tab.dataset.agent)
-        selectInstall(host, tab.dataset.agent, false);
-    });
-    host.querySelector('.picker')?.addEventListener('keydown', (event) => {
-      const current = ids.findIndex((id) =>
-        host.querySelector(`[data-agent="${id}"][aria-selected="true"]`),
-      );
-      const moves = { ArrowRight: 1, ArrowLeft: -1, Home: -current, End: ids.length - 1 - current };
-      const step = moves[event.key];
-      if (step === undefined) return;
-      event.preventDefault();
-      selectInstall(host, ids[(current + step + ids.length) % ids.length], true);
-    });
+    host.innerHTML = installPanelsHtml();
   }
+  const hosts = document.querySelectorAll('[data-install], [data-agent-tabs]');
+  if (hosts.length === 0) return;
+  hosts.forEach((host, index) => buildAgentTabs(host, index));
+  const fromHash = location.hash.slice(1);
+  const known = new Set(
+    [...document.querySelectorAll('.tabbed [role="tab"]')].map((t) => t.dataset.agent),
+  );
+  showAgentEverywhere(known.has(fromHash) ? fromHash : (readStoredAgent() ?? INSTALLS[0].id));
+  // Another tab of this site changed the choice: follow it here too.
+  addEventListener('storage', (event) => {
+    if (event.key === AGENT_KEY && event.newValue) showAgentEverywhere(event.newValue);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -223,21 +313,27 @@ function selectText(element) {
   selection?.addRange(range);
 }
 
+const COPY_HINTS = {
+  done: 'Copied to the clipboard.',
+  manual: 'Copying was blocked. The command is selected: press Ctrl+C (⌘C on a Mac).',
+};
+
 function showCopyState(button, state, label) {
   button.dataset.state = state;
   button.textContent = label;
   const hint = button.closest('.cmd')?.querySelector('.copyhint');
   if (hint) {
-    hint.hidden = state !== 'manual';
-    hint.textContent =
-      state === 'manual'
-        ? 'Copying was blocked. The command is selected: press Ctrl+C (⌘C on a Mac).'
-        : '';
+    hint.dataset.state = state;
+    hint.textContent = COPY_HINTS[state] ?? '';
   }
   if (state === 'done') {
     setTimeout(() => {
       button.dataset.state = '';
       button.textContent = 'Copy';
+      if (hint) {
+        hint.dataset.state = '';
+        hint.textContent = '';
+      }
     }, 2000);
   }
 }
@@ -546,7 +642,7 @@ function renderTally() {
 
 setupTheme();
 setupSignup();
-setupInstalls();
+setupAgentTabs();
 setupCopy();
 setupStalk();
 setupLanes();

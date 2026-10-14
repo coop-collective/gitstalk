@@ -64,30 +64,73 @@ The web app calls this Worker's RPC (`AgentSessionsRpc`): `consentRequest`, `app
 ## Tools
 
 Plain, task-shaped tools; there is no code mode or `execute` tool. Reads are annotated
-`readOnlyHint: true`; cancelling a run and changing a secret or variable are marked destructive. Answers are compact JSON with handles and a
-`preview_url` on the web app where useful.
+`readOnlyHint: true`; cancelling a run and changing a secret or variable are marked destructive.
+Answers are compact JSON with handles and a `preview_url` (or `preview_urls`) on the web app
+where useful.
+
+A tool is registered only when the caller's token can ever use it (`src/mcp/scope-gate.ts`): a
+read-only session sees no write tool, and only a session with the `secrets` scope sees
+`actions_config_set` and `actions_config_delete`. What depends on the repository (the person's
+role there) is checked when the tool is called.
 
 | Group | Tools | Who gets them |
 |---|---|---|
-| Session | `whoami`, `repository_access` | Agent sessions |
-| Repositories | `repo_list`, `repo_status`, `automation_list` | Agent sessions |
-| Beans | `bean_open`, `bean_status`, `bean_wait` | Agent sessions (`bean_open` needs `write`) |
-| Backlog | `task_list`, `task_claim`, `task_release` | Agent sessions (claims need `write` and the write role) |
-| Git | `git_credentials` (a short-lived HTTPS credential for one repository, as `git credential approve` input) | Agent sessions |
-| Ask and status | `ask_repo`, `work_overlaps`, `change_status`, `checks_get`, `run_status`, `preview_link` | Everyone; sessions pass `repo: "owner/name"` |
-| Bean collaboration | `bean_context`, `bean_update`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | `bean_context` for any caller with a run to read; the writes and inbox for contributor run tokens only |
-| Actions | `actions_workflow_list`, `actions_run_list`, `actions_run_get`, `actions_job_log`, `actions_wait_for_run` | Agent sessions, any role that reads the repository |
-| Actions changes | `actions_dispatch`, `actions_rerun`, `actions_cancel`, `automation_run` | Agent sessions with `write` and the maintain role |
-| Secrets and variables | `actions_secret_list`, `actions_variable_list` (any role); `actions_secret_set`, `actions_secret_delete`, `actions_variable_set`, `actions_variable_delete` | Changes need `secrets` and the maintain role (org level: org owner or admin) |
-| Automations | `automation_list`, `automation_get` | Agent sessions |
+| Read and status | `ask_repo`, `work_overlaps`, `why_lines`, `bean_status`, `repo_status`, `repo_read` | Everyone; sessions pass `repo: "owner/name"`, run tokens read their run |
+| Session | `whoami` (with `repo`: the person's role there and what this session may do) | Agent sessions |
+| Repositories and beans | `repo_list`, `bean_wait`, `task_list`, `git_credentials` | Agent sessions |
+| Bean and backlog writes | `bean_open`, `bean_commit`, `task_claim`, `task_release` | Sessions with `write` (the write role is checked per call) |
+| Bean collaboration | `bean_context`, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | `bean_context` for any caller with a run to read; the writes and inbox for contributor run tokens only |
+| Actions | `actions_workflow_list`, `actions_run_list`, `actions_run_get`, `actions_job_log`, `actions_wait_for_run`, `actions_config_list`, `automation_get` | Agent sessions, any role that reads the repository |
+| Actions changes | `actions_dispatch`, `actions_rerun`, `actions_cancel`, `automation_run` | Sessions with `write`; the maintain role per call |
+| Secrets and variables | `actions_config_set`, `actions_config_delete` (`kind: "secret"` or `"variable"`) | Sessions with `secrets`; the maintain role per call (org level: org owner or admin) |
+
+What each kind of caller is offered (`test/tool-surface.test.ts` asserts the exact sets; a
+session also gets `bean_context` when the deployment has a demo run):
+
+| Caller | Tools | Count |
+|---|---|---|
+| Run view token | the six read and status tools, `bean_context` | 7 |
+| Run contributor token | the above, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | 12 |
+| Session, `read` | the seven above for a view token, `whoami`, `repo_list`, `bean_wait`, `task_list`, `git_credentials`, the seven Actions reads | 19 |
+| Session, `write` | the above, the four bean and backlog writes, the four Actions changes | 27 |
+| Session, `write` and `secrets` | the above, `actions_config_set`, `actions_config_delete` | 29 |
+
+`bean_status` takes a bean id, name or branch. A run token gets the run's view (status, phase,
+checks counts, recent steps, route receipt, next step); a session naming `repo` also gets the
+pushed bean's verdict (phase, failing tests, the landed beans it collided with, the push lines),
+with the run's view under `engine`. `checks: true` adds the latest check's failures, flagging
+reds inherited from the sprout and protected acceptance tests. `repo_status` without `repo` reads
+the caller's run.
+
+`repo_read` reads code without a checkout, through the gateway's repository reads (`repoFile`,
+`repoTree`, `repoGrep`) and the same access as `ask_repo`. `path` or `paths` (at most 20) answer
+file contents, optionally lines `start`..`end`, cut to about 25k tokens with `next_start`; a
+directory `path` or a `glob` answers a tree listing; `grep` (a literal, or `/regex/` in the
+gateway's safe subset) answers `rg --json`-shaped messages (`begin`, `context`, `match` with
+`submatches`, `end`) with two lines of context, about 8k tokens a page, continued with
+`cursor: next_cursor`.
+
+`bean_commit` writes or deletes files on a bean branch as one commit the gateway builds and
+pushes; there is no clone and no push. One tool, two callers: an agent session names `repo:
+"owner/name"` and a bean (`bean/<name>`), and the commit is submitted as a push of that branch is
+(its pre-land check starts; `bean_wait` follows it); a contributor run token writes its own
+`beans/<bean>`. Use it for small edits by an agent without a checkout (a revert, a conflict fix,
+docs); a harness with a checkout keeps using git. `expected_head` is compare-and-swap: a branch
+elsewhere answers `kind: "conflict"` with `current_head`, never an overwrite. At most 64 paths
+and 192 KiB per commit; see
+[33-server-side-commits.md](../../docs/claude-opus/33-server-side-commits.md).
 
 `bean_wait` blocks until the bean's check ends (or it reaches the stalk), up to 1,800 seconds,
-so agents never sleep-poll. `actions_wait_for_run` does the same for workflow runs: given a bean,
+so agents never sleep-poll. `why_lines` answers, for a file or a line range, which bean last
+changed each range (its title, landing commit and decision cards; a revert gives lines back to
+their previous beans) and the path's recent landings and reverts, from the gateway's derived
+history ([34-derived-data-and-blame](../../docs/claude-opus/34-derived-data-and-blame.md)). `actions_wait_for_run` does the same for workflow runs: given a bean,
 it waits for the bean to reach the stalk (a push to `main`) and for the push runs that started,
 then answers each conclusion with the failing step and its log's last lines. A secret's value
 goes to the gateway once and is never in an answer, an error or a log line. Each tool's full
 description and input schema is in code: `src/mcp/server.ts`, `src/mcp/session-tools.ts`,
-`src/repos/repo-tools.ts`, `src/actions/actions-tools.ts` and `src/mcp/collaboration-tools.ts`.
+`src/repos/repo-tools.ts`, `src/actions/actions-tools.ts` and `src/mcp/collaboration-tools.ts`;
+the registration rules in `src/mcp/scope-gate.ts`.
 
 ## How it calls the gateway
 
@@ -110,9 +153,9 @@ repository in `IDENTITY_DB`, which the gateway's git proxy accepts.
 | `src/mcp/` | Server construction, tool registration, the Streamable HTTP handler (`createMcpHandler` from the Agents SDK) |
 | `src/repos/` | Repository, bean, backlog and credential tools |
 | `src/actions/` | Actions, secrets, variables and automation tools |
-| `src/tools/` | Ask, status, overlaps, collaboration and access implementations |
+| `src/tools/` | Ask, status, `repo_read`, overlaps, collaboration and access implementations |
 | `src/app.ts`, `src/auth/` | The run-token app (Hono) and bearer check |
-| `test/` | Miniflare tests: OAuth, repository tools, Actions tools, access, collaboration, gateway integration |
+| `test/` | Miniflare tests: OAuth, the tool surface per caller, repository tools, Actions tools, access, collaboration, gateway integration |
 
 ## Develop
 
@@ -133,9 +176,9 @@ removed, and talk to it with the MCP SDK's client.
 ## Configuration
 
 Bindings: service `GATEWAY`; KV `OAUTH_KV`; D1 `IDENTITY_DB` (schema in
-`packages/shared-identity/migrations`); `AI` (Jev, a classifier model, for `ask_repo`'s picks).
+`packages/shared-identity/migrations`); `AI` (Clef Flash, a typed decision model, for `ask_repo`'s picks).
 Vars: `LOG_LEVEL`, `PUBLIC_URL` (issuer and resource origin), `WEB_URL`, `GIT_ORIGIN`,
-`DEMO_RUN`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `JEV_GATEWAY`. No secrets. The flag
+`DEMO_RUN`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `DECISION_GATEWAY`. No secrets. The flag
 `global_fetch_strictly_public` keeps Client ID Metadata Document fetches to public addresses.
 
 Deploy through an environment after the gateway: `pnpm env:provision <env>`,

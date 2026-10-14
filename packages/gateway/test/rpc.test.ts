@@ -182,6 +182,26 @@ describe('RPC for the web app: the repo explorer', () => {
     expect(untouched.value.commits.map((commit) => commit.sha)).toEqual([BASE]);
   });
 
+  it('counts the read index’s hits and misses in the run view: a repeated read is all hits', async () => {
+    const run = await runWithRepo();
+    const cacheNow = async () => {
+      const view = await gateway.runView(run.run);
+      if (!view.ok || view.value.cache === undefined) throw new Error('no cache counts');
+      return view.value.cache;
+    };
+
+    const before = await cacheNow();
+    await gateway.repoFile(run.run, NEXT, 'src/lib/money.ts');
+    const first = await cacheNow();
+    await gateway.repoFile(run.run, NEXT, 'src/lib/money.ts');
+    const second = await cacheNow();
+
+    expect(first.objects.misses).toBeGreaterThan(before.objects.misses);
+    expect(second.objects.misses).toBe(first.objects.misses);
+    expect(second.objects.hits - first.objects.hits).toBeGreaterThanOrEqual(4);
+    expect(second.objects.hit_rate).toBeGreaterThan(first.objects.hit_rate ?? 0);
+  });
+
   it('refuses refs and paths outside the run repo', async () => {
     const run = await runWithRepo();
 

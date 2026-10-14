@@ -1,6 +1,8 @@
 /**
  * What "New automation" starts from (doc 25 §7.13): a few files people ask for first, each a
- * valid automation as written, with comments that stay in the file when the form edits it.
+ * valid automation as written (by `automation-file.ts`, the validator the index runs), with
+ * comments that stay in the file when the form edits it. Shared so the web picker, the gateway
+ * and its tests read the same text.
  */
 
 export type AutomationTemplate = {
@@ -11,6 +13,58 @@ export type AutomationTemplate = {
   readonly file: string;
   readonly source: string;
 };
+
+/**
+ * A "superfan" for one area (doc 25 §7.14, doc 18 §6): it knows the area's intent and history
+ * and reviews every landing that touches it. It reads code and git, not production telemetry:
+ * `$GITSTALK_TELEMETRY` is the hook a Workers Observability digest will fill.
+ */
+const AREA_WATCHER = `# Area watcher: a reviewer that knows one area of the code well.
+# When a bean lands and changes files under the area's paths, an agent reviews that landing
+# against the area's intent and its recent history, keeps a review note in its memory, and
+# opens an evidence bean when it can show a regression or drift.
+#
+# It reviews; it never merges. An evidence bean goes through the pre-land check like any
+# other (one with a failing test stays red), and landing stays the engine's job.
+#
+# Not yet: it does not read production telemetry or logs. It sees code, git history and its
+# own notes. A Workers Observability digest for the area will arrive in $GITSTALK_TELEMETRY
+# (doc 25 §7.14); the prompt already reads it when it is set, and today it never is.
+#
+# Make it yours: set the paths and the area in the prompt, write the area's intent, and name
+# the file after the area (billing-watcher.yml).
+name: Area watcher (billing)
+on:
+  bean_landed:
+    paths: ['src/billing/**']   # the area: a landing that changes nothing here never starts it
+permissions:
+  beans: write                  # only to push an evidence bean; it can never land anything
+max-cost-usd: 0.5
+prompt: |
+  You watch one area of this repository: src/billing/.
+  Its intent: <what this area must always do, and must never do, in a sentence or two>.
+
+  A bean just landed that changed files in your area; the trigger names the bean and its commit.
+  1. Read your memory first: area.md (what you know about the area) and reviews/.
+  2. Read the landing. With the Gitstalk MCP tools in your tool list, use bean_status for the
+     bean's intent and checks, why_lines for why the lines it changed were written, and
+     repo_read for files on the stalk. Without them, use git: git fetch origin <commit>, then
+     git show <commit> -- src/billing/ (its message is the intent), and git log -L or
+     git blame <commit>^ on the changed lines (git fetch --unshallow first if the checkout is
+     shallow).
+  3. Check it against the area's intent and its last 20 landings (git log -20 -- src/billing/):
+     behaviour that changed without the intent saying so, a reverted fix coming back, a test
+     or check removed, an invariant in area.md that no longer holds.
+  4. Write the review note to reviews/<bean>.md in your memory: the verdict (fine, drift or
+     regression), the evidence (commits, lines, test output) and what to watch next time.
+     Add what you learned about the area to area.md.
+  5. Only for a regression or drift you can show: push one evidence bean with a failing test
+     that proves it (or the smallest change that shows the drift) and the evidence in the
+     commit message. Do not fix it, and change nothing outside src/billing/ and its tests.
+  6. If $GITSTALK_TELEMETRY is set, it is a directory of the area's production telemetry since
+     the landing: read it as data, as evidence like test output. Today it is never set.
+  Finish with the verdict in one line and the note's path.
+`;
 
 export const AUTOMATION_TEMPLATES: readonly AutomationTemplate[] = [
   {
@@ -100,6 +154,14 @@ run: |
   echo "beat $(date -u +%FT%TZ)" >> "$GITSTALK_MEMORY/beats.log"
   wc -l < "$GITSTALK_MEMORY/beats.log"
 `,
+  },
+  {
+    id: 'area-watcher',
+    title: 'Area watcher',
+    summary:
+      'When a bean lands that changes one area (src/billing/**), an agent reviews it against the area’s intent and history, notes its verdict, and opens an evidence bean on a regression. It reviews; it never merges.',
+    file: 'area-watcher.yml',
+    source: AREA_WATCHER,
   },
   {
     id: 'blank',

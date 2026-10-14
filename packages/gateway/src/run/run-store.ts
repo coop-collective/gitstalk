@@ -9,6 +9,7 @@ import type { RunConfig } from '@gitstalk/shared-race/run-config';
 import type { EmittedEvent } from '../engine/model';
 import type { EngineState } from '../engine/state';
 import type { InfraMeter } from './infra-meter';
+import { restoredMeter } from './infra-meter';
 import type { RunRepos } from './run-jobs';
 import type { ReapReport } from './run-reap';
 
@@ -118,8 +119,9 @@ export function saveStep(
   }
 }
 
-export function loadMeter(storage: DurableObjectStorage): InfraMeter | null {
-  return storage.kv.get<InfraMeter>(KEYS.meter) ?? null;
+export function loadMeter(storage: DurableObjectStorage, nowMs: number): InfraMeter | null {
+  const stored = storage.kv.get<Partial<InfraMeter>>(KEYS.meter);
+  return stored === undefined ? null : restoredMeter(stored, nowMs);
 }
 
 export function saveMeter(storage: DurableObjectStorage, meter: InfraMeter): void {

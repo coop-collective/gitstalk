@@ -11,6 +11,7 @@ import {
   BeanUpdateInput,
   ContributorTokenClaims,
 } from '@gitstalk/shared-race/collaboration';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 import { RunId } from '@gitstalk/shared-race/ids';
 import type {
   CollaborationRpc,
@@ -48,6 +49,12 @@ export function collaborationRpc(deps: Deps): CollaborationRpc {
         const parsed = BeanUpdateInput.safeParse(input);
         if (!parsed.success) return invalid(z.prettifyError(parsed.error));
         return deps.run(claims.run).beanUpdate(claims, parsed.data);
+      }),
+    beanCommit: (token, input) =>
+      forContributor(deps, token, async (claims) => {
+        const parsed = BeanCommitInput.safeParse(input);
+        if (!parsed.success) return invalid(z.prettifyError(parsed.error));
+        return deps.run(claims.run).beanCommit(claims, parsed.data);
       }),
     beanThreadPost: (token, input) =>
       forContributor(deps, token, async (claims) => {

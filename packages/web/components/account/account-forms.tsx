@@ -2,12 +2,14 @@
 
 /**
  * The account settings forms. Text forms are server actions with a save line under them;
- * the picture is a plain multipart POST (a file does not travel through an action) with a
- * preview and the size check done here first, so a too-large file never leaves the browser.
+ * the picture is a multipart POST (a file does not travel through an action), cropped in a
+ * dialog first and checked here, so a too-large file never leaves the browser.
  */
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useActionState, useEffect, useId } from 'react';
+import type { ReactNode } from 'react';
 
 import type { FormState } from '../../src/account/form-state';
+import type { PictureNote } from '../../src/account/picture-notes';
 import { EMPTY_FORM_STATE } from '../../src/account/form-state';
 import type { ProfileFormState } from '../../src/server/account-actions';
 import {
@@ -17,12 +19,10 @@ import {
   renamePasskeyAction,
   saveProfile,
 } from '../../src/server/account-actions';
+import { PictureUpload } from '../settings/picture-upload';
 import { SaveStatus } from '../settings/settings-shell';
 import { useSavedForm } from '../settings/use-saved-form';
 import styles from './account.module.css';
-
-const MAX_BYTES = 2 * 1024 * 1024;
-const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
 
 export function ProfileForm({
   csrf,
@@ -101,20 +101,23 @@ export function ProfileForm({
   );
 }
 
-/** Upload (multipart POST to the route handler) and remove (an action). */
+/**
+ * The picture: upload through the crop dialog (a multipart POST to the route handler, or the
+ * plain form without scripts) and remove (an action, then a reload).
+ */
 export function AvatarForm({
   csrf,
+  current,
   hasPicture,
   note,
 }: {
   readonly csrf: string;
+  /** The picture people see now (the uploaded one or the generated one). */
+  readonly current: ReactNode;
   readonly hasPicture: boolean;
   /** What the last upload did (`?picture=` on the page). */
-  readonly note: { readonly kind: 'saved' | 'error'; readonly text: string } | null;
+  readonly note: PictureNote | null;
 }) {
-  const inputId = useId();
-  const [preview, setPreview] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
   const [removeState, removeAction, removing] = useActionState<FormState, FormData>(
     removeAvatarAction,
     EMPTY_FORM_STATE,
@@ -122,69 +125,35 @@ export function AvatarForm({
   useEffect(() => {
     if (removeState.saved !== null) window.location.assign('/settings?picture=removed');
   }, [removeState.saved]);
-  const choose = (files: FileList | null) => {
-    const file = files?.[0];
-    if (file === undefined) return;
-    if (file.size > MAX_BYTES) {
-      setProblem('Images can be up to 2 MB. Pick a smaller one.');
-      setPreview(null);
-      return;
-    }
-    setProblem(null);
-    setPreview(URL.createObjectURL(file));
-  };
+  const removeNote: PictureNote | null =
+    removeState.error === null ? null : { kind: 'error', text: removeState.error };
   return (
-    <div className={styles.stack}>
-      <form
-        method="post"
-        action="/settings/profile/avatar"
-        encType="multipart/form-data"
-        className={styles.inline}
-      >
-        <input type="hidden" name="csrf" value={csrf} />
-        {preview === null ? null : (
-          <img
-            src={preview}
-            alt="The picture you chose"
-            width={64}
-            height={64}
-            className={styles.preview}
-          />
-        )}
-        <label htmlFor={inputId} className="visually-hidden">
-          Picture file
-        </label>
-        <input
-          id={inputId}
-          type="file"
-          name="file"
-          accept={ACCEPT}
-          required
-          className={styles.file}
-          onChange={(event) => choose(event.currentTarget.files)}
-        />
-        <button type="submit" className={styles.secondary} disabled={problem !== null}>
-          Upload picture
-        </button>
-      </form>
-      <p className={styles.hint}>
-        PNG, JPEG, WebP or GIF (first frame), up to 2 MB and 4096 pixels a side. It is cropped
-        square.
-      </p>
-      <SaveStatus
-        pending={false}
-        saved={note?.kind === 'saved' ? note.text : removeState.saved}
-        error={problem ?? (note?.kind === 'error' ? note.text : removeState.error)}
-      />
-      {hasPicture ? (
-        <form action={removeAction}>
-          <input type="hidden" name="csrf" value={csrf} />
-          <button type="submit" className={styles.quiet} disabled={removing}>
-            Remove picture (use the generated one)
-          </button>
-        </form>
-      ) : null}
-    </div>
+    <PictureUpload
+      shape="avatar"
+      noun="picture"
+      cropTitle="Crop your picture"
+      action="/settings/profile/avatar"
+      csrf={csrf}
+      current={current}
+      hasPicture={hasPicture}
+      note={removeNote ?? note}
+      buttonClassName={styles.secondary}
+      hint="PNG, JPEG, WebP or GIF (first frame), up to 2 MB. You can move and zoom it to fit the circle, or drop a file on the picture."
+      remove={
+        hasPicture ? (
+          <form action={removeAction}>
+            <input type="hidden" name="csrf" value={csrf} />
+            <button
+              type="submit"
+              className={`${styles.danger} ${styles.besideSecondary}`}
+              disabled={removing}
+            >
+              Remove picture
+            </button>
+          </form>
+        ) : null
+      }
+    />
   );
 }
 

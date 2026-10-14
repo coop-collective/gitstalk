@@ -33,7 +33,8 @@ export default async function OrgGeneralSettingsPage(props: {
       <PictureSection
         id="icon"
         title="Icon"
-        lede="Square works best; PNG, JPEG, WebP or GIF up to 2 MB. Without one, the handle's first letters."
+        lede="PNG, JPEG, WebP or GIF up to 2 MB, cropped square after you choose it. Without one, the handle's first letters."
+        shape="icon"
         action={`/orgs/${encodeURIComponent(org.handle)}/settings/icon`}
         csrf={session.csrfToken}
         hasPicture={org.iconKey !== null}

@@ -1,9 +1,11 @@
+import { env } from 'cloudflare:workers';
 import { notFound } from 'next/navigation';
 
 import { NewOrgForm } from '../../../components/orgs/org-forms';
 import styles from '../../../components/repository/repository.module.css';
 import { currentSession } from '../../../src/auth/user';
 import { signedInUser } from '../../../src/server/signed-in';
+import { webHost } from '../../../src/site/web-host';
 
 export const metadata = { title: 'New organization' };
 
@@ -19,7 +21,7 @@ export default async function NewOrgPage() {
         An organization owns repositories together. Its members get a role, and its owners decide
         what members may do with every repository.
       </p>
-      <NewOrgForm csrf={session.csrfToken} />
+      <NewOrgForm csrf={session.csrfToken} host={webHost(env.WEB_URL)} />
     </main>
   );
 }

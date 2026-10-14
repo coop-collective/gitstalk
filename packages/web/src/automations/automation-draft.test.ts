@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { readAutomationFile } from '@gitstalk/shared-race/automation-file';
+import { AUTOMATION_TEMPLATES, templateOf } from '@gitstalk/shared-race/automation-templates';
 
 import {
   formOf,
@@ -10,7 +11,6 @@ import {
   setEventFilter,
   setField,
 } from './automation-draft';
-import { AUTOMATION_TEMPLATES } from './templates';
 
 const LIMITS = { maxTimeoutMinutes: 60 };
 const FILE = `# Fixes red beans.
@@ -75,7 +75,11 @@ describe('the YAML round trip', () => {
 
   it('turns `on: <name>` into a mapping when a filter is added', () => {
     const short = 'name: X\non: bean_landed\nprompt: go\n';
-    const next = setEventFilter(short, 'bean_landed', { beans: ['release-*'], authors: [] });
+    const next = setEventFilter(short, 'bean_landed', {
+      beans: ['release-*'],
+      authors: [],
+      paths: [],
+    });
     const parsed = readDraft(next);
     if (parsed.kind !== 'ok') throw new Error('expected YAML');
     expect(parsed.value['on']).toEqual({ bean_landed: { beans: ['release-*'] } });
@@ -87,6 +91,21 @@ describe('the YAML round trip', () => {
     expect(next).toBe(
       'name: W\non:\n    bean_red:\n        beans: ["*"]   # all\n    schedule: [ { cron: "0 9 * * *" } ]\nprompt: go\n',
     );
+  });
+
+  it('drops the manual fallback once a trigger is switched on', () => {
+    const manual = 'name: X\non:\n  workflow_dispatch:\nprompt: go\n';
+    expect(setEvent(manual, 'bean_landed', true)).toBe(
+      'name: X\non:\n  bean_landed:\nprompt: go\n',
+    );
+  });
+
+  it('removes a bare key, which is present even though its value is empty', () => {
+    const bare = 'name: X\non:\n  bean_red:\n  stalk_moved:\nprompt: go\n';
+    expect(setField(bare, ['on', 'stalk_moved'], undefined)).toBe(
+      'name: X\non:\n  bean_red:\nprompt: go\n',
+    );
+    expect(setField(bare, ['on', 'stalk_moved'], null)).toBe(bare);
   });
 
   it('writes a bare event as `event:`, never `event: null`', () => {
@@ -105,7 +124,7 @@ describe('the YAML round trip', () => {
     const edited = setEventFilter(
       setCrons(setField(FILE, ['secrets'], ['LINEAR_KEY']), ['*/30 * * * *']),
       'bean_red',
-      { beans: ['*'], authors: ['coop'] },
+      { beans: ['*'], authors: ['coop'], paths: [] },
     );
     expect(
       readAutomationFile('.beanstalk/automations/fix-red.yml', edited, LIMITS).problems,
@@ -121,5 +140,43 @@ describe('templates', () => {
       LIMITS,
     );
     expect(file.problems).toEqual([]);
+  });
+});
+
+describe('the area watcher template', () => {
+  const AREA = templateOf('area-watcher').source;
+  const PATH = '.gitstalk/automations/area-watcher.yml';
+
+  it('is offered by New automation, before Blank', () => {
+    const ids = AUTOMATION_TEMPLATES.map((template) => template.id);
+    expect(ids).toContain('area-watcher');
+    expect(ids.at(-1)).toBe('blank');
+  });
+
+  it('shows its area as the landing trigger’s paths in the form', () => {
+    const parsed = readDraft(AREA);
+    if (parsed.kind !== 'ok') throw new Error('the template parses');
+    expect(formOf(parsed.value).events).toEqual({
+      bean_landed: { beans: [], authors: [], paths: ['src/billing/**'] },
+    });
+  });
+
+  it('round-trips byte for byte through the form, and keeps the area when filters change', () => {
+    expect(
+      setEventFilter(AREA, 'bean_landed', { beans: [], authors: [], paths: ['src/billing/**'] }),
+    ).toBe(AREA);
+    const moved = setEventFilter(AREA, 'bean_landed', {
+      beans: ['*', '!wip-*'],
+      authors: [],
+      paths: ['src/payments/**'],
+    });
+    expect(moved.split('\n').filter((line) => !AREA.includes(line))).toEqual([
+      '    beans: [ "*", "!wip-*" ]',
+      '    paths: [ src/payments/** ]',
+    ]);
+    expect(moved).toContain('# Not yet: it does not read production telemetry or logs.');
+    const file = readAutomationFile(PATH, moved, LIMITS);
+    expect(file.problems).toEqual([]);
+    expect(file.triggers[0]).toMatchObject({ paths: ['src/payments/**'] });
   });
 });

@@ -17,6 +17,7 @@ import type {
   BeanUpdateInput,
   BeanUpdateResult,
 } from '@gitstalk/shared-race/collaboration';
+import type { BeanCommitInput, BeanCommitResult } from '@gitstalk/shared-race/bean-commit';
 
 import type {
   BeanDetail,
@@ -44,6 +45,13 @@ import type {
   ViewToken,
   ViewTokenClaims,
 } from '@gitstalk/shared-race/rpc';
+import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
+import type {
+  RulesEditorRpc,
+  RulesSource,
+  SaveRulesInput,
+} from '@gitstalk/shared-race/rules-editor';
+import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
 
 import type {
   CreateRepositoryInput,
@@ -116,6 +124,14 @@ import type {
   RepositoryStalk,
 } from '@gitstalk/shared-race/repo-events';
 
+import type {
+  DerivedRpc,
+  PathHistory,
+  PathHistoryInput,
+  WhyLines,
+  WhyLinesInput,
+} from '@gitstalk/shared-race/derived';
+
 import type { AccountsRpc } from '@gitstalk/shared-race/accounts';
 import type {
   AutomationBeanStatus,
@@ -129,10 +145,13 @@ import type {
 import { repositoryStorage } from './adapters/repository-storage';
 import { accountsRpc } from './repos/accounts-rpc';
 import { automationEditorRpc } from './automations/editor-rpc';
+import { rulesEditorRpc } from './approval/rules-editor-rpc';
 import { agentActionsRpc } from './agent/agent-actions-rpc';
 import { agentReposRpc } from './agent/agent-repos-rpc';
 import { consumeRepoEvents } from './repo-events/consumer';
 import { repoIndexRpc } from './repo-events/index-rpc';
+import type { DerivedFeed } from './repo-events/consumer';
+import { derivedRpc } from './derive/derived-rpc';
 import { sshKeyStore } from './auth/ssh-keys';
 import type { SshDeps, SshKeyAnswer } from './ssh/ssh-git';
 import { lookupSshKey, serveSshGit } from './ssh/ssh-git';
@@ -149,6 +168,7 @@ import { d1Registry } from './repos/registry';
 import { newRepositoryId, repositoriesRpc } from './repos/repositories-rpc';
 import { cleanupPortsFrom, repositoryCleanup } from './repos/repository-cleanup';
 import { createDeps } from './deps';
+import type { GatewayRpcSurface } from './rpc/gateway-rpc';
 import { gatewayRpc } from './rpc/gateway-rpc';
 import { collaborationRpc } from './rpc/collaboration-rpc';
 import { repoEngineRpc } from './rpc/repo-engine-rpc';
@@ -156,6 +176,7 @@ import { repoEngineRpc } from './rpc/repo-engine-rpc';
 export { RunDO } from './run/run-do';
 export { RunIndex } from './run/run-index';
 export { RunStreamDO } from './stream/run-stream-do';
+export { RepoDerivedDO } from './derive/repo-derived-do';
 export { Runner } from './runner/runner-container';
 export { RunnerCapacity } from './capacity/runner-capacity';
 export { ActionsRepoDO } from './actions/repo-do';
@@ -183,8 +204,10 @@ export default class Gateway
     AgentActionsRpc,
     EngineFeedRpc,
     RepoIndexRpc,
+    DerivedRpc,
     AccountsRpc,
-    AutomationEditorRpc
+    AutomationEditorRpc,
+    RulesEditorRpc
 {
   override async fetch(request: Request): Promise<Response> {
     return withHsts(request, await app.fetch(request, this.env, this.ctx));
@@ -197,8 +220,38 @@ export default class Gateway
       // Actions (doc 25 §2): the stalk moving is `push` to main; the repository's DO indexes.
       stalkMoved: (move) => this.env.ACTIONS_REPOS.getByName(move.repoId).stalkMoved(move),
       repoEvents: (input) => this.env.ACTIONS_REPOS.getByName(input.repoId).repoEvents(input),
+      derived: (feed) => this.#feedDerived(feed),
       registry: d1Registry(this.env.FORGE, this.env),
       log: createLogger(readConfig(this.env).logLevel, { component: 'repo-events' }),
+    });
+  }
+
+  /** Derived history (`derive/`): the repository's `RepoDerivedDO` records and derives in the background. */
+  #feedDerived(feed: DerivedFeed): void {
+    const log = createLogger(readConfig(this.env).logLevel, { component: 'repo-events' });
+    this.ctx.waitUntil(
+      this.env.DERIVED.getByName(feed.engine)
+        .observe({ repo: feed.repo, events: feed.events })
+        .catch((error: unknown) => {
+          log.warn('derived history feed failed', { engine: feed.engine, error });
+        }),
+    );
+  }
+
+  /** Which bean last changed each line range of a file (derived history, `derive/`). */
+  whyLines(run: string, input: WhyLinesInput): Promise<RpcResult<WhyLines>> {
+    return this.#derived().whyLines(run, input);
+  }
+
+  /** The landings and reverts that touched a path, newest first (derived history). */
+  pathHistory(run: string, input: PathHistoryInput): Promise<RpcResult<PathHistory>> {
+    return this.#derived().pathHistory(run, input);
+  }
+
+  #derived(): DerivedRpc {
+    return derivedRpc({
+      registry: d1Registry(this.env.FORGE, this.env),
+      derived: (engine) => this.env.DERIVED.getByName(engine),
     });
   }
 
@@ -299,6 +352,22 @@ export default class Gateway
     return this.#rpc().beanDetail(run, bean);
   }
 
+  policyGet(run: string, ref?: string): Promise<RpcResult<ApprovalPolicyView>> {
+    return this.#rpc().policyGet(run, ref);
+  }
+
+  beanRoute(run: string, bean: string): Promise<RpcResult<RouteReceipt | null>> {
+    return this.#rpc().beanRoute(run, bean);
+  }
+
+  approveBean(
+    run: string,
+    bean: string,
+    actor: string,
+  ): Promise<RpcResult<{ readonly approved: true; readonly resubmitted: boolean }>> {
+    return this.#rpc().approveBean(run, bean, actor);
+  }
+
   decisions(run: string, paths?: readonly string[]): Promise<RpcResult<readonly DecisionRecord[]>> {
     return this.#rpc().decisions(run, paths);
   }
@@ -340,6 +409,10 @@ export default class Gateway
 
   beanUpdate(token: string, input: BeanUpdateInput): Promise<RpcResult<BeanUpdateResult>> {
     return collaborationRpc(createDeps(this.env)).beanUpdate(token, input);
+  }
+
+  beanCommit(token: string, input: BeanCommitInput): Promise<RpcResult<BeanCommitResult>> {
+    return collaborationRpc(createDeps(this.env)).beanCommit(token, input);
   }
 
   beanThreadPost(
@@ -668,6 +741,14 @@ export default class Gateway
     return this.#agents().agentAutomations(principal, repo);
   }
 
+  agentCommitBean(
+    principal: AgentPrincipal,
+    repo: string,
+    input: BeanCommitInput,
+  ): Promise<RpcResult<BeanCommitResult>> {
+    return this.#agents().agentCommitBean(principal, repo, input);
+  }
+
   // Actions for agent sessions (doc 23 §5): workflows, runs, logs, secrets, automations.
 
   agentWorkflows(principal: AgentPrincipal, repo: string): Promise<RpcResult<AgentWorkflows>> {
@@ -820,6 +901,30 @@ export default class Gateway
     return this.#automations().testAutomation(viewer, repoId, input);
   }
 
+  rulesSource(viewer: Viewer, repoId: string): Promise<RpcResult<RulesSource>> {
+    return this.#rules().rulesSource(viewer, repoId);
+  }
+
+  saveRules(
+    viewer: Viewer,
+    repoId: string,
+    input: SaveRulesInput,
+  ): Promise<RpcResult<SaveAutomationResult>> {
+    return this.#rules().saveRules(viewer, repoId, input);
+  }
+
+  rulesBean(
+    viewer: Viewer,
+    repoId: string,
+    bean: string,
+  ): Promise<RpcResult<AutomationBeanStatus>> {
+    return this.#rules().rulesBean(viewer, repoId, bean);
+  }
+
+  #rules(): RulesEditorRpc {
+    return rulesEditorRpc(this.env, createDeps(this.env));
+  }
+
   #automations(): AutomationEditorRpc {
     return automationEditorRpc(this.env, createDeps(this.env));
   }
@@ -845,7 +950,7 @@ export default class Gateway
     return { deps: createDeps(this.env), keys: sshKeyStore(this.env) };
   }
 
-  #rpc(): GatewayRpc {
+  #rpc(): GatewayRpcSurface {
     return gatewayRpc(this.env, createDeps(this.env));
   }
 }

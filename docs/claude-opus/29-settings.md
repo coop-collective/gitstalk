@@ -18,7 +18,7 @@ Built 2026-10-09 on a worktree branch from `prototype` at `b3f6bdf` (lane S of t
 | `/<handle>` | The person's page: picture, name, bio, website, then their repositories (public ones for everyone; archived ones only for themselves) |
 | Header | The app header (§9): mark and primary links; the New menu; the person's avatar opening their menu (profile, repositories, organizations, settings, connect an agent, docs, day or night, sign out) |
 
-Shell: `components/settings/settings-shell.tsx` (`SettingsShell`, `SettingsSection`, `SaveStatus`, `SoonPill`), left nav at 220 px; under 760 px the nav is one strip of chips that scrolls sideways inside itself, the current one scrolled into view (`settings-client.tsx`). Text forms are server actions (`src/server/account-actions.ts`, origin + session + CSRF checked by `signedInForm`) with a "Saving… / saved / error" line (`role=status` / `alert`); uploads are plain multipart POSTs to route handlers, so they work without JavaScript.
+Shell: `components/settings/settings-shell.tsx` (`SettingsShell`, `SettingsSection`, `SaveStatus`, `SoonPill`), left nav at 220 px; under 760 px the nav is one strip of chips that scrolls sideways inside itself, the current one scrolled into view (`settings-client.tsx`). Text forms are server actions (`src/server/account-actions.ts`, origin + session + CSRF checked by `signedInForm`) with a "Saving… / saved / error" line (`role=status` / `alert`); uploads are multipart POSTs to route handlers. Since 2026-10-14 a "Change picture" button opens a crop dialog (`components/settings/picture-upload.tsx`, `picture-crop-dialog.tsx`; math in `src/settings/picture-crop.ts`): drag, arrow keys, wheel, pinch and a slider move and zoom the image inside a circle (avatars), square (icons) or 2:1 frame (social images), and Save posts the crop (460×460 or 1280×640, WebP, PNG fallback) to the same routes, so the server still validates and normalises it. Without JavaScript the plain file input and Upload button post the original file as before.
 
 ## 2. Uploads (`@gitstalk/shared-media`)
 
@@ -101,6 +101,7 @@ Account settings were already one route per section; repository and organization
 | `…/settings/social-image` | owner, not archived | Upload or remove (multipart → `…/settings/social-image/upload`, back here with `?picture=`) |
 | `…/settings/visibility` | owner, not archived | Public / private / internal (`updateRepository`) |
 | `…/settings/branches`, `…/settings/checks` | any role | Read-only |
+| `…/settings/rules` | any role reads; owner and maintainers save | The approval rules' `.gitstalk/policy.yml`, saved as a bean authored by the person (`32-approval-rules.md` §7) |
 | `…/settings/actions` | owner, maintainer | Jobs: dependency cache on/off, largest snapshot, npm audit on/off, one Save (`saveActionsSwitchesAction`; stored as the repository variables `GITSTALK_DEPS_CACHE`, `GITSTALK_DEPS_SNAPSHOT_MAX`, `GITSTALK_NPM_AUDIT`, a default removes the variable; read-only while archived); Features placeholder |
 | `…/settings/collaborators` | owner | Invite, roles, remove, cancel |
 | `…/settings/secrets` | any role, where Actions run | Secrets and variables (maintainers and the owner change them) |

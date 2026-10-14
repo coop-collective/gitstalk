@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://gitstalk.dev/schemas/policy.json
+# Benchmark B (2026-10-14): comment-only and docs-only land on their own; lib/** is triaged by Clef.
+classes:
+  - name: comment-only
+    match: { syntax: comments-and-whitespace }
+    route: auto
+  - name: docs
+    match: { class: docs-only }
+    route: auto
+  - name: lib
+    match: { paths: ["lib/**"] }
+    route: triage

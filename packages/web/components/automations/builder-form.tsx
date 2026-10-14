@@ -6,9 +6,10 @@
  * Problems from the shared validator show under the field they name.
  */
 import type { GitstalkEvent } from '@gitstalk/shared-race/actions';
-import { GITSTALK_EVENTS } from '@gitstalk/shared-race/actions';
+import { GITSTALK_EVENTS, isPathFilteredEvent } from '@gitstalk/shared-race/actions';
 
 import type { DraftForm, EventFilter, FieldPath } from '../../src/automations/automation-draft';
+import { NO_FILTER } from '../../src/automations/automation-draft';
 import styles from './builder.module.css';
 import { ScheduleEditor } from './schedule-editor';
 
@@ -33,6 +34,15 @@ const EVENT_WORDS: Readonly<Record<GitstalkEvent, string>> = {
   validation_red: 'validation goes red',
   decision_opened: 'a decision card opens',
   decision_decided: 'a decision is made',
+};
+
+/**
+ * What the builder calls each harness (the owner's labels, 2026-10-14). The file keeps
+ * `harness: agent` and `harness: shell`, so files written before the rename still read.
+ */
+const HARNESS_LABELS: Readonly<Record<DraftForm['harness'], string>> = {
+  agent: 'Prompt',
+  shell: 'Shell',
 };
 
 export function BuilderForm(props: {
@@ -128,7 +138,7 @@ function Triggers(props: {
         <EventFilters
           key={event}
           event={event}
-          filter={form.events[event] ?? { beans: [], authors: [] }}
+          filter={form.events[event] ?? NO_FILTER}
           onChange={(filter) => actions.setFilter(event, filter)}
         />
       ))}
@@ -170,6 +180,17 @@ function EventFilters(props: {
           onChange={(authors) => props.onChange({ ...filter, authors })}
         />
       </label>
+      {isPathFilteredEvent(event) ? (
+        <label className={styles.inline}>
+          <span>Paths</span>
+          <GlobInput
+            key={filter.paths.join(',')}
+            label={`${event} changed-file filter`}
+            globs={filter.paths}
+            onChange={(paths) => props.onChange({ ...filter, paths })}
+          />
+        </label>
+      ) : null}
     </div>
   );
 }
@@ -221,7 +242,7 @@ function Harness(props: {
               aria-checked={form.harness === harness}
               onClick={() => actions.set(['harness'], harness === 'agent' ? undefined : 'shell')}
             >
-              {harness === 'agent' ? 'Agent' : 'Shell script'}
+              {HARNESS_LABELS[harness]}
             </button>
           ))}
         </div>

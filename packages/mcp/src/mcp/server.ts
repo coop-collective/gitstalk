@@ -4,39 +4,37 @@
  * stateless handler's contract). No code mode and no `execute` tool: the owner deferred code
  * mode as highly experimental; every tool is plain and task-shaped.
  */
-import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/server';
+import type { ToolAnnotations } from '@modelcontextprotocol/server';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { LineRef } from '@gitstalk/shared-ask/ask/view-spec';
-import { ForgeError } from '@gitstalk/shared-ask/forge/forge-errors';
-import type { TaskId } from '@gitstalk/shared-race/ids';
 
 import { registerActionsTools } from '../actions/actions-tools';
+import { repoStatus } from '../repos/repo-answers';
 import { registerRepoTools } from '../repos/repo-tools';
 import { askRepo } from '../tools/ask-repo';
-import { changeStatus } from '../tools/change-status';
-import { checksGet } from '../tools/checks-get';
-import { previewLink } from '../tools/preview-link';
-import { runStatus } from '../tools/run-status';
-import type { ToolContext, ToolScope } from '../tools/tool-context';
-import { parseBean } from '../tools/tool-context';
+import { beanStatus } from '../tools/bean-status';
+import { MAX_READ_PATHS, repoRead } from '../tools/repo-read';
+import type { ToolScope } from '../tools/tool-context';
 import { workOverlaps } from '../tools/work-overlaps';
+import { whyLines } from '../tools/why-lines';
 import { withInbox } from '../tools/collaboration';
 import { registerCollaboration } from './collaboration-tools';
 import { registerSessionTools } from './session-tools';
-import { answer, failure } from './tool-result';
+import { answer } from './tool-result';
 
+/** Every caller: run tokens (view and contributor) and sessions. All read-only. */
 export const TOOL_NAMES = [
   'ask_repo',
   'work_overlaps',
-  'change_status',
-  'checks_get',
-  'run_status',
-  'preview_link',
+  'why_lines',
+  'bean_status',
+  'repo_status',
+  'repo_read',
 ] as const;
 
-/** Every tool only reads; reads of the same run state answer the same. */
+/** These tools only read; reads of the same run state answer the same. */
 const READ_ONLY: ToolAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -61,8 +59,10 @@ export function createServer(scope: ToolScope): McpServer {
   const server = new McpServer({ name: 'gitstalk', version: '0.3.0' });
   registerAsk(server, scope);
   registerWorkOverlaps(server, scope);
-  registerBeanTools(server, scope);
-  registerRunTools(server, scope);
+  registerWhyLines(server, scope);
+  registerBeanStatus(server, scope);
+  registerRepoStatus(server, scope);
+  registerRepoRead(server, scope);
   if (scope.own !== null) registerCollaboration(server, scope.own);
   registerSessionTools(server, scope);
   registerRepoTools(server, scope);
@@ -110,95 +110,109 @@ function registerWorkOverlaps(server: McpServer, scope: ToolScope): void {
   );
 }
 
-function registerBeanTools(server: McpServer, scope: ToolScope): void {
+function registerWhyLines(server: McpServer, scope: ToolScope): void {
+  const Line = z.number().int().min(1).max(10_000_000).optional();
   server.registerTool(
-    'change_status',
+    'why_lines',
+    {
+      title: 'Why these lines',
+      description:
+        "Before changing code: which bean last changed each line range of a file, with the bean's title (its intent), landing commit and decision cards, plus the path's recent landings and reverts. Reverted beans give their lines back. Omit start and end for the whole file.",
+      inputSchema: z.object({
+        path: RepoPath,
+        start: Line.describe('first line, 1-based'),
+        end: Line.describe('last line, inclusive'),
+        ref: LineRef.optional().describe('sprout (staged line, default) or stalk (stable line)'),
+        repo: Repo,
+      }),
+      annotations: { ...READ_ONLY, title: 'Why these lines' },
+    },
+    async ({ path, start, end, ref, repo }) =>
+      answer(async () => {
+        const ctx = await scope.context(repo);
+        return withInbox(ctx, () => whyLines(ctx, { path, start, end, ref }));
+      }),
+  );
+}
+
+function registerBeanStatus(server: McpServer, scope: ToolScope): void {
+  server.registerTool(
+    'bean_status',
     {
       title: 'Status of a bean',
       description:
-        'Where a bean stands after it was submitted: in flight, landed on the sprout awaiting validation, green on the stalk, sent back, deciding, reverted or dropped; with the next step and recent steps.',
-      inputSchema: z.object({ bean: Bean, repo: Repo }),
+        "Where a bean stands after it was submitted: in flight or checking, landed on the sprout awaiting validation, green on the stalk, red or in conflict (sent back), deciding, reverted or dropped; with the next step, recent steps, check counts and a preview_url. With repo: the pushed bean's verdict too (failing tests, the landed beans it collided with and their intent, the lines the pushes printed). checks: true adds the latest check's structured failures (file, test), flagging reds inherited from the sprout (not your fault) and protected acceptance tests (fix the code, never the test).",
+      inputSchema: z.object({
+        bean: Bean,
+        repo: Repo,
+        checks: z.boolean().optional().describe('true: the structured check failures too'),
+      }),
       annotations: { ...READ_ONLY, title: 'Status of a bean' },
     },
-    async ({ bean, repo }) =>
-      forBean({ scope, repo, bean, withInbox: true }, (ctx, id) => changeStatus(ctx, id)),
-  );
-  server.registerTool(
-    'checks_get',
-    {
-      title: 'Checks of a bean',
-      description:
-        "A bean's pre-land checks as structured failures (file, test). Flags reds inherited from the sprout (not your fault) and protected acceptance tests (fix the code, never the test).",
-      inputSchema: z.object({ bean: Bean, repo: Repo }),
-      annotations: { ...READ_ONLY, title: 'Checks of a bean' },
-    },
-    async ({ bean, repo }) =>
-      forBean({ scope, repo, bean, withInbox: false }, (ctx, id) => checksGet(ctx, id)),
+    async (input) => answer(() => beanStatus(scope, input)),
   );
 }
 
-function registerRunTools(server: McpServer, scope: ToolScope): void {
+function registerRepoStatus(server: McpServer, scope: ToolScope): void {
   server.registerTool(
-    'run_status',
+    'repo_status',
     {
-      title: 'Status of the run',
+      title: 'Status of a repository',
       description:
-        'The run at a glance: sprout and stalk heads, the window of unvalidated landings, beans in flight, open decision cards, red validations and cost.',
+        'A repository (or, without repo, your run) at a glance: the stalk and sprout heads, the window of landings not yet validated, beans in flight (who, phase), beans sent back red or in conflict, recent red validations, open decision cards, workflow runs on the stalk head, and preview_urls to see the sprout and the stalk in the explorer.',
       inputSchema: z.object({ repo: Repo }),
-      annotations: { ...READ_ONLY, title: 'Status of the run' },
+      annotations: { ...READ_ONLY, title: 'Status of a repository' },
     },
-    async ({ repo }) =>
+    async ({ repo }) => answer(() => repoStatus(scope, repo)),
+  );
+}
+
+function registerRepoRead(server: McpServer, scope: ToolScope): void {
+  const Line = z.number().int().min(1).max(10_000_000).optional();
+  server.registerTool(
+    'repo_read',
+    {
+      title: 'Read code',
+      description: `Read a repository without a checkout. path (a file) or paths (at most ${MAX_READ_PATHS}): their contents, optionally lines start..end; a long answer is cut and next_start says where to read on. path naming a directory, or a glob (src/**/*.ts; *.md matches at any depth): a tree listing. grep: matching lines with 2 lines of context, as rg --json messages (begin, context, match with submatches, end); a literal, or /regex/ for a regular expression (no backreferences or nested repeats); scoped by path, paths or glob; about 8k tokens a page, continue with cursor: next_cursor. ref: sprout (default), stalk, a bean branch or a commit.`,
+      inputSchema: z.object({
+        repo: Repo,
+        ref: z
+          .string()
+          .trim()
+          .min(1)
+          .max(255)
+          .optional()
+          .describe('sprout (default), stalk, beans/<id>, bean/<name> or a commit'),
+        path: RepoPath.optional().describe('A file, or a directory to list or search under'),
+        paths: z
+          .array(RepoPath)
+          .min(1)
+          .max(MAX_READ_PATHS)
+          .optional()
+          .describe('Files to read, or to search under'),
+        glob: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Files to list or search, as rg -g takes them'),
+        grep: z
+          .string()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Text to find; /regex/ for a regular expression'),
+        start: Line.describe('first line, 1-based'),
+        end: Line.describe('last line, inclusive'),
+        cursor: z.string().max(200).optional().describe('next_cursor from the previous grep page'),
+      }),
+      annotations: { ...READ_ONLY, title: 'Read code' },
+    },
+    async ({ repo, ...input }) =>
       answer(async () => {
         const ctx = await scope.context(repo);
-        return withInbox(ctx, () => runStatus(ctx));
+        return repoRead(ctx, input);
       }),
   );
-  server.registerTool(
-    'preview_link',
-    {
-      title: 'Explorer link',
-      description:
-        'A web link to see a bean (bean) or a line (ref: sprout or stalk) in the explorer. Give one of the two.',
-      inputSchema: z.object({ bean: Bean.optional(), ref: LineRef.optional(), repo: Repo }),
-      annotations: { ...READ_ONLY, title: 'Explorer link' },
-    },
-    async ({ bean, ref, repo }) => {
-      if (bean !== undefined && ref !== undefined) return failure('give bean or ref, not both');
-      if (bean !== undefined)
-        return forBean({ scope, repo, bean, withInbox: false }, async (ctx, id) =>
-          previewLink(ctx.webUrl, ctx.run, { kind: 'bean', bean: id }),
-        );
-      return answer(async () => {
-        const ctx = await scope.context(repo);
-        return previewLink(
-          ctx.webUrl,
-          ctx.run,
-          ref === undefined ? { kind: 'run' } : { kind: 'ref', ref },
-        );
-      });
-    },
-  );
-}
-
-async function forBean<T extends object>(
-  input: {
-    readonly scope: ToolScope;
-    readonly repo: string | undefined;
-    readonly bean: string;
-    readonly withInbox: boolean;
-  },
-  read: (ctx: ToolContext, id: TaskId) => Promise<T | undefined>,
-): Promise<CallToolResult> {
-  const { bean } = input;
-  const id = parseBean(bean);
-  if (id === undefined) return failure(`"${bean}" is not a bean id (like t032 or beans/t032)`);
-  return answer(async () => {
-    const ctx = await input.scope.context(input.repo);
-    const resolve = async () => {
-      const found = await read(ctx, id);
-      if (found === undefined) throw new ForgeError(`this run has no bean ${id}`, 'not_found');
-      return found;
-    };
-    return input.withInbox ? withInbox(ctx, resolve) : resolve();
-  });
 }

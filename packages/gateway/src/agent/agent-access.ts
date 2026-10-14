@@ -111,7 +111,7 @@ export function failure(
 /**
  * The session as `mayUseEngine` sees it: its person's credential, capped by its scopes. The
  * one place an MCP session becomes a principal: the repository tools here and the
- * `agentRepositoryAccess` RPC (`repository_access`) both use it, so they answer as git does.
+ * `agentRepositoryAccess` RPC (`whoami` with a repo) both use it, so they answer as git does.
  */
 export function agentRepositoryPrincipal(principal: AgentPrincipal): RepositoryPrincipal {
   return {

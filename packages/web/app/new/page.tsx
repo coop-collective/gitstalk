@@ -1,7 +1,10 @@
+import { env } from 'cloudflare:workers';
+
 import { NewRepositoryForm } from '../../components/repository/new-repository-form';
 import styles from '../../components/repository/repository.module.css';
 import { creatableNamespaces } from '../../src/orgs/org-page';
 import { signedInUser } from '../../src/server/signed-in';
+import { webHost } from '../../src/site/web-host';
 
 export const metadata = { title: 'New repository' };
 
@@ -23,6 +26,7 @@ export default async function NewRepositoryPage({ searchParams }: PageProps) {
       </p>
       <NewRepositoryForm
         owners={owners}
+        host={webHost(env.WEB_URL)}
         initialOwner={typeof asked === 'string' ? asked : user.handle}
       />
     </main>

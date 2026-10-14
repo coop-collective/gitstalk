@@ -226,7 +226,7 @@ describe("a repository's own checks", () => {
     );
     expect(migration.remote).toContain('RED: migrate was not landed');
     expect(migration.remote).toContain(
-      'The sprout protects .gitstalk/checks.toml, .beanstalk/checks.toml, migrations/**',
+      'The sprout protects .gitstalk/checks.toml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, migrations/**',
     );
     expect(await suitesRun(opened.engineId)).toHaveLength(2);
   });

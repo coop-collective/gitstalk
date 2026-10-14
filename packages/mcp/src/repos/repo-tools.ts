@@ -10,33 +10,35 @@ import type { McpServer, ToolAnnotations } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { MAX_BEAN_WAIT_SECONDS } from '@gitstalk/shared-race/agent-repos';
+import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
 
+import { sessionMayWrite } from '../mcp/scope-gate';
 import { answer } from '../mcp/tool-result';
 import type { ToolScope } from '../tools/tool-context';
 import { gitCredentials } from './git-credentials';
 import {
-  automationList,
-  beanStatus,
   beanWait,
+  commitBean,
   openBean,
   repoList,
-  repoStatus,
   taskClaim,
   taskList,
   taskRelease,
 } from './repo-answers';
 
-export const REPO_TOOL_NAMES = [
+/** Every session. `repo_status` and `bean_status` serve run tokens too (`../mcp/server.ts`). */
+export const REPO_READ_TOOL_NAMES = [
   'repo_list',
-  'repo_status',
-  'automation_list',
-  'bean_open',
-  'bean_status',
   'bean_wait',
   'task_list',
+  'git_credentials',
+] as const;
+/** Sessions with the write scope (the write role is checked per call). */
+export const REPO_WRITE_TOOL_NAMES = [
+  'bean_open',
+  'bean_commit',
   'task_claim',
   'task_release',
-  'git_credentials',
 ] as const;
 
 const READS: ToolAnnotations = {
@@ -57,16 +59,23 @@ const BeanName = z
   .describe('The bean name: its branch is bean/<name> (letters, digits, . _ -; up to 32)');
 const TaskId = z.string().trim().min(1).max(64).describe('A task id from task_list');
 
-/** Registers the tools for an agent session; run tokens get none of them. */
+/**
+ * Registers the tools for an agent session, the writes only with the write scope; run tokens
+ * get none of them.
+ */
 export function registerRepoTools(server: McpServer, scope: ToolScope): void {
   if (scope.session === undefined || scope.agents === undefined) return;
-  registerRepositoryReads(server, scope);
-  registerBeanTools(server, scope);
-  registerBacklogTools(server, scope);
+  registerRepositoryList(server, scope);
+  registerBeanWait(server, scope);
+  registerTaskList(server, scope);
   registerCredentials(server, scope);
+  if (!sessionMayWrite(scope)) return;
+  registerBeanOpen(server, scope);
+  registerCommit(server, scope);
+  registerTaskClaims(server, scope);
 }
 
-function registerRepositoryReads(server: McpServer, scope: ToolScope): void {
+function registerRepositoryList(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'repo_list',
     {
@@ -78,31 +87,9 @@ function registerRepositoryReads(server: McpServer, scope: ToolScope): void {
     },
     async () => answer(() => repoList(scope)),
   );
-  server.registerTool(
-    'repo_status',
-    {
-      title: 'Status of a repository',
-      description:
-        'A repository at a glance: the stalk and sprout heads, the window of landings not yet validated, beans in flight (who, phase), beans sent back red or in conflict, recent red validations and open decision cards.',
-      inputSchema: z.object({ repo: Repo }),
-      annotations: READS,
-    },
-    async ({ repo }) => answer(() => repoStatus(scope, repo)),
-  );
-  server.registerTool(
-    'automation_list',
-    {
-      title: 'Automations of a repository',
-      description:
-        "The repository's automations (agents defined by .gitstalk/automations/ files on the stalk): each one's triggers, harness and model, the bot it acts as, its memory ref (refs/automations/<name>/memory, readable with git) and any problems in its file; then the 20 newest automation runs with their event and conclusion. To change an automation, edit its file in a bean.",
-      inputSchema: z.object({ repo: Repo }),
-      annotations: READS,
-    },
-    async ({ repo }) => answer(() => automationList(scope, repo)),
-  );
 }
 
-function registerBeanTools(server: McpServer, scope: ToolScope): void {
+function registerBeanOpen(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'bean_open',
     {
@@ -119,22 +106,14 @@ function registerBeanTools(server: McpServer, scope: ToolScope): void {
     },
     async (input) => answer(() => openBean(scope, input)),
   );
-  server.registerTool(
-    'bean_status',
-    {
-      title: 'Verdict of a bean',
-      description:
-        'Where a bean stands after a push: checking, landed (on the sprout), green (on the stalk), red, conflict, parked or dropped; with the failing tests, the landed beans it collided with (their intent and what they changed), the lines the pushes printed, and the next step.',
-      inputSchema: z.object({ repo: Repo, bean: BeanName }),
-      annotations: READS,
-    },
-    async (input) => answer(() => beanStatus(scope, input)),
-  );
+}
+
+function registerBeanWait(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'bean_wait',
     {
       title: 'Wait for a bean',
-      description: `When you are out of other work after a git push: blocks until the bean's current check finishes (until: verdict, default) or it reaches the stalk (until: stalk), or timeout_s passes (default 300, at most ${MAX_BEAN_WAIT_SECONDS}); it wakes on the verdict, so never sleep-poll instead. Answers as bean_status, with waited_s and timed_out. Plain git does the same for one or many beans: git push -o bean=<name> origin HEAD:refs/wait/any (or refs/wait/all).`,
+      description: `When you are out of other work after a git push: blocks until the bean's current check finishes (until: verdict, default) or it reaches the stalk (until: stalk), or timeout_s passes (default 300, at most ${MAX_BEAN_WAIT_SECONDS}); it wakes on the verdict, so never sleep-poll instead. Answers as bean_status with repo, with waited_s and timed_out. Plain git does the same for one or many beans: git push -o bean=<name> origin HEAD:refs/wait/any (or refs/wait/all).`,
       inputSchema: z.object({
         repo: Repo,
         bean: BeanName,
@@ -147,7 +126,35 @@ function registerBeanTools(server: McpServer, scope: ToolScope): void {
   );
 }
 
-function registerBacklogTools(server: McpServer, scope: ToolScope): void {
+/** A session's `repo` plus the contributor tool's input; `bean` may be given as `bean/<name>`. */
+const SessionCommitInput = z.preprocess(
+  (value) =>
+    typeof value === 'object' && value !== null && 'bean' in value && typeof value.bean === 'string'
+      ? { ...value, bean: value.bean.trim().replace(/^bean\//, '') }
+      : value,
+  BeanCommitInput.safeExtend({ repo: Repo }),
+);
+
+/**
+ * `bean_commit` for a session (doc 33). The same tool name as the contributor's (a run token
+ * never has a session, so one server registers only one of the two).
+ */
+function registerCommit(server: McpServer, scope: ToolScope): void {
+  if (scope.agents?.agentCommitBean === undefined || scope.own?.contributor !== undefined) return;
+  server.registerTool(
+    'bean_commit',
+    {
+      title: 'Commit files to a bean without a checkout',
+      description:
+        'Write or delete files on bean/<bean> as one commit the gateway builds, then submit it as a git push of that branch is (its pre-land check starts). No clone, no push: for small edits without a checkout (a doc, a revert, a conflict fix); with a checkout keep using git. expected_head is the branch head you read (null creates the branch from the sprout); if it moved you get kind "conflict" with current_head and nothing is written. changes: [{path, content} | {path, delete: true}], at most 64 paths and 192 KiB. Reuse idempotency_key only for an exact retry. Needs the write scope; protected paths need a person.',
+      inputSchema: SessionCommitInput,
+      annotations: RESERVES,
+    },
+    async (input) => answer(() => commitBean(scope, input)),
+  );
+}
+
+function registerTaskList(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'task_list',
     {
@@ -159,6 +166,9 @@ function registerBacklogTools(server: McpServer, scope: ToolScope): void {
     },
     async ({ repo }) => answer(() => taskList(scope, repo)),
   );
+}
+
+function registerTaskClaims(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'task_claim',
     {

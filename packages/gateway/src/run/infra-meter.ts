@@ -13,8 +13,14 @@
  * - Containers: `standard-2` (1 vCPU, 6 GiB, 12 GB). vCPU is billed while a call runs;
  *   memory and disk while the instance is up, which is each call plus the `sleepAfter` tail,
  *   overlapping tails counted once per instance.
+ * - The read index (`repo/object-cache.ts`): hits and misses by object kind and of the ref
+ *   memo (`repo/cache-stats.ts`). Free in itself; each miss is an Artifacts operation above.
  */
+import type { CacheView } from '@gitstalk/shared-race/rpc';
+
 import { roundTo } from '../engine/numbers';
+import type { CacheRead, CacheStats } from '../repo/cache-stats';
+import { cacheReport, countCacheRead, emptyCacheStats } from '../repo/cache-stats';
 import { RUNNER_SLEEP_AFTER_SECONDS } from '../runner/runner-container';
 
 /** List prices, Workers Paid, 2026-10 (developers.cloudflare.com, each product's pricing page). */
@@ -39,6 +45,7 @@ export type InfraMeter = {
   /** Per runner instance: when its current `sleepAfter` tail ends (ms). */
   readonly upUntilMs: Readonly<Record<string, number>>;
   readonly lastAtMs: number;
+  readonly cache: CacheStats;
 };
 
 /** The meter as the summary reports it. */
@@ -50,6 +57,8 @@ export type InfraReport = {
   readonly runner_calls: number;
   readonly container_busy_seconds: number;
   readonly container_up_seconds: number;
+  /** The read index's hits and misses. */
+  readonly cache: CacheView;
   readonly usd: {
     readonly workers: number;
     readonly durable_objects: number;
@@ -75,7 +84,16 @@ export function emptyMeter(nowMs: number): InfraMeter {
     containerUpSeconds: 0,
     upUntilMs: {},
     lastAtMs: nowMs,
+    cache: emptyCacheStats(),
   };
+}
+
+/**
+ * A meter stored before a field existed (the cache counts came later), with that field
+ * starting from zero.
+ */
+export function restoredMeter(stored: Partial<InfraMeter>, nowMs: number): InfraMeter {
+  return { ...emptyMeter(nowMs), ...stored };
 }
 
 export function countRequest(meter: InfraMeter, nowMs: number): InfraMeter {
@@ -88,6 +106,11 @@ export function countAlarm(meter: InfraMeter, nowMs: number): InfraMeter {
 
 export function countArtifactsOps(meter: InfraMeter, ops: number): InfraMeter {
   return { ...meter, artifactsOps: meter.artifactsOps + ops };
+}
+
+/** One read through the read index. */
+export function recordCacheRead(meter: InfraMeter, read: CacheRead): InfraMeter {
+  return { ...meter, cache: countCacheRead(meter.cache, read) };
 }
 
 /** A runner call: its busy time, the instance's up time it adds, and its git fetch. */
@@ -142,6 +165,7 @@ export function infraReport(meter: InfraMeter, createdAtMs: number): InfraReport
     runner_calls: meter.runnerCalls,
     container_busy_seconds: roundTo(meter.containerBusySeconds, 1),
     container_up_seconds: roundTo(meter.containerUpSeconds, 1),
+    cache: cacheReport(meter.cache),
     usd: {
       workers: roundTo(workers, 8),
       durable_objects: roundTo(durableObjects, 8),

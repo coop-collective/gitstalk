@@ -121,6 +121,48 @@ export function changedRanges(before: string | null, after: string | null): [num
   return ranges;
 }
 
+/**
+ * One changed region of a line diff: `before`'s lines `[oldStart, oldEnd)` became `after`'s
+ * lines `[newStart, newEnd)` (0-based, half-open; either side may be empty). Lines between
+ * hunks are equal on both sides.
+ */
+export type LineHunk = {
+  readonly oldStart: number;
+  readonly oldEnd: number;
+  readonly newStart: number;
+  readonly newEnd: number;
+};
+
+/** The changed regions between two texts (null: absent), in order, from the same Myers diff. */
+export function lineHunks(before: string | null, after: string | null): LineHunk[] {
+  const ops = diffLines(splitLines(before ?? ''), splitLines(after ?? ''));
+  const hunks: LineHunk[] = [];
+  let oldLine = 0;
+  let newLine = 0;
+  let index = 0;
+  while (index < ops.length) {
+    if (ops[index]?.kind === ' ') {
+      oldLine += 1;
+      newLine += 1;
+      index += 1;
+      continue;
+    }
+    const start = { oldStart: oldLine, newStart: newLine };
+    while (index < ops.length && ops[index]?.kind !== ' ') {
+      if (ops[index]?.kind === '-') oldLine += 1;
+      else newLine += 1;
+      index += 1;
+    }
+    hunks.push({ ...start, oldEnd: oldLine, newEnd: newLine });
+  }
+  return hunks;
+}
+
+/** Lines of a text as the diff counts them (a last line without a newline counts). */
+export function countLines(content: string | null): number {
+  return splitLines(content ?? '').length;
+}
+
 function statusOf(change: FileChange): 'added' | 'deleted' | 'modified' {
   if (change.before === null) return 'added';
   return change.after === null ? 'deleted' : 'modified';

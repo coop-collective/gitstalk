@@ -1,0 +1,105 @@
+--- forges.py.orig	2026-10-14 14:26:22
++++ scion-snap/research/race/loadgen/forges.py	2026-10-14 14:26:22
+@@ -427,8 +427,10 @@
+     line = "sprout"
+ 
+     def __init__(self, git: Git, work: str, client, *, suite: dict | None, log=None, bean_poll: float = 3.0,
+-                 keep_repo: bool = False, wait_seconds: int = 1800):
++                 keep_repo: bool = False, wait_seconds: int = 1800, policy_file: str | None = None):
+         self.git, self.work, self.client = git, work, client
++        self.policy_file = policy_file  # benchmark snapshot: .gitstalk/policy.yml added to the seed tree
++        self.engine_summary: dict | None = None
+         self.suite = suite
+         self.log = log or (lambda *a, **k: None)
+         self.bean_poll, self.keep_repo, self.wait_seconds = bean_poll, keep_repo, wait_seconds
+@@ -450,6 +452,9 @@
+         self.log("bs.open", engine=self.client.engine, created=opened.get("created"))
+         root = await self._fetch_sprout()
+         tree = (await self.git.out("rev-parse", f"{base_sha}^{{tree}}")).strip()
++        if self.policy_file:
++            tree = await self._with_policy(tree)
++            self.log("bs.policy", file=self.policy_file, tree=tree)
+         seed = await self.git.commit_tree(tree, [root], "Seed: the arena base\n\nThe load generator's starting tree.\n")
+         v = await self.client.push(self.git.repo, seed, "seed", base_env=self.git.env, wait_seconds=self.wait_seconds)
+         self.log("bs.seed", verdict=v.kind, check_seconds=v.check_seconds, seconds=round(time.time() - v.pushed_at, 1))
+@@ -468,6 +473,16 @@
+         self.poller = asyncio.ensure_future(self._poll_beans())
+         return self.base
+ 
++    async def _with_policy(self, tree: str) -> str:
++        """The seed tree with ``.gitstalk/policy.yml`` from ``policy_file`` (the arena has no .gitstalk/)."""
++        with open(self.policy_file, encoding="utf-8") as fh:
++            text = fh.read()
++        blob = (await self.git.out("hash-object", "-w", "--stdin", input_text=text)).strip()
++        sub = (await self.git.out("mktree", input_text=f"100644 blob {blob}\tpolicy.yml\n")).strip()
++        entries = [e for e in (await self.git.out("ls-tree", tree)).splitlines() if not e.endswith("\t.gitstalk")]
++        entries.append(f"040000 tree {sub}\t.gitstalk")
++        return (await self.git.out("mktree", input_text="\n".join(entries) + "\n")).strip()
++
+     async def _fetch_sprout(self) -> str:
+         await self.client.fetch(self.git, {"refs/heads/sprout": "refs/remotes/bs/sprout",
+                                            "refs/heads/stalk": "refs/remotes/bs/stalk"})
+@@ -489,7 +504,9 @@
+             self.stats["verdicts"][v.kind] = self.stats["verdicts"].get(v.kind, 0) + 1
+             self.log("bs.push", task=tid, bean=bean, sha=sha, verdict=v.kind, check_seconds=v.check_seconds,
+                      push_s=round((v.verdict_at or time.time()) - v.pushed_at, 2), rc=v.returncode,
+-                     tail=v.lines[-3:] if v.kind in ("refused", "error", "timeout", "parked", "dropped") else None)
++                     tail=v.lines[-3:] if v.kind in ("refused", "error", "timeout", "parked", "dropped") else None,
++                     rules=[ln for ln in v.lines if "approval rules" in ln or "awaiting a person" in ln
++                            or "approved by" in ln or "only the built-in rules" in ln] or None)
+             if v.kind == "landed":
+                 if v.validated_at:
+                     self.green_at.setdefault(tid, v.validated_at)
+@@ -571,6 +588,13 @@
+                     fh.write(json.dumps(e, default=str) + "\n")
+         except Exception as e:  # noqa: BLE001
+             self.log("bs.error", where="events", error=str(e)[:300])
++        try:  # benchmark snapshot: the engine's own summary (infra meter, infra.cache) before it is closed
++            summ = await self.client.call("GET", f"/v1/runs/{self.client.engine}/summary")
++            self.engine_summary = summ if isinstance(summ, dict) else None
++            with open(os.path.join(os.path.dirname(self.work), "engine-summary.json"), "w", encoding="utf-8") as fh:
++                json.dump(summ, fh, indent=2, default=str)
++        except Exception as e:  # noqa: BLE001
++            self.log("bs.error", where="summary", error=str(e)[:300])
+         if not self.keep_repo:
+             try:
+                 await self.client.close(True)
+@@ -579,7 +603,8 @@
+         out = {"engine": self.client.engine, **engine_ci(self.engine_events), **self.stats,
+                "git_calls": dict(getattr(self.client, "calls", {})),
+                "engine_settings": dict(getattr(self.client, "engine_settings", {}) or {}),
+-               "gateway_capacity": self.capacity}
++               "gateway_capacity": self.capacity,
++               "infra": (self.engine_summary or {}).get("infra")}
+         apply_settings(out)
+         return out
+ 
+--- run.py.orig	2026-10-14 14:26:22
++++ scion-snap/research/race/loadgen/run.py	2026-10-14 14:26:29
+@@ -80,6 +80,7 @@
+     b.add_argument("--bs-engine", action="append", default=[], metavar="KEY=VALUE",
+                    help="an engine setting over the continuous defaults (settings.engine: ci_slots, read_maps, "
+                         "evidence_promotion, evidence_read_sets, affected_validation, audit_every); repeatable")
++    b.add_argument("--bs-policy", help="benchmark snapshot: a policy file committed as .gitstalk/policy.yml in the seed")
+     b.add_argument("--bs-evidence", action="store_true", help="shorthand: read_maps=preland evidence_promotion=true "
+                    "affected_validation=true audit_every=4 evidence_read_sets=complete")
+     return ap
+@@ -123,7 +124,7 @@
+     engine's errors quote) in every output file: committed runs carry no account names."""
+     m = re.match(r"https?://[^.]+\.([^.]+)\.workers\.dev", gateway or "")
+     sub = m.group(1) if m else None
+-    for name in ("events.jsonl", "summary.json", "config.json", "summary.md", "engine-events.jsonl"):
++    for name in ("events.jsonl", "summary.json", "config.json", "summary.md", "engine-events.jsonl", "engine-summary.json"):
+         p = os.path.join(path, name)
+         if not os.path.exists(p):
+             continue
+@@ -179,7 +180,8 @@
+                 client = BeanstalkClient(a.gateway, admin_token(a.dev_vars), a.bs_owner, bs_repo,
+                                          engine_settings=engine_settings(a))
+             config["beanstalk_engine"] = client.engine
+-            return BeanstalkForge(git, work, client, suite=suite, log=log, keep_repo=a.keep_repo)
++            return BeanstalkForge(git, work, client, suite=suite, log=log, keep_repo=a.keep_repo,
++                                  policy_file=os.path.abspath(a.bs_policy) if a.bs_policy else None)
+ 
+     driver = Driver(opts, factory)
+     summary = asyncio.run(driver.run())
