@@ -9,7 +9,7 @@ import { DOCS_PAGES, SITE_ROOT_PAGES, sitePagePaths } from './pages';
 function htmlPages(directory: string): string[] {
   const dir = fileURLToPath(new URL(`../../../site/public/${directory}`, import.meta.url));
   return readdirSync(dir)
-    .filter((name) => name.endsWith('.html'))
+    .filter((name) => name.endsWith('.html') && !name.startsWith('_'))
     .map((name) => name.slice(0, -'.html'.length))
     .toSorted();
 }
