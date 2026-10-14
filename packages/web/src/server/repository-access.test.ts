@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RepositoryRecord } from '../repositories/registry-client';
-import { repositoryPage } from './repository-page';
+import { repositoryLayoutAnswers, repositoryPage } from './repository-page';
 
 /**
  * The repository access check that decides a page's status. The Workers runtime, Next's
@@ -99,5 +99,26 @@ describe('the repository access check', () => {
     platform.newRequest();
     await repositoryPage(address('ada', 'notes'));
     expect(platform.lookups).toEqual(['ada/notes', 'ada/notes']);
+  });
+});
+
+describe('a layout nested under the repository layout', () => {
+  it('leaves a repository the viewer may not read to the repository layout, with one read', async () => {
+    expect(await repositoryLayoutAnswers(address('ada', 'secret'))).toBe(true);
+    await expect(repositoryPage(address('ada', 'secret'))).rejects.toThrow('not-found');
+    expect(platform.lookups).toEqual(['ada/secret']);
+  });
+
+  it('leaves an old address to the repository layout, which redirects it', async () => {
+    platform.answers.lookup = () => found('ada', 'renamed');
+    expect(await repositoryLayoutAnswers(address('ada', 'old-name'))).toBe(true);
+    await expect(repositoryPage(address('ada', 'old-name'))).rejects.toThrow(
+      'redirect /ada/renamed',
+    );
+  });
+
+  it('makes its own check on a repository the viewer may read', async () => {
+    platform.answers.lookup = () => found('ada', 'notes');
+    expect(await repositoryLayoutAnswers(address('ada', 'notes'))).toBe(false);
   });
 });
