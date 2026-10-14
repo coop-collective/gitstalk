@@ -6,14 +6,14 @@
     <title>Automations: Gitstalk docs</title>
     <meta
       name="description"
-      content="Automations are agents defined by files in the repository: they run on Gitstalk events, on schedule or by hand, with a container, a memory and their own identity."
+      content="An automation is an agent defined by a file in .gitstalk/automations: triggers, harness, models, memory, identity, secrets and limits."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Automations: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Automations are agents defined by files in the repository: they run on Gitstalk events, on schedule or by hand, with a container, a memory and their own identity."
+      content="An automation is an agent defined by a file in .gitstalk/automations: triggers, harness, models, memory, identity, secrets and limits."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -167,216 +167,429 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs automations</p>
-          <h1>Automations <span class="pill live">live</span></h1>
+          <h1>Automations <span class="badge live">live</span></h1>
           <p class="lede">
             An automation is an agent defined by a file in <code>.gitstalk/automations/</code>. It
-            runs when something happens in the repository, on a schedule or by hand. Each run gets a
-            fresh container with the repository checked out, the event as context and a memory of
-            its own that persists between runs, and it may propose fixes as beans. Live on the
-            hosted service since 9 October 2026.
+            runs when something happens in the repository, on a schedule or by hand, in a fresh
+            container with a memory of its own, and it may propose fixes as beans.
           </p>
-
-          <h2 id="gitops">Files, not database rows</h2>
           <p>
-            The definitions live in git. Each time the stalk moves, Gitstalk reads the automation
-            files at the new head, checks them and rebuilds its index of triggers and schedules. A
-            file with a problem is listed on the repository's Automations tab with the line and the
-            reason, and does not run. So changing an automation is a bean like any other: it goes
-            live when the stalk takes it. To keep agents and writers away from them, list them in
-            <code>protected_paths</code> of <code>.gitstalk/checks.toml</code> (for example
-            <code>.gitstalk/**</code>): then only maintainers and the owner may change them, with
-            their own credentials or the builder below.
+            Live on the hosted service since 9 October 2026. The
+            <a href="/docs/automation-builder">browser builder</a> is
+            <span class="badge beta">beta</span>.
           </p>
-          <div class="note plain">
-            <p>
-              Gitstalk was called Beanstalk until 10 October 2026. Automations in
-              <code>.beanstalk/automations/</code> keep running and are listed beside those in
-              <code>.gitstalk/automations/</code>; when both folders hold a file of the same name,
-              the one in <code>.gitstalk/</code> wins. The builder saves new automations to
-              <code>.gitstalk/automations/</code> and edits a file where it is. Runs set every
-              <code>GITSTALK_*</code> variable also as <code>BEANSTALK_*</code>, and the event
-              payload carries the same object under <code>gitstalk</code> and
-              <code>beanstalk</code>, so older scripts keep working.
-            </p>
-          </div>
 
           <h2 id="example">An example</h2>
-          <pre><code><span class="c"># .gitstalk/automations/fix-red.yml</span>
-name: Fix red beans
+          <p>
+            This one wakes when a bean's pre-land check goes red, and every Monday at 09:00 UTC. It
+            may push fix beans as itself and may spend up to 50 cents a run.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/automations/fix-red.yml</span></header>
+            <pre class="url"><code>name: Fix red beans
 on:
-  bean_red:                     <span class="c"># a bean's pre-land check went red</span>
+  bean_red:                     # a bean's pre-land check went red
   schedule: [{ cron: "0 9 * * 1" }]
 permissions:
-  beans: write                  <span class="c"># may push fix beans as itself</span>
+  beans: write                  # may push fix beans as itself
 max-cost-usd: 0.50
 prompt: |
   Read why the bean went red. Check your memory for this failure.
   Fix it in a new bean and note what you tried and learned.</code></pre>
+          </div>
           <p>
             A <code>.md</code> file works too: YAML front matter between <code>---</code> lines, and
-            the body is the prompt. Every automation can also be run by hand from its page.
+            the body is the prompt. Push the file as a bean. It goes live when the stalk takes it.
           </p>
 
-          <h2 id="builder">
-            Building one in the browser <span class="pill rolling">rolling out</span>
-          </h2>
-          <p>
-            <strong>New automation</strong> on the Automations tab starts from a template (Fix red
-            beans, Weekly dependency bump, Summarize landed work, Triage decision cards, a shell
-            heartbeat, or blank), and <strong>Edit</strong> opens an existing one. The builder is a
-            form beside the file's YAML, kept in sync both ways: change a field and the YAML changes
-            by that line only, with your comments and layout kept; edit the YAML and the form
-            follows. Every change is checked by the same rules Gitstalk uses when it reads the file,
-            with problems shown at their field and line. Schedules show in words with their next run
-            times.
-          </p>
+          <h2 id="tab">What you see</h2>
+          <figure
+            class="mock"
+            aria-label="The Automations view of the Automations tab, with one automation"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/automations</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <span>acme /</span> <b>api</b> <span class="badge live">private</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Code</span><span>Changes</span><span>History</span
+                  ><span class="on">Automations</span><span>Ask</span><span>Settings</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Actions</span><span class="on">Automations</span>
+                </div>
+              </div>
+              <div class="m-run">
+                <header>
+                  <b>Fix red beans</b><span class="ms landed">active</span>
+                  <span class="sub">fix-red.yml</span>
+                </header>
+                <pre class="m-term"><span class="dim">Triggers </span>bean_red, schedule 0 9 * * 1
+<span class="dim">Runs     </span>a prompt on @cf/moonshotai/kimi-k2.7-code
+<span class="dim">Acts as  </span>fix-red[automation]
+<span class="dim">May      </span>read and push beans
+<span class="dim">Secrets  </span>none
+<span class="dim">Memory   </span>refs/automations/fix-red/memory
+<span class="dim">Limits   </span>30 min, 40 turns, $0.50</pre>
+              </div>
+              <span class="m-btn primary">Run workflow</span>
+              <div class="m-field">
+                <div class="label">
+                  <b>Invalid:</b><span>1 file does not run until fixed.</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              Each automation shows its triggers, what it runs, who it acts as, its memory ref and
+              its limits. A file with a problem is listed with the line and the reason, and does not
+              run. Maintainers and the owner see the Run workflow button.
+            </figcaption>
+          </figure>
+          <figure class="mock" aria-label="A run page: what the automation did">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/automations/runs/17</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-run">
+                <header>
+                  <b>Fix red beans</b><span class="ms checking">running</span>
+                  <span class="sub">bean_red, bean/rename-cache</span>
+                </header>
+                <div class="m-step ok"><span>Restore memory</span><span class="t">3s</span></div>
+                <div class="m-step run"><span>Run the agent</span><span class="t">41s</span></div>
+                <div class="m-step"><span>Save memory</span><span class="t"></span></div>
+              </div>
+              <pre
+                class="m-term"
+              ><span class="dim">[Run the agent]</span> turn 6: git diff origin/sprout...bean/rename-cache
+<span class="dim">[Run the agent]</span> turn 7: node --test
+<span class="dim">[Run the agent]</span> turn 8: pushing bean/fix-rename-cache
+<span class="dim">What it did</span>
+Beans pushed   <span class="ok">bean/fix-rename-cache</span>
+Memory         <span class="dim">new at 3f9a1c2 → 8be40d7</span>
+Model calls    9 · 41,200 in · 3,100 out
+Spend          $0.0515 of $0.50</pre>
+            </div>
+            <figcaption>
+              The run streams the agent's turns live. The page then shows the beans it pushed, its
+              memory before and after (each a commit you can open), and its model calls and spend.
+              Logs are kept 30 days.
+            </figcaption>
+          </figure>
+
+          <h2 id="concepts">The pieces</h2>
+          <div class="fgrid">
+            <div class="fcard">
+              <h3>Files in git</h3>
+              <p>
+                Each time the stalk moves, Gitstalk reads the automation files at the new head and
+                rebuilds its index. Changing an automation is a bean like any other. To keep agents
+                and writers away, list <code>.gitstalk/**</code> in <code>protected_paths</code>.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Triggers</h3>
+              <p>
+                Gitstalk events, a <code>schedule</code>, or <code>workflow_dispatch</code> by hand.
+                See the table below.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Harness</h3>
+              <p>
+                <strong>Prompt</strong> (<code>harness: agent</code>, the default) runs a model
+                agent. <strong>Shell</strong> (<code>harness: shell</code>) runs a script with no
+                model.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Models</h3>
+              <p>
+                Nine Workers AI models, default <code>@cf/moonshotai/kimi-k2.7-code</code>. The
+                container never holds a model key.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Memory</h3>
+              <p>
+                A directory kept in git at <code>refs/automations/&lt;name&gt;/memory</code>. Every
+                run's notes are a commit you can read, diff or revert.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Identity</h3>
+              <p>
+                Pushes as <code>&lt;name&gt;[automation]</code>. With <code>beans: write</code> it
+                may push <code>bean/*</code> only.
+              </p>
+            </div>
+          </div>
+
+          <h2 id="triggers">Triggers</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th><code>on:</code></th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>bean_opened</code></td>
+                  <td>A bean is pushed</td>
+                </tr>
+                <tr>
+                  <td><code>bean_landed</code></td>
+                  <td>A bean lands on the sprout</td>
+                </tr>
+                <tr>
+                  <td><code>bean_red</code></td>
+                  <td>A bean's pre-land check is red, or it conflicts</td>
+                </tr>
+                <tr>
+                  <td><code>bean_parked</code></td>
+                  <td>A bean waits for a person</td>
+                </tr>
+                <tr>
+                  <td><code>bean_dropped</code></td>
+                  <td>A bean falls off</td>
+                </tr>
+                <tr>
+                  <td><code>bean_reverted</code></td>
+                  <td>A bean is taken off the sprout</td>
+                </tr>
+                <tr>
+                  <td><code>stalk_moved</code></td>
+                  <td>The sprout is promoted to the stalk</td>
+                </tr>
+                <tr>
+                  <td><code>stalk_reset</code></td>
+                  <td>The stalk goes back</td>
+                </tr>
+                <tr>
+                  <td><code>validation_red</code></td>
+                  <td>A validation is red</td>
+                </tr>
+                <tr>
+                  <td><code>decision_opened</code></td>
+                  <td>A decision card opens</td>
+                </tr>
+                <tr>
+                  <td><code>decision_decided</code></td>
+                  <td>A decision card is answered</td>
+                </tr>
+                <tr>
+                  <td><code>schedule</code></td>
+                  <td>Cron in UTC, at least 5 minutes apart</td>
+                </tr>
+                <tr>
+                  <td><code>workflow_dispatch</code></td>
+                  <td>By hand. Always available.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Each bean event takes filters, with GitHub's glob rules:</p>
+          <div class="cmd" data-copyable>
+            <header><span>Filters</span></header>
+            <pre class="url"><code>on:
+  bean_landed:
+    beans: ["*", "!fix-*"]       # bean names
+    authors: ["ada"]             # who pushed
+    paths: ["src/billing/**"]    # files the landing changed</code></pre>
+          </div>
           <ul>
             <li>
-              <strong>Saving is a bean, never a push to <code>main</code>.</strong> Gitstalk commits
-              the file in your name on the latest landed version and pushes it as
-              <code>bean/automation-&lt;name&gt;-&lt;id&gt;</code>. The builder follows it:
-              checking, then saved with a link to the commit, or red with the reason. You need the
-              write role, or maintain if <code>checks.toml</code> protects the file.
+              <code>beans:</code> and <code>authors:</code> work on the events that name a bean, so
+              not on <code>stalk_moved</code>, <code>stalk_reset</code> or
+              <code>validation_red</code>. <code>paths:</code> works on <code>bean_landed</code> and
+              <code>bean_reverted</code> only, because only those name one commit whose diff is the
+              change. A landing that changes nothing under the paths never starts the automation.
+              Gitstalk reads up to 200 changed files to decide. When it cannot read them (more than
+              200, or a commit without a parent), the automation starts anyway.
             </li>
             <li>
-              <strong>Edited by someone else meanwhile?</strong> The builder merges field by field.
-              Changes to different fields merge, and it shows you the result before saving ("merged
-              with @dana's change to the schedule"). Where you both changed the same field, it shows
-              theirs and yours side by side to pick or edit. Your draft is also kept in your browser
-              until it is saved.
-            </li>
-            <li><strong>Delete</strong> is a bean that removes the file, after you confirm.</li>
-            <li>
-              <strong>Test run</strong> (maintainers and the owner) runs the draft once by hand
-              without saving it, and never writes its memory.
+              An automation never fires on its own beans. It runs one at a time: a trigger that
+              arrives while it runs waits, and a newer one replaces it.
             </li>
           </ul>
 
-          <h2 id="triggers">Triggers</h2>
-          <table>
-            <thead>
-              <tr>
-                <th><code>on:</code></th>
-                <th>When</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>bean_opened</code>, <code>bean_landed</code></td>
-                <td>A bean is pushed; a bean lands on the sprout</td>
-              </tr>
-              <tr>
-                <td><code>bean_red</code></td>
-                <td>A bean's pre-land check is red, or it conflicts</td>
-              </tr>
-              <tr>
-                <td>
-                  <code>bean_parked</code>, <code>bean_dropped</code>, <code>bean_reverted</code>
-                </td>
-                <td>A bean waits for a person, falls off, or is taken off the sprout</td>
-              </tr>
-              <tr>
-                <td>
-                  <code>stalk_moved</code>, <code>stalk_reset</code>, <code>validation_red</code>
-                </td>
-                <td>
-                  The sprout is promoted to the stalk; the stalk goes back; a validation is red
-                </td>
-              </tr>
-              <tr>
-                <td><code>decision_opened</code>, <code>decision_decided</code></td>
-                <td>A decision card opens; it is answered</td>
-              </tr>
-              <tr>
-                <td><code>schedule</code>, <code>workflow_dispatch</code></td>
-                <td>Cron in UTC, at least 5 minutes apart; by hand (always available)</td>
-              </tr>
-            </tbody>
-          </table>
+          <h2 id="models">Models</h2>
           <p>
-            Bean events take <code>beans:</code> and <code>authors:</code> filters with GitHub's
-            glob rules. An automation never fires on its own beans, and runs one at a time: a
-            trigger that arrives while it runs waits, and a newer one replaces it.
+            Set <code>model:</code> to one of these, or leave it out for the default. Calls go
+            through the gateway and AI Gateway, which charge each call to the run and the
+            repository. Prices are Workers AI list prices in US dollars per million tokens, as read
+            on 9 October 2026.
           </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Input</th>
+                  <th>Output</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>@cf/moonshotai/kimi-k2.7-code</code> (default)</td>
+                  <td>$0.95</td>
+                  <td>$4.00</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/moonshotai/kimi-k2.6</code></td>
+                  <td>$0.95</td>
+                  <td>$4.00</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/openai/gpt-oss-120b</code></td>
+                  <td>$0.35</td>
+                  <td>$0.75</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/openai/gpt-oss-20b</code></td>
+                  <td>$0.20</td>
+                  <td>$0.30</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/zai-org/glm-5.3</code></td>
+                  <td>$1.40</td>
+                  <td>$4.40</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/zai-org/glm-5.3-flash</code></td>
+                  <td>$0.15</td>
+                  <td>$0.50</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/qwen/qwen3.8-27b</code></td>
+                  <td>$0.45</td>
+                  <td>$3.20</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/deepseek-ai/deepseek-v4-pro-0813</code></td>
+                  <td>$1.32</td>
+                  <td>$3.96</td>
+                </tr>
+                <tr>
+                  <td><code>@cf/deepseek-ai/deepseek-v4-flash-0731</code></td>
+                  <td>$0.44</td>
+                  <td>$1.32</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="runs">What a run gets</h2>
           <ul>
             <li>
-              <strong>A container</strong> of its own, the same as a GitHub Actions job: Linux, git,
-              Node and Python, the repository checked out at the stalk, and the event in
+              <strong>A container</strong> of its own, like a GitHub Actions job: Linux, git, Node
+              and Python, the repository checked out at the stalk, and the event payload at
               <code>$GITHUB_EVENT_PATH</code>. It is destroyed when the run ends.
             </li>
             <li>
-              <strong>Memory</strong>: a directory restored from the git ref
-              <code>refs/automations/&lt;name&gt;/memory</code> and committed back at the end, so
-              every run's notes are a commit you can read, diff or revert. Anyone who can read the
-              repository can read it.
+              <strong>Memory</strong>: restored at the start and committed back at the end, up to 50
+              MiB. Anyone who can read the repository can read it, so never store a secret there. A
+              run whose memory is over the limit does not save it. Set <code>memory: false</code>
+              to turn it off.
             </li>
             <li>
-              <strong>An agent</strong> with shell, file and git tools, on a Workers AI model (<code
-                >@cf/moonshotai/kimi-k2.7-code</code
-              >
-              by default) through AI Gateway. The container never holds a model key: its calls go
-              through Gitstalk, which applies the run's and the repository's spend caps. The builder
-              calls this harness <strong>Prompt</strong>, written as
-              <code>harness: agent</code> (the default). <strong>Shell</strong>, written as
-              <code>harness: shell</code>, runs a script instead, with no model.
+              <strong>An agent</strong> with shell, file and git tools. Its model calls go through
+              Gitstalk, which applies the run's and the repository's spend caps.
             </li>
             <li>
               <strong>Its own identity</strong>, <code>&lt;name&gt;[automation]</code>. With
-              <code>permissions: beans: write</code> it may push <code>bean/*</code>; those beans go
-              through the pre-land check like anyone's, and it can never push to the sprout, the
-              stalk or <code>main</code>.
+              <code>permissions: beans: write</code> it may push <code>bean/*</code>. Those beans go
+              through the pre-land check like anyone's. It can never push to the sprout, the stalk
+              or <code>main</code>.
             </li>
             <li>
-              <strong>Secrets</strong> it names in <code>secrets:</code>, by the same rule as
-              Actions: scheduled and manual runs get them; runs started by a bean event get only the
-              secrets marked available to pre-land checks, because the event carries text that
-              anyone with push access wrote. Values are masked in the log.
+              <strong>Secrets</strong> named in <code>secrets:</code>, by the same rule as
+              <a href="/docs/secrets#who-gets">Actions</a>. Scheduled and manual runs get them. Runs
+              started by a bean event get only the secrets marked available to pre-land checks,
+              because the event carries text anyone with push access wrote. Values are masked in the
+              log.
             </li>
           </ul>
 
           <h2 id="limits">Limits</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Limit</th>
-                <th>Hosted beta</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Run timeout</td>
-                <td>30 minutes by default, at most 60</td>
-              </tr>
-              <tr>
-                <td>Container minutes</td>
-                <td>Shared with GitHub Actions: 100 per repository per month; waiting is free</td>
-              </tr>
-              <tr>
-                <td>Model spend</td>
-                <td>$0.50 per run by default (at most $5), $10 per repository per month</td>
-              </tr>
-              <tr>
-                <td>Memory</td>
-                <td>50 MiB</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Hosted beta</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Run timeout (<code>timeout-minutes</code>)</td>
+                  <td>30 minutes by default, at most 60</td>
+                </tr>
+                <tr>
+                  <td>Model turns (<code>max-turns</code>)</td>
+                  <td>40 by default</td>
+                </tr>
+                <tr>
+                  <td>Spend per run (<code>max-cost-usd</code>)</td>
+                  <td>$0.50 by default, at most $5</td>
+                </tr>
+                <tr>
+                  <td>Spend per repository</td>
+                  <td>$10 per month</td>
+                </tr>
+                <tr>
+                  <td>Container minutes</td>
+                  <td>Shared with GitHub Actions: 100 per repository per month</td>
+                </tr>
+                <tr>
+                  <td>Memory</td>
+                  <td>50 MiB</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A larger <code>timeout-minutes</code> is capped, and the file's report says so. Every
+            number is in <a href="/docs/limits">Limits and plans</a>.
+          </p>
 
-          <h2 id="tab">On the Automations tab</h2>
+          <h2 id="not-yet">Not yet <span class="badge planned">planned</span></h2>
+          <ul>
+            <li>Gitstalk tools for the agent, such as comments and decision cards.</li>
+            <li>Your own model keys, and other agents such as Claude Code as a harness.</li>
+            <li>Webhooks into an automation.</li>
+            <li>
+              A browser editor for <code>.github/workflows</code> files. Automations have one.
+            </li>
+          </ul>
+
+          <h2 id="builder">Build one in the browser</h2>
           <p>
-            The repository's Automations tab lists each automation with its triggers, what it runs,
-            who it acts as, its memory ref, its limits and any problems in its file, and a Run
-            button for maintainers. A run's page streams the agent's turns live and shows what it
-            did: the beans it pushed, its memory before and after, and its model calls and spend.
-            Logs are kept for 30 days.
+            <strong>New automation</strong> on the Automations tab opens a form beside the file's
+            YAML. See <a href="/docs/automation-builder">Automation builder and templates</a>.
           </p>
-          <p>
-            Not yet: Gitstalk tools for the agent (comments, decision cards), your own model keys or
-            other agents such as Claude Code, webhooks into an automation, and a browser editor for
-            <code>.github/workflows</code> files.
-          </p>
+
+          <details>
+            <summary>Compatibility with the Beanstalk name</summary>
+            <p>
+              Gitstalk was called Beanstalk until 10 October 2026. Automations in
+              <code>.beanstalk/automations/</code> keep running and are listed beside those in
+              <code>.gitstalk/automations/</code>. When both folders hold a file of the same name,
+              the one in <code>.gitstalk/</code> wins. The builder saves new automations to
+              <code>.gitstalk/automations/</code> and edits a file where it is. Runs set the
+              <code>BEANSTALK_*</code> twin of each <code>GITSTALK_*</code> variable that existed
+              before the rename (event, automation, actor, memory), and the event payload carries
+              the same object under <code>gitstalk</code> and <code>beanstalk</code>, so older
+              scripts keep working.
+            </p>
+          </details>
 
           <section class="sources">
             <h2>Sources</h2>
@@ -391,8 +604,12 @@ prompt: |
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/actions"><small>Previous</small>GitHub Actions</a>
-            <a class="next" href="/docs/self-hosting"><small>Next</small>Self-hosting</a>
+            <a class="prev" href="/docs/environment-variables"
+              ><small>Previous</small>Environment variables</a
+            >
+            <a class="next" href="/docs/automation-builder"
+              ><small>Next</small>Automation builder and templates</a
+            >
           </nav>
         </article>
       </div>
