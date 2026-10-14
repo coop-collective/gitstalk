@@ -39,6 +39,8 @@ export type CodeData = {
   readonly changes: readonly Change[];
   /** The commit the tree was read at ('' when nothing could be read). */
   readonly sha: string;
+  /** The newest engine event the page was rendered with (the head watcher starts after it). */
+  readonly seq: number;
   readonly head: CodeHead;
   readonly body: CodeBody;
 };
@@ -57,10 +59,12 @@ export async function codeData(reads: EngineReads, input: CodeInput): Promise<Co
     locate(reads, input.ref, line),
   ]);
   const changes = changesOf(events, pushed);
+  const seq = events.at(-1)?.seq ?? 0;
   if (located === null)
     return {
       changes,
       sha: '',
+      seq,
       head: null,
       body: missing(`There is no bean ${refText(input.ref)}.`),
     };
@@ -69,7 +73,8 @@ export async function codeData(reads: EngineReads, input: CodeInput): Promise<Co
     input.ref.kind === 'bean'
       ? beanHead(changes, input.ref.name)
       : lineHead({ line, newest: log[0], pushed, events });
-  return { changes, sha: tree.sha, head, body: await bodyOf(reads, tree.sha, tree.files, input) };
+  const body = await bodyOf(reads, tree.sha, tree.files, input);
+  return { changes, sha: tree.sha, seq, head, body };
 }
 
 /**

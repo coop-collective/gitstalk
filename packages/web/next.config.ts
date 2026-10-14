@@ -23,10 +23,13 @@ const nextConfig: NextConfig = {
     // refuses it (413) above this limit, route handlers included. Picture uploads are up to
     // 2 MB plus the form around them (docs/claude-opus/29-settings.md); 1 MB is the default.
     serverActions: { bodySizeLimit: '3mb' },
-    // The client router reuses a dynamic page's payload for 30 s (back and forward, a Link
-    // to a page just seen) and a prefetched one for 5 minutes. A server action that calls
-    // revalidatePath or revalidateTag, sets a cookie or redirects clears both caches.
-    staleTimes: { dynamic: 30, static: 300 },
+    // The client router reuses a dynamic page's payload for 2 minutes (back and forward, a
+    // Link to a page just seen, switching tabs) and a prefetched one for 5 minutes. A page
+    // shown from that cache is kept current by its head watcher (Code, History: it refreshes
+    // when a line moved past what it rendered) or its live feed (Changes). A server action
+    // that calls revalidatePath or revalidateTag, sets a cookie or redirects clears both
+    // caches (docs/claude-opus/35-caching.md).
+    staleTimes: { dynamic: 120, static: 300 },
   },
   headers: async () =>
     [

@@ -35,6 +35,10 @@ export default async function HistoryPage({ params }: PageProps) {
       history={history}
       changes={changesOf(events, pushed)}
       validation={validation.ok ? validation.value : null}
+      rendered={{
+        heads: { stalk: stalk[0]?.sha ?? '', sprout: sprout[0]?.sha ?? '' },
+        seq: events.at(-1)?.seq ?? 0,
+      }}
       nowMs={Date.now()}
     />
   );

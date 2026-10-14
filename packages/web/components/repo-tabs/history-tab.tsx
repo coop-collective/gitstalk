@@ -11,6 +11,7 @@ import { groupCounts } from '../../src/changes/changes';
 import type { Change } from '../../src/changes/changes';
 import type { History, HistoryRow, Verdict } from '../../src/history/history';
 import { verdictsOf } from '../../src/history/history';
+import type { LineHeads } from '../../src/query/invalidation';
 import type { RepositoryStalk } from '../../src/repositories/index-client';
 import type { RepositoryTab } from '../../src/server/repository-tab';
 import { timeAgo } from '../../src/repositories/when';
@@ -23,7 +24,9 @@ import {
   VerdictsPanel,
 } from './history-validation';
 import styles from './repo-tabs.module.css';
+import { repoScopeOf } from './changes-tab';
 import { RepositoryShell } from './repository-shell';
+import { HeadWatcher } from './use-head-watcher';
 
 export function HistoryTab(props: {
   readonly tab: RepositoryTab;
@@ -31,11 +34,19 @@ export function HistoryTab(props: {
   readonly changes: readonly Change[];
   /** The index's validation view; null when it did not answer (commits only). */
   readonly validation: RepositoryStalk | null;
+  /** Each line's newest commit as rendered ('' for a line with none), and the newest event. */
+  readonly rendered: { readonly heads: LineHeads; readonly seq: number };
   readonly nowMs: number;
 }) {
   const { tab, validation } = props;
   return (
     <RepositoryShell page={tab} tab="history" openChanges={groupCounts(props.changes).open}>
+      <HeadWatcher
+        scope={repoScopeOf(tab)}
+        heads={props.rendered.heads}
+        seq={props.rendered.seq}
+        activity
+      />
       {validation === null ? null : (
         <>
           <ValidationLines lines={validation.lines} />
