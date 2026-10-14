@@ -30,6 +30,13 @@
  *                 <span>a bean branch</span></li> ... (.bean .sprout .stalk tint a node)</ol>
  * FEATURE CARDS <div class="fgrid"><a class="fcard" href="/docs/git"><h3>Git <span
  *                 class="badge live">live</span></h3><p>One sentence.</p></a></div>
+ * ON THIS PAGE Nothing to write: docs.js builds it from the article's h2 and h3 headings (not
+ *               those inside .steps, cards, mocks or callouts) when there are 3 or more, keeps
+ *               each heading's id or slugifies its text, and adds a hover # link. Give a heading
+ *               an id when other pages link to it. It renders as
+ *               <details class="toc"><summary>On this page</summary><nav aria-label="On this
+ *                 page"><ul><li><a href="#x" aria-current="true">X</a><ul>...h3...</ul></li>
+ *                 </ul></nav></details>   (right column from 1200px, a disclosure below that)
  * ==========================================================================================
  */
 
@@ -640,12 +647,179 @@
   grid-column: 2;
 }
 
+/* ---------- On this page (built by docs.js; no JavaScript, no TOC) ----------
+ * The <details class="toc"> sits before the article. From 1200px it is a sticky third column with
+ * its content always shown; below that it is an "On this page" disclosure above the article. */
+.docs.has-toc {
+  row-gap: 24px;
+}
+.docs.has-toc > .dnav {
+  grid-row: 1 / span 2;
+}
+.docs.has-toc > .toc {
+  grid-column: 2;
+  grid-row: 1;
+}
+.docs.has-toc > .doc {
+  grid-column: 2;
+  grid-row: 2;
+}
+.toc {
+  max-width: 76ch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 14px;
+}
+.toc summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: 500 14px var(--mono);
+  color: var(--fg);
+  list-style: none;
+}
+.toc summary::-webkit-details-marker {
+  display: none;
+}
+.toc summary::after {
+  content: '+';
+  color: var(--leaf-ink);
+  font-weight: 600;
+}
+.toc[open] summary::after {
+  content: '\2212';
+}
+.toc nav {
+  padding: 0 8px 12px;
+}
+.toc .toc-title {
+  display: none;
+  margin: 0 0 8px;
+  padding-left: 12px;
+  font: 600 12.5px var(--mono);
+  color: var(--fg-subtle);
+}
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+.toc ul ul {
+  margin: 1px 0 2px;
+}
+.toc a {
+  display: block;
+  padding: 4px 10px;
+  border-left: 2px solid var(--border-muted);
+  color: var(--fg-muted);
+  text-decoration: none;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.toc ul ul a {
+  padding-left: 24px;
+  font-size: 13.5px;
+}
+.toc a:hover {
+  color: var(--fg);
+  border-left-color: var(--fg-subtle);
+}
+.toc a[aria-current='true'] {
+  color: var(--leaf-ink);
+  border-left-color: var(--leaf);
+  background: var(--leaf-bg);
+}
+.toc a:focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: -2px;
+}
+@media (min-width: 1200px) {
+  .docs.has-toc {
+    grid-template-columns: 236px minmax(0, 1fr) 208px;
+    gap: 40px;
+  }
+  .docs.has-toc > .dnav,
+  .docs.has-toc > .doc {
+    grid-row: 1;
+  }
+  .docs.has-toc > .toc {
+    grid-column: 3;
+    grid-row: 1;
+    position: sticky;
+    top: 84px;
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    border: 0;
+    background: none;
+  }
+  .toc::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  .toc summary {
+    display: none;
+  }
+  .toc nav {
+    padding: 0;
+  }
+  .toc .toc-title {
+    display: block;
+  }
+}
+
+/* The hover # beside a heading (docs.js adds it with the TOC). */
+.doc .anchor {
+  margin-left: 8px;
+  padding: 0 4px;
+  color: var(--fg-subtle);
+  font: 500 0.8em var(--mono);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.doc h2:hover .anchor,
+.doc h3:hover .anchor,
+.doc .anchor:focus-visible {
+  opacity: 1;
+}
+.doc .anchor:hover {
+  color: var(--leaf-ink);
+}
+@media (hover: none) {
+  .doc .anchor {
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doc .anchor {
+    transition: none;
+  }
+}
+.doc section[id] {
+  scroll-margin-top: 80px;
+}
+
 /* ---------- Phone ---------- */
 @media (max-width: 900px) {
   .docs {
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;
     padding-top: 18px;
+  }
+  .docs.has-toc > .dnav,
+  .docs.has-toc > .toc,
+  .docs.has-toc > .doc {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .toc {
+    max-width: none;
   }
   .dnav {
     position: static;
