@@ -48,6 +48,26 @@ Each engine's `RunDO` reads git objects from Artifacts through one cache tier, t
 
 They are reported as `cache` with `hits`, `misses` and `hit_rate` (null before any read; `objects` is the three kinds together, `ref_memo` the memo) in `runView` (RPC and `GET /v1/runs/:run`) and in `summary.json`'s `infra`. Measured so far only in a local test (fake Artifacts, five landings with `-o wait`, no reads besides the engine's own warm-ups): objects 4 hits of 6 reads, ref memo 0 of 6, because each landing clears the memo before its warm-up reads the line. No production number yet.
 
+## Caching
+
+The gateway's read index above is the last cache tier and the only one that holds every
+repository, private ones included: objects by id in each engine's SQLite, and the 5 s ref memo a
+landing clears. The web app adds its own tiers in front of it for **public repositories only**
+(`packages/web` README, Caching; design in
+[docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
+the colo's Cache API and a global KV namespace, keyed by engine and commit sha, and the browser
+caches with TanStack Query.
+
+The gateway does not authorise RPC calls (`repoTree`, `repoFile`, `repoLog`, `repoDiff` trust the
+engine id; the service binding is the trust boundary), so it never decides what may be cached
+across viewers: the web app checks access on every request and caches only objects of a record
+that check returned as public. Nothing in the gateway changes for this; a format change of what
+the RPCs return means bumping the web's `EDGE_CACHE_VERSION`, since its copies outlive a deploy.
+
+The repository events queue (`repo-events`) is where a future signed-out heads snapshot in KV
+would be written, on `bean.landed`, `stalk.promoted` and `bean.reverted` (deferred until
+measurements show the anonymous Code tab is dominated by its log reads).
+
 ## Layout
 
 | Path | Contents |
