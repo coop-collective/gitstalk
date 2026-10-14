@@ -7,7 +7,7 @@ import { insertUser } from '@gitstalk/shared-identity/users';
 import { ADMIN, call, json, pkt, sha } from './helpers';
 
 /**
- * A repository's own checks (`.gitstalk/checks.toml`, backlog 2.3) end to end: real Worker
+ * A repository's own checks (`.gitstalk/checks.yml`, backlog 2.3) end to end: real Worker
  * and engine Durable Object, the fake Artifacts remote, and the fake runner, whose squashes are
  * recorded in the trunk repo with the pushed files on top of the sprout's, so the engine reads
  * the config from the exact merged tree as it does on Cloudflare.
@@ -119,12 +119,11 @@ async function suitesRun(engine: string): Promise<CheckRequest['body'][]> {
 }
 
 const CHECKS = [
-  'command = ["node", "--test", "spec/"]',
-  'timeout_seconds = 60',
-  'protected_paths = ["migrations/**"]',
-  '',
-  '[env]',
-  'TZ = "UTC"',
+  'run: [node, --test, spec/]',
+  'timeout-minutes: 1',
+  'protected-paths: [migrations/**]',
+  'env:',
+  '  TZ: UTC',
   '',
 ].join('\n');
 
@@ -136,7 +135,7 @@ describe("a repository's own checks", () => {
       files: { 'src/a.ts': 'export {};\n' },
     });
     expect(remote).toContain(
-      "no .gitstalk/checks.toml on this tree: the repository's default suite runs: node --test (timeout 300 s)",
+      "no .gitstalk/checks.yml on this tree: the repository's default suite runs: node --test (timeout 300 s)",
     );
     expect(remote).toContain('LANDED: plain');
     const suites = await suitesRun(opened.engineId);
@@ -177,13 +176,13 @@ describe("a repository's own checks", () => {
     const { opened, agentToken } = await openRepo('checks-agent');
     const { remote } = await pushBean(opened, agentToken, {
       name: 'weaken',
-      files: { '.gitstalk/checks.toml': 'command = ["node", "--test", "nothing/"]\n' },
+      files: { '.gitstalk/checks.yml': 'run: [node, --test, nothing/]\n' },
     });
     expect(remote).toContain(
-      'changes protected paths (.gitstalk/checks.toml): refused for an engine token acting for @agent',
+      'changes protected paths (.gitstalk/checks.yml): refused for an engine token acting for @agent',
     );
     expect(remote).toContain('RED: weaken was not landed');
-    expect(remote).toContain('.gitstalk/checks.toml > changes a protected path');
+    expect(remote).toContain('.gitstalk/checks.yml > changes a protected path');
     expect(remote).toContain('Only the owner or a maintainer, pushing with a personal token');
     expect(await suitesRun(opened.engineId)).toEqual([]);
   });
@@ -192,13 +191,13 @@ describe("a repository's own checks", () => {
     const { opened, agentToken } = await openRepo('checks-owned');
     const setup = await pushBean(opened, await ownerToken(), {
       name: 'setup-checks',
-      files: { '.gitstalk/checks.toml': CHECKS },
+      files: { '.gitstalk/checks.yml': CHECKS },
     });
     expect(setup.remote).toContain(
-      `changes protected paths (.gitstalk/checks.toml): allowed for @${OWNER} (owner, with a personal token)`,
+      `changes protected paths (.gitstalk/checks.yml): allowed for @${OWNER} (owner, with a personal token)`,
     );
     expect(setup.remote).toContain(
-      'checks from .gitstalk/checks.toml: node --test spec/ (image node, timeout 60 s, env TZ)',
+      'checks from .gitstalk/checks.yml: node --test spec/ (image node, timeout 60 s, env TZ)',
     );
     expect(setup.remote).toContain('LANDED: setup-checks');
 
@@ -226,7 +225,7 @@ describe("a repository's own checks", () => {
     );
     expect(migration.remote).toContain('RED: migrate was not landed');
     expect(migration.remote).toContain(
-      'The sprout protects .gitstalk/checks.toml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, migrations/**',
+      'The sprout protects .gitstalk/checks.yml, .gitstalk/checks.yaml, .gitstalk/checks.toml, .beanstalk/checks.yml, .beanstalk/checks.yaml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, migrations/**',
     );
     expect(await suitesRun(opened.engineId)).toHaveLength(2);
   });
@@ -245,5 +244,26 @@ describe("a repository's own checks", () => {
     expect(remote).toContain('RED: bad-checks was not landed');
     expect(remote).toContain('.beanstalk/checks.toml > the checks config is valid');
     expect(await suitesRun(opened.engineId)).toEqual([]);
+  });
+
+  it('runs checks.yml over a checks.toml still on the tree, and tells the push to delete the TOML', async () => {
+    const { opened } = await openRepo('checks-both');
+    const toml = await pushBean(opened, await ownerToken(), {
+      name: 'toml-checks',
+      files: { '.gitstalk/checks.toml': 'command = ["node", "--test", "old/"]\n' },
+    });
+    expect(toml.remote).toContain('checks from .gitstalk/checks.toml: node --test old/');
+    expect(toml.remote).toContain('TOML still works; .gitstalk/checks.yml is the format now');
+    const yaml = await pushBean(opened, await ownerToken(), {
+      name: 'yaml-checks',
+      files: { '.gitstalk/checks.yml': 'run: [node, --test, new/]\n' },
+    });
+    expect(yaml.remote).toContain('checks from .gitstalk/checks.yml: node --test new/');
+    expect(yaml.remote).toContain(
+      '.gitstalk/checks.toml is also on this tree and is not read (.gitstalk/checks.yml wins): delete it (git rm .gitstalk/checks.toml)',
+    );
+    expect(yaml.remote).toContain('LANDED: yaml-checks');
+    const suites = await suitesRun(opened.engineId);
+    expect(suites.at(-1)).toMatchObject({ cmd: ['node', '--test', 'new/'] });
   });
 });

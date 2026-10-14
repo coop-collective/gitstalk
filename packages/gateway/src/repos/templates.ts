@@ -4,8 +4,11 @@
  * files directly on Node 23.6+, the runner's Node 25 included), so checks mean something
  * from the first bean.
  */
-import { assertNever } from '../engine/errors';
+import { CHECKS_PATH } from '@gitstalk/shared-race/checks-config';
+import { CHECKS_SCHEMA_URL } from '@gitstalk/shared-race/checks-yaml';
 import type { RepoTemplate } from '@gitstalk/shared-race/repos';
+
+import { assertNever } from '../engine/errors';
 
 import type { SeedFile } from '../git/seed-pack';
 
@@ -71,16 +74,17 @@ function typescriptStarter(
       )}\n`,
     },
     {
-      path: '.gitstalk/checks.toml',
+      path: CHECKS_PATH,
       content: [
+        `# yaml-language-server: $schema=${CHECKS_SCHEMA_URL}`,
         '# What a bean must pass before it lands, run on the exact tree it would land on.',
         `# Format: ${checksDocs}`,
         '# Only the owner or a maintainer, pushing with a personal token or an SSH key, may change',
         '# this file (always protected).',
-        'image = "node"',
-        'command = ["node", "--test"]',
-        'timeout_seconds = 120',
-        'protected_paths = []',
+        'image: node',
+        'timeout-minutes: 2',
+        'run: [node, --test]',
+        'protected-paths: []',
         '',
       ].join('\n'),
     },
@@ -105,7 +109,7 @@ No install step: Node 23.6 or newer runs the TypeScript files directly.
 ## How changes land
 
 Every change is a bean: a branch named \`bean/<name>\`. Push one and Gitstalk checks it on
-the exact tree it would land on (\`.gitstalk/checks.toml\`), puts it on the sprout, and moves
+the exact tree it would land on (\`.gitstalk/checks.yml\`), puts it on the sprout, and moves
 it to the stalk once it stays green.
 `;
 }

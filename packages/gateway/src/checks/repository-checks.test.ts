@@ -52,20 +52,20 @@ describe('deciding a check from the tree', () => {
     });
     expect(plan).toEqual({ kind: 'run', suite: ENGINE_SUITE });
     expect(lines).toEqual([
-      "gitstalk: no .gitstalk/checks.toml on this tree: the repository's default suite runs: node --test test/ (timeout 90 s)",
+      "gitstalk: no .gitstalk/checks.yml on this tree: the repository's default suite runs: node --test test/ (timeout 90 s)",
     ]);
   });
 
   it("runs the engine's suite for the starter's older [[check]] draft", () => {
     const draft = '[[check]]\nname = "tests"\ncommand = "npm test"\ntimeout_seconds = 120\n';
-    const { plan, lines } = decide(readChecksConfig(draft), NO_GUARD);
+    const { plan, lines } = decide(readChecksConfig(draft, '.gitstalk/checks.toml'), NO_GUARD);
     expect(plan).toEqual({ kind: 'run', suite: DEFAULT_SUITE });
     expect(lines[0]).toContain('older [[check]] draft');
   });
 
   it('still refuses a protected change by an agent on a tree without the file', () => {
-    const guard = protectedGuard(landing(['.gitstalk/checks.toml']), readChecksConfig(null), AGENT);
-    const { plan } = decide(readChecksConfig('command = ["node", "--test"]'), {
+    const guard = protectedGuard(landing(['.gitstalk/checks.yml']), readChecksConfig(null), AGENT);
+    const { plan } = decide(readChecksConfig('run: [node, --test]'), {
       guard,
       engineSuite: DEFAULT_SUITE,
     });
@@ -73,26 +73,28 @@ describe('deciding a check from the tree', () => {
   });
 
   it('answers red with every problem when the file is invalid, and runs nothing', () => {
-    const { plan, lines } = decide(readChecksConfig('image = "rust"\ncomand = []\n'), NO_GUARD);
+    const { plan, lines } = decide(readChecksConfig('image: rust\nrnu: []\n'), NO_GUARD);
     if (plan.kind !== 'answer') throw new Error('expected an answer');
     expect(plan.result).toMatchObject({
       green: false,
-      failingFiles: ['.gitstalk/checks.toml'],
-      failingTests: [{ file: '.gitstalk/checks.toml', name: 'the checks config is valid' }],
+      failingFiles: ['.gitstalk/checks.yml'],
+      failingTests: [{ file: '.gitstalk/checks.yml', name: 'the checks config is valid' }],
     });
-    expect(plan.result.output).toContain('unknown key "comand" (did you mean "command"?)');
-    expect(lines[0]).toBe('gitstalk: .gitstalk/checks.toml is invalid:');
+    expect(plan.result.output).toContain(
+      'line 2, column 1: unknown key "rnu" (did you mean "run"?)',
+    );
+    expect(lines[0]).toBe('gitstalk: .gitstalk/checks.yml is invalid:');
   });
 
   it('runs the suite a valid file declares', () => {
-    const { plan } = decide(readChecksConfig('command = ["node", "--test", "spec/"]'), NO_GUARD);
+    const { plan } = decide(readChecksConfig('run: [node, --test, spec/]'), NO_GUARD);
     expect(plan).toMatchObject({ kind: 'run', suite: { argv: ['node', '--test', 'spec/'] } });
   });
 
   it('refuses a protected change before reading anything else, naming the paths and the pusher', () => {
-    const sprout = readChecksConfig('protected_paths = ["migrations/**"]');
+    const sprout = readChecksConfig('protected-paths: [migrations/**]');
     const guard = protectedGuard(landing(['migrations/1.sql', 'src/a.ts']), sprout, AGENT);
-    const { plan, lines } = decide(readChecksConfig('command = ["node", "--test"]'), {
+    const { plan, lines } = decide(readChecksConfig('run: [node, --test]'), {
       guard,
       engineSuite: DEFAULT_SUITE,
     });
@@ -107,24 +109,24 @@ describe('deciding a check from the tree', () => {
   });
 
   it("lets the owner change protected paths and then checks the owner's new config", () => {
-    const guard = protectedGuard(landing(['.gitstalk/checks.toml']), readChecksConfig(null), OWNER);
-    const { plan, lines } = decide(readChecksConfig('timeout_seconds = 30'), {
+    const guard = protectedGuard(landing(['.gitstalk/checks.yml']), readChecksConfig(null), OWNER);
+    const { plan, lines } = decide(readChecksConfig('timeout-seconds: 30'), {
       guard,
       engineSuite: DEFAULT_SUITE,
     });
     expect(plan).toMatchObject({ kind: 'run', suite: { timeout_seconds: 30 } });
     expect(lines[0]).toBe(
-      'gitstalk: changes protected paths (.gitstalk/checks.toml): allowed for @coop (owner, with a personal token)',
+      'gitstalk: changes protected paths (.gitstalk/checks.yml): allowed for @coop (owner, with a personal token)',
     );
   });
 
   it('takes protected paths from the sprout, so a bean cannot unprotect its own change', async () => {
     const checks = host({
       files: {
-        [SPROUT]: 'protected_paths = ["LICENSE"]',
-        [MERGED]: 'protected_paths = []',
+        [SPROUT]: 'protected-paths: [LICENSE]',
+        [MERGED]: 'protected-paths: []',
       },
-      landing: landing(['LICENSE', '.gitstalk/checks.toml']),
+      landing: landing(['LICENSE', '.gitstalk/checks.yml']),
     });
     const plan = await planCheck(
       checks,
@@ -135,13 +137,13 @@ describe('deciding a check from the tree', () => {
       DEFAULT_SUITE,
     );
     expect(plan).toMatchObject({ kind: 'answer', result: { green: false } });
-    expect(checks.recorded.get(MERGED)?.[0]).toContain('(LICENSE, .gitstalk/checks.toml): refused');
+    expect(checks.recorded.get(MERGED)?.[0]).toContain('(LICENSE, .gitstalk/checks.yml): refused');
   });
 
   it('applies no protected paths to a validation of the sprout', async () => {
     const checks = host({
-      files: { [MERGED]: 'command = ["node", "--test"]' },
-      landing: landing(['.gitstalk/checks.toml']),
+      files: { [MERGED]: 'run: [node, --test]' },
+      landing: landing(['.gitstalk/checks.yml']),
     });
     const plan = await planCheck(
       checks,
@@ -151,7 +153,7 @@ describe('deciding a check from the tree', () => {
     expect(plan.kind).toBe('run');
   });
 
-  it('reads a repository whose checks are still in .beanstalk/, and names that file', async () => {
+  it('reads a repository whose checks are still in .beanstalk/checks.toml, and names that file', async () => {
     const checks = host({
       files: { [MERGED]: 'command = ["node", "--test", "spec/"]' },
       path: '.beanstalk/checks.toml',
@@ -166,6 +168,28 @@ describe('deciding a check from the tree', () => {
       /^gitstalk: checks from \.beanstalk\/checks\.toml: /,
     );
   });
+
+  it('runs the YAML when a tree has both, and tells the push to delete the TOML', async () => {
+    const checks: RepositoryChecksHost & { recorded: Map<string, readonly string[]> } = {
+      ...host({ files: {} }),
+      readChecks: () =>
+        Promise.resolve({
+          path: '.gitstalk/checks.yml',
+          text: 'run: [node, --test, spec/]',
+          shadowed: ['.gitstalk/checks.toml'],
+        }),
+    };
+    const plan = await planCheck(
+      checks,
+      { sha: MERGED, instance: { kind: 'ci', slot: 0 } },
+      DEFAULT_SUITE,
+    );
+    expect(plan).toMatchObject({ kind: 'run', suite: { argv: ['node', '--test', 'spec/'] } });
+    expect(checks.recorded.get(MERGED)).toEqual([
+      'gitstalk: checks from .gitstalk/checks.yml: node --test spec/ (image node, timeout 300 s)',
+      'gitstalk: .gitstalk/checks.toml is also on this tree and is not read (.gitstalk/checks.yml wins): delete it (git rm .gitstalk/checks.toml)',
+    ]);
+  });
 });
 
 describe('the TypeScript starter', () => {
@@ -174,7 +198,7 @@ describe('the TypeScript starter', () => {
       'typescript-starter',
       { name: 'greeter', description: '' },
       'https://gitstalk.example',
-    ).find((seed) => seed.path === '.gitstalk/checks.toml');
+    ).find((seed) => seed.path === '.gitstalk/checks.yml');
     expect(file?.content).toContain('# Format: https://gitstalk.example/docs/checks\n');
     expect(file?.content).not.toContain('docs/claude-opus');
     expect(readChecksConfig(file?.content ?? null)).toMatchObject({

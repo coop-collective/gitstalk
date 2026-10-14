@@ -5,7 +5,7 @@ import { isSafeHref, parseInline, parseMarkdown } from './markdown';
 import { codeHref, crumbs, listing, readRef, readmeHref, readmeOf, refParam } from './tree';
 
 const FILES = [
-  { path: '.beanstalk/checks.toml', size: 120 },
+  { path: '.gitstalk/checks.yml', size: 120 },
   { path: 'README.md', size: 900 },
   { path: 'package.json', size: 210 },
   { path: 'src/text.ts', size: 340 },
@@ -16,7 +16,7 @@ const FILES = [
 describe('a folder of the stalk', () => {
   it('lists folders first, then files, by name', () => {
     expect(listing(FILES, '')?.map((entry) => `${entry.kind} ${entry.name}`)).toEqual([
-      'dir .beanstalk',
+      'dir .gitstalk',
       'dir src',
       'dir test',
       'file package.json',
