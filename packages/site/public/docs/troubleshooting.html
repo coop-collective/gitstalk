@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Troubleshooting: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Troubleshooting: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Troubleshooting</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs troubleshooting</p>
+          <h1>Troubleshooting <span class="badge live">live</span></h1>
+          <p class="lede">
+            Find the message you saw, read what it means, do the fix. Entries are in the order you
+            meet them: a push, its verdict, then checks, Actions, agents and setup. Message text is
+            quoted as Gitstalk prints it; bean names and paths in it are examples.
+          </p>
+
+          <div class="fgrid">
+            <a class="fcard" href="#red"
+              ><h3>RED</h3>
+              <p>The check failed on the merged tree.</p></a
+            >
+            <a class="fcard" href="#conflict"
+              ><h3>CONFLICT</h3>
+              <p>The bean does not merge onto the sprout.</p></a
+            >
+            <a class="fcard" href="#rejected"
+              ><h3>! [remote rejected]</h3>
+              <p>The push was refused in the git protocol.</p></a
+            >
+            <a class="fcard" href="#hangs"
+              ><h3>The push hangs</h3>
+              <p>It is waiting for a verdict, on purpose.</p></a
+            >
+            <a class="fcard" href="#not-found"
+              ><h3>404 or 401</h3>
+              <p>A repository you know exists.</p></a
+            >
+            <a class="fcard" href="#missing-tool"
+              ><h3>No write tool</h3>
+              <p>An agent is missing a tool.</p></a
+            >
+          </div>
+
+          <h2 id="push-verdicts">Verdicts on a push</h2>
+
+          <h3 id="red">remote: gitstalk: RED</h3>
+          <pre><code>remote: gitstalk: RED: tax-in-total was not landed. Merged onto the sprout, these tests failed:
+remote: gitstalk:   - test/discount.test.js
+remote: gitstalk: it collided with these landed beans (accepted behaviour; keep both):
+remote: gitstalk:   - add-discount "Add percentage discounts"
+remote: gitstalk:     intent: discounted(items, rate) takes rate off the cart total.
+remote: gitstalk: fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout
+remote: gitstalk:      then fix, commit and git push -f origin HEAD:refs/heads/bean/tax-in-total
+remote: gitstalk:      and keep working; git push -o bean=tax-in-total origin HEAD:refs/wait/any waits for its next verdict</code></pre>
+          <p>
+            <strong>Cause.</strong> Gitstalk merged your change onto the current sprout and ran the
+            whole suite on that tree, and the tests listed failed. The beans listed under "collided"
+            landed behaviour you must keep, with their intent. If no beans are listed, the fault may
+            be in your change alone, or the sprout itself may be red: ask
+            <code>bean_status</code> with <code>checks: true</code>, which flags failures inherited
+            from the sprout. Failing output lines, when there are some, follow the list.
+          </p>
+          <p>
+            <strong>Fix.</strong> Run the <code>fix:</code> lines: rebase on
+            <code>origin/sprout</code>, change your code to fit both behaviours, commit, and
+            force-push the same bean branch. The new head is checked again. Force-push after a
+            rebase is expected. More in <a href="/docs/git#verdicts">Git compatibility</a>.
+          </p>
+
+          <h3 id="conflict">remote: gitstalk: CONFLICT</h3>
+          <pre><code>remote: gitstalk: CONFLICT: tax-in-total does not merge onto the sprout. Conflicts in: src/cart.ts
+remote: gitstalk:   &lt;&lt;&lt;&lt;&lt;&lt;&lt; sprout
+remote: gitstalk:   ...the sprout's side...
+remote: gitstalk:   =======
+remote: gitstalk:   ...your side...
+remote: gitstalk:   &gt;&gt;&gt;&gt;&gt;&gt;&gt; your bean
+remote: gitstalk: fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout</code></pre>
+          <p>
+            <strong>Cause.</strong> Another bean changed the same lines and landed first. The
+            message quotes up to 40 lines of the conflicting hunks and who wrote the sprout's side.
+          </p>
+          <p>
+            <strong>Fix.</strong> Rebase on <code>origin/sprout</code>, resolve the hunks keeping
+            the sprout's intent, and force-push the bean as above.
+          </p>
+
+          <h3 id="parked">PARKED (it needs a person) and DROPPED</h3>
+          <pre><code>remote: gitstalk: PARKED (it needs a person): tax-in-total: &lt;the reason&gt;
+remote: gitstalk: decision card D-3: the bean's spec contradicts add-discount; a person decides which behaviour stays</code></pre>
+          <p>
+            <strong>Cause.</strong> The engine will not land this bean on its own. The reason after
+            the bean's name says why. A decision card means two beans disagree about behaviour and a
+            person has to choose. <code>DROPPED</code> means the engine gave up on it; its reason is
+            printed the same way.
+          </p>
+          <p>
+            <strong>Fix.</strong> A parked or dropped bean takes no more pushes ("push the work
+            again as a new bean"). Read the reason, then push the work under a new bean name. For a
+            decision card, a person with the right role decides; see
+            <a href="/docs/decisions">Decision cards and reconcile</a>.
+          </p>
+
+          <h3 id="approval">awaiting approval by a person</h3>
+          <pre><code>remote: gitstalk: approval rules: api -> card (policy)
+remote: gitstalk: awaiting a person's approval
+
+This bean is routed to a person: class api, decided by policy.
+Nothing in it needs fixing for this. A maintainer approves it from its page (or the approveBean RPC);
+the approval re-submits this revision and its check runs again. A new push needs a new approval.</code></pre>
+          <p>
+            The push prints the first two lines. The paragraph below them is the bean's check
+            output: the bean is marked red as <code>awaits approval by a person</code> until it is
+            approved.
+          </p>
+          <p>
+            <strong>Cause.</strong> The repository's approval rules send this kind of change to a
+            person before it lands. Your code is fine.
+          </p>
+          <p>
+            <strong>Fix.</strong> The approval is for this revision only; a new push needs a new
+            approval. <span class="badge beta">beta</span> Approval rules are new, and the message
+            points at a button that does not exist yet: the web app has no approve button and no MCP
+            tool approves a bean. Approval is the gateway's internal <code>approveBean</code>
+            call, so on the hosted beta it is not something you can do yourself. To stop a rule
+            holding your changes, an owner or maintainer can change the rules in the repository's
+            Settings, Approval rules. See
+            <a href="/docs/approval-rules">Approval rules</a> for the rules and their limits.
+          </p>
+
+          <h3 id="protected">changes protected paths ... refused</h3>
+          <pre><code>remote: gitstalk: changes protected paths (data/schema.json): refused for @ada (write, with a deploy token)
+
+This bean changes protected paths: data/schema.json.
+The sprout protects .gitstalk/checks.toml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, data/schema.json, migrations/** (protected_paths in the checks file; the checks and policy files always).
+Only the owner or a maintainer, pushing with a personal token or an SSH key, may change them;
+this push was by @ada (write, with a deploy token).
+Drop those changes from the bean, or ask a maintainer to push them.</code></pre>
+          <p>
+            <strong>Cause.</strong> The repository lists those paths in
+            <code>protected_paths</code>, and <code>.gitstalk/checks.toml</code> and
+            <code>.gitstalk/policy.yml</code> are always protected. The bean's check goes red with
+            "changes a protected path". Only an owner or maintainer using their own personal token
+            or SSH key may change them. Agent sessions, deploy tokens and engine tokens never can,
+            whoever they act for.
+          </p>
+          <p>
+            <strong>Fix.</strong> Drop those changes from the bean, or have a maintainer push them.
+            See <a href="/docs/checks#protected">Checks: protected paths</a>.
+          </p>
+
+          <h2 id="rejected">! [remote rejected]</h2>
+          <p>
+            Refusals happen inside the git protocol, so git prints a normal rejected line, followed
+            by <code>remote: gitstalk: push refused: &lt;reason&gt;</code>. The reason is one of
+            these:
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>You pushed</th>
+                  <th>The reason says</th>
+                  <th>Do this</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>sprout</code>, <code>stalk</code> or <code>main</code></td>
+                  <td>
+                    <code
+                      >refs/heads/sprout is the engine's: landing is never a push. Push your work to
+                      refs/heads/bean/&lt;name&gt;; it lands when its pre-land check is green</code
+                    >
+                  </td>
+                  <td>Push to <code>refs/heads/bean/&lt;name&gt;</code>.</td>
+                </tr>
+                <tr>
+                  <td>A tag, or any branch that is not <code>bean/*</code></td>
+                  <td>
+                    <code
+                      >only beans are pushed: refs/heads/bean/&lt;name&gt; (letters, digits, . _ -;
+                      up to 32), not refs/tags/v1</code
+                    >
+                  </td>
+                  <td>Name the branch <code>bean/&lt;name&gt;</code>. Tags are not accepted.</td>
+                </tr>
+                <tr>
+                  <td>A deletion</td>
+                  <td><code>deleting refs is not allowed</code></td>
+                  <td>Do not delete; a bean ends by landing or being dropped.</td>
+                </tr>
+                <tr>
+                  <td>Two beans in one push</td>
+                  <td>
+                    <code>push one bean at a time (one refs/heads/bean/&lt;name&gt; per push)</code>
+                  </td>
+                  <td>Push them separately.</td>
+                </tr>
+                <tr>
+                  <td>A new commit to a bean still in check</td>
+                  <td>
+                    <code
+                      >bean tax-in-total is being checked (push 1, 3f9a1c2); its verdict comes
+                      first. Wait for it with git push -o bean=tax-in-total origin
+                      HEAD:refs/wait/any (returns at the verdict), then push again if it is red or
+                      in conflict; a landed bean takes new work as a new bean</code
+                    >
+                  </td>
+                  <td>Wait for the verdict, then push again if it is red or in conflict.</td>
+                </tr>
+                <tr>
+                  <td>A bean that already landed</td>
+                  <td>
+                    <code
+                      >bean tax-in-total already landed; push new work as a new bean
+                      (refs/heads/bean/&lt;new-name&gt;)</code
+                    >
+                  </td>
+                  <td>Use a new bean name.</td>
+                </tr>
+                <tr>
+                  <td>A parked or dropped bean</td>
+                  <td>
+                    <code
+                      >bean tax-in-total is parked (&lt;reason&gt;); push the work again as a new
+                      bean</code
+                    >
+                  </td>
+                  <td>Use a new bean name.</td>
+                </tr>
+                <tr>
+                  <td>Anything while the repository engine is not running</td>
+                  <td><code>the repository engine is &lt;phase&gt;</code></td>
+                  <td>Try again later; ask the owner if it persists.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Some refusals name a role or a credential instead:
+            <code>your role on this repository is read; to push beans you need the write role</code
+            >,
+            <code
+              >&lt;owner&gt;'s repository is public to read; to push beans ask its owner for the
+              write role</code
+            >, <code>this token may not push beans here (read-only access)</code> and
+            <code>this credential may not push beans (its scopes do not include it)</code>. Ask an
+            owner for the write role (<a href="/docs/collaborators">collaborators</a>) or use a
+            token with the write scope.
+          </p>
+
+          <h2 id="hangs">The push hangs</h2>
+          <p>
+            <strong>Cause.</strong> You pushed with <code>-o wait</code> or to a wait ref, which
+            holds the connection until the verdict. That is the feature, not a stall: you see
+            progress lines, and a keepalive every 15 seconds.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Waits up to</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>git push -o wait ...</code></td>
+                  <td>600 s by default; <code>-o wait=&lt;seconds&gt;</code> up to 1,800 s</td>
+                </tr>
+                <tr>
+                  <td><code>git push origin HEAD:refs/wait/any</code> (or <code>all</code>)</td>
+                  <td>540 s by default, under the 10-minute limit of an agent's shell tool</td>
+                </tr>
+                <tr>
+                  <td>MCP <code>bean_wait</code></td>
+                  <td>300 s by default; <code>timeout_s</code> up to 1,800 s</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Fix.</strong> If you do not want to wait, push without options: it returns as
+            soon as the bean is received. If the wait ran out, the push says where the verdict will
+            be: <code>git cat-file -p refs/beans/&lt;name&gt;/status</code> after
+            <code>git fetch origin '+refs/beans/*:refs/beans/*'</code>. Never poll with
+            <code>sleep</code> in a loop; one blocking call wakes on the verdict. See
+            <a href="/docs/git#wait">Waiting without polling</a>.
+          </p>
+
+          <h2 id="access">Access</h2>
+          <h3 id="not-found">404 on a repository you know exists</h3>
+          <p>
+            <strong>Cause.</strong> A repository you may not see answers 404, exactly as a missing
+            one does. It is private and you have no role on it, or you are signed in as a different
+            account. A repository that was renamed or moved keeps its old address, and git prints
+            <code
+              >gitstalk: this repository moved to &lt;owner&gt;/&lt;name&gt;; the old address keeps
+              working.</code
+            >
+          </p>
+          <p>
+            <strong>Fix.</strong> Check you are signed in as the right account, and ask an owner to
+            add you (<a href="/docs/collaborators">collaborators and visibility</a>). For a moved
+            repository, run <code>git remote set-url origin &lt;new url&gt;</code>.
+          </p>
+          <h3 id="not-connected">git is not connected to your account</h3>
+          <pre><code>Gitstalk: this git is not connected to your account yet. Pick one:
+  1. Claude Code (easiest): /gitstalk:setup
+     not installed? claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk
+  2. HTTPS: make a token at https://&lt;gitstalk host&gt;/settings/tokens and paste it at git's password prompt
+  3. CI and scripts: a deploy token in GITSTALK_TOKEN (the repository page, tab "Env vars")</code></pre>
+          <p>
+            <strong>Cause.</strong> No credential reached Gitstalk, or git was given one that was
+            refused (<code
+              >that credential was refused (expired, revoked, or not for this repository)</code
+            >). <strong>Fix.</strong> Pick one of the three ways. See
+            <a href="/docs/account">Accounts, tokens and keys</a> and
+            <a href="/docs/agents#script">the setup script</a>.
+          </p>
+          <h3 id="ssh">SSH does not work</h3>
+          <p>
+            <strong>Cause.</strong> Git over SSH is <span class="badge planned">planned</span>: it
+            is built and tested, but not public. You can register an SSH key (it approves your
+            machine), but git remotes use HTTPS today. <strong>Fix.</strong> Clone with
+            <code>https://&lt;host&gt;/&lt;owner&gt;/&lt;repo&gt;.git</code>.
+            <code>/gitstalk:setup</code> stores an HTTPS token for you.
+          </p>
+
+          <h2 id="checks-and-actions">Checks and Actions</h2>
+          <h3 id="invalid-checks">.gitstalk/checks.toml is invalid</h3>
+          <pre><code>.gitstalk/checks.toml on the merged tree is invalid, so no tests ran:
+  unknown key "comand" (did you mean "command"?)
+Fix the file in this bean; see /docs/checks for the format.</code></pre>
+          <p>
+            <strong>Cause.</strong> The file is read from the exact merged tree and any problem is
+            red without running a test. A problem with the key or value names the key; a TOML syntax
+            error gives the line and column. <strong>Fix.</strong> Correct the file in the same
+            bean. The format is in <a href="/docs/checks">Checks</a>.
+          </p>
+          <h3 id="node-only">The check says it only runs node</h3>
+          <pre><code>image: "python" is not available: the runner image ships Node 25.8.1 only, so the one image is "node" (see /docs/checks)
+command: must start with "node": the runner reads node's test reporter (other test runners need another image; see /docs/checks)
+command: must run node --test</code></pre>
+          <p>
+            <strong>Cause.</strong> Checks run <code>node --test</code> in one image today, with
+            nothing installed at check time. A command is an argv, never a shell, so
+            <code>npm test</code> is refused. <strong>Fix.</strong> Use a command such as
+            <code>["node", "--test", "spec/**/*.spec.mjs"]</code>. Other languages and test runners
+            are not supported yet.
+          </p>
+          <h3 id="minutes">Actions minutes for the month are spent</h3>
+          <pre><code>this repository's 100 Actions minutes for the month are spent
+this repository's 100 Actions minutes for the month are used</code></pre>
+          <p>
+            <strong>Cause.</strong> The repository used its monthly Actions minutes on the managed
+            beta (100 there; the number in the message is the limit). A run that starts by itself
+            ends as a startup failure with the first message, never a red run. Starting one by hand
+            (run, re-run or an automation's run now) is refused with the second message.
+            <strong>Fix.</strong> Wait for the next month, or self-host and set
+            <code>ACTIONS_MONTHLY_MINUTES</code>. See <a href="/docs/limits">Limits and plans</a>.
+          </p>
+          <h3 id="no-workflow-run">My workflow did not start</h3>
+          <p>
+            <strong>Cause.</strong> Gitstalk runs <code>push</code> (a bean reaching the stalk is a
+            push to <code>main</code>), <code>workflow_dispatch</code> and <code>schedule</code>.
+            <code>pull_request</code>, <code>merge_group</code>, <code>repository_dispatch</code>,
+            <code>workflow_run</code> and <code>workflow_call</code> are marked as never running.
+            <strong>Fix.</strong> Open the repository's Automations tab and its Actions view: each
+            workflow lists its triggers and whether they run, with notes on what runs differently
+            here. Move the job to a push trigger, or run it by hand. See
+            <a href="/docs/actions">GitHub Actions</a>.
+          </p>
+          <h3 id="secret-empty">A secret is empty in a bean's run</h3>
+          <p>
+            <strong>Cause.</strong> Pre-land runs of a bean pushed by an agent session, a deploy
+            token or a collaborator below maintain get no secrets unless the secret is marked
+            <em>Available to pre-land checks</em>, because a bean is unreviewed code. Runs of the
+            stalk, dispatches and schedules get them as usual. <strong>Fix.</strong> Switch the
+            secret on for pre-land checks only if you accept that risk, or move the step to a run
+            after landing. See <a href="/docs/secrets">Secrets and variables</a>.
+          </p>
+
+          <h2 id="agents-and-names">Agents and names</h2>
+          <h3 id="missing-tool">My agent has no write tool, or no secrets tool</h3>
+          <p>
+            <strong>Cause.</strong> The server offers only the tools a session's scopes allow.
+            Without <code>write</code> there is no tool that opens beans, commits, claims tasks or
+            starts runs; without <code>secrets</code> there are no secret tools. Your role on the
+            repository is also checked on every call. <strong>Fix.</strong> Reconnect the agent and
+            tick the scope (<code>secrets</code> is never ticked for you). See
+            <a href="/docs/mcp#scopes">MCP tools and scopes</a>. If the tools seem to have older
+            names, see <a href="/docs/mcp#names">names that changed</a>.
+          </p>
+          <h3 id="old-names">Old beanstalk names</h3>
+          <p>
+            <strong>Cause.</strong> Gitstalk was called Beanstalk until 10 October 2026.
+            <strong>What still works.</strong> <code>BEANSTALK_WEB</code>,
+            <code>BEANSTALK_NO_BROWSER</code> and the other <code>BEANSTALK_*</code> settings are
+            read when the <code>GITSTALK_*</code> one is unset;
+            <code>.beanstalk/checks.toml</code> and <code>.beanstalk/automations/</code> are read
+            when there is no <code>.gitstalk/</code> file; and an old plugin install keeps working
+            after you update it. See <a href="/docs/agents#upgrading">upgrading</a>.
+          </p>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/18-git-native-flow.md"
+                  >docs/claude-opus/18-git-native-flow.md</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/packages/gateway/src/push/push-messages.ts"
+                  >packages/gateway/src/push/push-messages.ts</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/self-hosting"
+              ><small>Previous</small>Self-hosting and custom hosts</a
+            >
+            <a class="next" href="/docs/"><small>Next</small>Overview</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

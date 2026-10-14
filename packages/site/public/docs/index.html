@@ -6,14 +6,14 @@
     <title>Overview: Gitstalk docs</title>
     <meta
       name="description"
-      content="What Gitstalk is, who it is for, and how to land your first bean in about a minute."
+      content="What Gitstalk is, which page to read first, and how to land your first bean in about a minute."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Overview: Gitstalk docs" />
     <meta
       property="og:description"
-      content="What Gitstalk is, who it is for, and how to land your first bean in about a minute."
+      content="What Gitstalk is, which page to read first, and how to land your first bean in about a minute."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -169,62 +169,120 @@
           <p class="prompt" aria-hidden="true">gitstalk docs</p>
           <h1>Gitstalk docs</h1>
           <p class="lede">
-            Gitstalk is an agent-first git forge. Many coding agents push small changes to one
-            codebase at once, and each change lands as soon as it passes its tests on the exact tree
-            it would land on. Nobody waits in a merge queue, and the stable line only ever holds
-            verified work.
+            Gitstalk is a git forge built for coding agents. Many agents push small changes at once,
+            and each change lands as soon as it passes its tests on the exact code it would land on.
+            Nobody waits in a merge queue, and the stable line stays green.
           </p>
 
+          <h2 id="paths">Pick your path</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/agents"
+              ><h3>I use agents <span class="badge live">live</span></h3>
+              <p>Connect Claude Code, Codex or another MCP client, then let it push beans.</p></a
+            ><a class="fcard" href="/docs/collaborators"
+              ><h3>I run a team <span class="badge live">live</span></h3>
+              <p>Roles, invitations, organizations, private and public repositories.</p></a
+            ><a class="fcard" href="/docs/automations"
+              ><h3>I automate <span class="badge live">live</span></h3>
+              <p>GitHub Actions workflows and agents defined in git that react to events.</p></a
+            ><a class="fcard" href="/docs/self-hosting"
+              ><h3>I self-host <span class="badge live">live</span></h3>
+              <p>Run all of Gitstalk on your own Cloudflare account.</p></a
+            >
+          </div>
+
           <h2 id="words">Three words</h2>
+          <svg
+            viewBox="0 0 560 120"
+            role="img"
+            aria-label="A bean becomes a sprout, then the stalk"
+            style="width: 100%; max-width: 560px; height: auto; display: block; margin: 18px 0 0"
+          >
+            <g fill="none" stroke="var(--fg-subtle)" stroke-width="2" stroke-linecap="round">
+              <path d="M150 60h50M200 60l-8-6M200 60l-8 6" />
+              <path d="M360 60h50M410 60l-8-6M410 60l-8 6" />
+            </g>
+            <ellipse cx="80" cy="62" rx="40" ry="26" fill="var(--bean)" opacity="0.9" />
+            <text
+              x="80"
+              y="102"
+              text-anchor="middle"
+              fill="var(--fg-muted)"
+              font-size="14"
+              font-family="inherit"
+            >
+              bean
+            </text>
+            <path d="M280 96V50" stroke="var(--sprout)" stroke-width="4" stroke-linecap="round" />
+            <path d="M280 62C280 44 262 36 244 38 246 56 260 66 280 62Z" fill="var(--sprout)" />
+            <path d="M280 52C280 36 296 26 314 28 313 44 298 54 280 52Z" fill="var(--sprout)" />
+            <text
+              x="280"
+              y="114"
+              text-anchor="middle"
+              fill="var(--fg-muted)"
+              font-size="14"
+              font-family="inherit"
+            >
+              sprout
+            </text>
+            <path d="M490 100V14" stroke="var(--leaf)" stroke-width="5" stroke-linecap="round" />
+            <path d="M490 78C490 58 466 48 444 52 448 72 466 82 490 78Z" fill="var(--leaf)" />
+            <path d="M490 54C490 34 514 24 536 28 532 48 514 58 490 54Z" fill="var(--leaf)" />
+            <path d="M490 34C490 20 478 12 464 14 465 28 476 36 490 34Z" fill="var(--leaf)" />
+            <text
+              x="490"
+              y="116"
+              text-anchor="middle"
+              fill="var(--fg-muted)"
+              font-size="14"
+              font-family="inherit"
+            >
+              stalk
+            </text>
+          </svg>
           <ul>
             <li>
               A <strong>bean</strong> is one change: a branch named <code>bean/&lt;name&gt;</code>,
               pushed by an agent or a person.
             </li>
             <li>
-              The <strong>sprout</strong> is the staged line. A bean lands there once its pre-land
-              check passes on the sprout plus the bean.
+              The <strong>sprout</strong> is where a bean lands first, once its pre-land check
+              passes on the sprout plus the bean.
             </li>
             <li>
               The <strong>stalk</strong> is the stable line. It moves only to sprout commits that
-              passed validation, so it is always green.
+              passed validation, so it stays green.
             </li>
           </ul>
+          <p>See <a href="/docs/concepts">Concepts</a> for the whole life of a bean.</p>
 
-          <h2 id="who">Who it is for</h2>
+          <h2 id="start">The 60-second start</h2>
           <p>
-            Teams that run several coding agents (Claude Code, Codex, Cursor or others) on the same
-            repository and spend their time on merge queues, rebases and broken main branches. It
-            also works for people: a bean is just a git push.
+            Three steps, with Claude Code or Codex and git installed. The
+            <a href="/docs/quickstart">Quickstart</a> walks through each one with a small mock of
+            every screen.
           </p>
-
-          <h2 id="start">Getting started</h2>
-          <p>About a minute, with Claude Code and git installed.</p>
           <ol class="steps">
             <li>
-              <h3>Sign up</h3>
+              <h3>Sign up and create a repository</h3>
               <p>
-                <a href="/agent">Sign up</a> with your email or a passkey, then pick a handle. No
-                password.
+                <a href="/signup">Sign up</a> with an email code or a passkey and pick a handle.
+                Then choose <strong>New repository</strong>: the TypeScript starter, an empty
+                repository, or an import of a public git URL.
               </p>
             </li>
             <li>
-              <h3>Create a repository</h3>
-              <p>
-                Choose <strong>New repository</strong>. Start from the TypeScript starter (a small
-                project with tests), an empty repository, or import any public git URL.
-              </p>
-            </li>
-            <li>
-              <h3>Install the plugin and connect git</h3>
-              <p>One line installs the plugin in your agent:</p>
+              <h3>Connect your agent</h3>
               <div class="install" data-agent-tabs id="start-agents">
                 <section class="cmd" data-agent="claude-code" data-name="Claude Code">
                   <header><span>Claude Code: paste in your terminal</span></header>
-                  <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
+                  <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude mcp login plugin:gitstalk:gitstalk</code></pre>
                   <p class="cmd-note">
-                    <code>/gitstalk:setup</code> picks an SSH key on your machine (or makes one),
-                    opens a Gitstalk tab for you to approve it, and points git at your repository.
+                    Your browser opens once to approve the session. Then run
+                    <code>/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;</code> in Claude Code: it picks
+                    an SSH key (or makes one), opens a Gitstalk tab for you to approve it, and
+                    points git at your repository.
                   </p>
                 </section>
                 <section class="cmd" data-agent="codex" data-name="Codex">
@@ -236,95 +294,216 @@
                   </p>
                 </section>
               </div>
-              <p>Other agents: <a href="/docs/agents">Connecting agents</a>.</p>
+              <p>
+                Cursor, Gemini CLI and other MCP clients:
+                <a href="/docs/agents">Connecting agents</a>.
+              </p>
             </li>
             <li>
               <h3>Push a bean</h3>
-              <pre><code>git switch -c work origin/sprout
-<span class="c"># change something, with a test</span>
+              <p>
+                In a clone of your repository (the <a href="/docs/quickstart">Quickstart</a> shows
+                how to connect git and clone):
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>git switch -c work origin/sprout
 git commit -am "Add a truncate helper"
 git push -o wait origin HEAD:refs/heads/bean/add-truncate</code></pre>
-              <p>The push prints the verdict when the check ends:</p>
-              <pre><code>remote: gitstalk: pre-land check started: your change is merged onto the sprout and the whole suite runs on that tree
-remote: gitstalk: <span class="ok">LANDED: add-truncate passed its pre-land check and is on the sprout</span>
-remote: gitstalk: validated: on the stalk</code></pre>
-              <p>
-                On the hosted service this took about 17 seconds end to end for a small repository.
-                Or just ask your agent to do the work: the plugin's skill teaches it the flow.
-              </p>
+              </div>
+              <p>The push waits for the pre-land check and prints the verdict (shortened here):</p>
+              <pre
+                class="m-term"
+              ><span class="dim">remote: gitstalk: pre-land check started: your change is merged onto the sprout and the whole suite runs on that tree</span>
+remote: gitstalk: <span class="ok">LANDED: add-truncate passed its pre-land check and is on the sprout as 3f9c2ab</span>
+remote: gitstalk:   it moves to the stalk once CI validates the sprout</pre>
             </li>
           </ol>
 
           <h2 id="features">What is in it</h2>
           <p>
-            Every page says what is <span class="pill live">live</span> on the hosted service, what
-            is <span class="pill rolling">rolling out</span> (built and verified on a staging copy,
-            not yet on the hosted service) and what is <span class="pill soon">coming soon</span>.
+            Every page carries a badge. <span class="badge live">live</span> is running on the
+            hosted service. <span class="badge beta">beta</span> is built, but works only partly or
+            has not been confirmed on the hosted service.
+            <span class="badge planned">planned</span> is not built yet.
           </p>
           <ul class="flist">
             <li>
-              <a href="/docs/repositories">Repositories</a><span class="pill live">live</span
+              <a href="/docs/quickstart">Quickstart</a><span class="badge live">live</span
+              ><span class="d"
+                >Sign up, make a repository, connect an agent and push a first bean.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/concepts">Concepts</a><span class="badge live">live</span
+              ><span class="d"
+                >Bean, sprout, stalk, the pre-land check and what happens when it goes red.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/account">Accounts, tokens and keys</a
+              ><span class="badge live">live</span
+              ><span class="d"
+                >Passkeys, email codes, personal and deploy tokens, SSH keys, sessions. Notification
+                settings are planned: nothing is sent yet.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/agents">Connecting agents</a><span class="badge live">live</span
+              ><span class="d"
+                >The plugin, OAuth sign-in, tokens and git credentials for containers.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/mcp">MCP tools and scopes</a><span class="badge live">live</span
+              ><span class="d"
+                >What an agent can call at each scope. The tools added on 2026-10-14 are beta until
+                the hosted service is confirmed to run them.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/ask">Ask the repository</a><span class="badge live">live</span
+              ><span class="d"
+                >Ask a question about the code, its beans and decisions, and see what answered
+                it.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/blame">Why this line: blame by bean</a
+              ><span class="badge beta">beta</span
+              ><span class="d">Which bean wrote each line, and why.</span>
+            </li>
+            <li>
+              <a href="/docs/cloud-agents">Cloud agents and sandboxes</a
+              ><span class="badge planned">planned</span
+              ><span class="d"
+                >Agents that run for you in the cloud. Not built; this page separates them from the
+                sandboxes that check your beans.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/streaming-diffs">Live updates and streaming diffs</a
+              ><span class="badge beta">beta</span
+              ><span class="d"
+                >The web app updates live as beans move. Streaming a diff while an agent writes it
+                works only in engine races today, not in your repositories.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/repositories">Repositories</a><span class="badge live">live</span
               ><span class="d">Create, import, the start page and the repository tabs.</span>
             </li>
             <li>
-              <a href="/docs/git">Git compatibility</a><span class="pill live">live</span
+              <a href="/docs/git">Git compatibility</a><span class="badge live">live</span
               ><span class="d"
-                >Plain git: <code>bean/*</code> branches, push options, verdicts on the push, status
-                refs.</span
+                >Plain git over HTTPS: <code>bean/*</code> branches, push options, verdicts on the
+                push, status refs. Git over SSH is built but not public yet.</span
               >
             </li>
             <li>
-              <a href="/docs/agents">Connecting agents</a><span class="pill live">live</span
-              ><span class="d">The plugin, SSH keys and tokens, containers, MCP and OAuth.</span>
-            </li>
-            <li>
-              <a href="/docs/checks">Checks</a><span class="pill live">live</span
+              <a href="/docs/checks">Checks</a><span class="badge live">live</span
               ><span class="d"
-                ><code>.gitstalk/checks.toml</code>: what a bean must pass, and protected
-                paths.</span
+                ><code>.gitstalk/checks.toml</code>: what a bean must pass, and protected paths.
+                Node test suites only today.</span
               >
             </li>
             <li>
-              <a href="/docs/collaborators">Collaborators and visibility</a
-              ><span class="pill live">live</span
+              <a href="/docs/approval-rules">Approval rules</a><span class="badge beta">beta</span
               ><span class="d"
-                >Roles, invitations, public and private repositories, organizations, internal
-                repositories.</span
+                ><code>.gitstalk/policy.yml</code>: which changes land on their own and which wait
+                for a person.</span
               >
             </li>
             <li>
               <a href="/docs/decisions">Decision cards and reconcile</a
-              ><span class="pill live">live</span
-              ><span class="d">When two changes truly disagree, a person decides.</span>
+              ><span class="badge beta">beta</span
+              ><span class="d"
+                >When two changes disagree, the engine raises a card. Answering cards in the
+                repository web pages is not built yet.</span
+              >
             </li>
             <li>
-              <a href="/docs/streaming-diffs">Streaming diffs</a
-              ><span class="pill soon">coming soon</span
-              ><span class="d">Watch a bean's change arrive while its agent writes it.</span>
+              <a href="/docs/collaborators">Collaborators and visibility</a
+              ><span class="badge live">live</span
+              ><span class="d"
+                >Roles, invitations, public, private and internal repositories. Teams are
+                planned.</span
+              >
             </li>
             <li>
-              <a href="/docs/actions">GitHub Actions</a><span class="pill live">live</span
+              <a href="/docs/organizations">Organizations</a><span class="badge live">live</span
+              ><span class="d"
+                >Members, base permission, internal repositories, the audit log.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/settings">Settings map</a><span class="badge live">live</span
+              ><span class="d"
+                >Who sees which repository settings section, and what each one does.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/actions">GitHub Actions</a><span class="badge live">live</span
               ><span class="d">Your <code>.github/workflows</code>, run on Cloudflare.</span>
             </li>
             <li>
-              <a href="/docs/automations">Automations</a><span class="pill live">live</span
+              <a href="/docs/dependency-cache">Dependency cache</a
+              ><span class="badge live">live</span
+              ><span class="d">Reuse <code>node_modules</code> between runs.</span>
+            </li>
+            <li>
+              <a href="/docs/secrets">Secrets and variables</a><span class="badge live">live</span
+              ><span class="d"
+                >Repository and organization secrets, write-only and masked in logs.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/environment-variables">Environment variables</a
+              ><span class="badge live">live</span
+              ><span class="d"
+                >Where to set one: a secret, a variable, a workflow, or a check.</span
+              >
+            </li>
+            <li>
+              <a href="/docs/automations">Automations</a><span class="badge live">live</span
               ><span class="d"
                 >Agents defined in git that react to Gitstalk events, with their own memory.</span
               >
             </li>
             <li>
-              <a href="/docs/self-hosting">Self-hosting</a><span class="pill live">live</span
-              ><span class="d">Run all of Gitstalk on your own Cloudflare account.</span>
+              <a href="/docs/automation-builder">Automation builder and templates</a
+              ><span class="badge beta">beta</span
+              ><span class="d">Build an automation in the browser from a form or YAML.</span>
+            </li>
+            <li>
+              <a href="/docs/limits">Limits and plans</a><span class="badge live">live</span
+              ><span class="d">The managed beta limits. There is no billing today.</span>
+            </li>
+            <li>
+              <a href="/docs/self-hosting">Self-hosting and custom hosts</a
+              ><span class="badge live">live</span
+              ><span class="d">Provision, secure and deploy your own copy.</span>
+            </li>
+            <li>
+              <a href="/docs/troubleshooting">Troubleshooting</a><span class="badge live">live</span
+              ><span class="d">Look up the message you saw.</span>
+            </li>
+            <li>
+              <a href="/docs/architecture">Architecture</a><span class="badge live">live</span
+              ><span class="d">How the pieces fit, with measured results.</span>
+            </li>
+            <li>
+              <a href="/docs/research">What did not work</a><span class="badge live">live</span
+              ><span class="d">Optional background: ideas we measured and dropped.</span>
             </li>
           </ul>
 
           <h2 id="how">How it works, and how we know</h2>
           <p>
-            <a href="/docs/architecture">Architecture</a> explains the engine and the Cloudflare
-            pieces, with the measured results: against GitHub's own merge queue on 38 real changes
-            from fastify, Gitstalk integrated each change 6–9× faster with 16 parallel workers.
-            <a href="/docs/research">What did not work</a>
-            lists the ideas we measured and dropped.
+            <a href="/docs/architecture">Architecture</a> shows the pieces and the measured results:
+            against GitHub's merge queue on 38 real changes from fastify, Gitstalk integrated each
+            change 6 to 9 times faster with 16 parallel workers.
+            <a href="/docs/research">What did not work</a> lists the ideas we measured and dropped.
           </p>
 
           <h2 id="links">Links</h2>
@@ -348,7 +527,7 @@ remote: gitstalk: validated: on the stalk</code></pre>
             </li>
           </ul>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="next" href="/docs/repositories"><small>Next</small>Repositories</a>
+            <a class="next" href="/docs/quickstart"><small>Next</small>Quickstart</a>
           </nav>
         </article>
       </div>

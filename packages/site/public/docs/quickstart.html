@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quickstart: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Sign up, create a repository, connect your agent and push your first bean to Gitstalk in about a minute."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Quickstart: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Sign up, create a repository, connect your agent and push your first bean to Gitstalk in about a minute."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Quickstart</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs quickstart</p>
+          <h1>Quickstart: your first bean in a minute</h1>
+          <p class="lede">
+            Six short steps from nothing to a change landed on your own repository. Each step shows
+            what the screen looks like.
+          </p>
+
+          <p class="status-line">
+            <span class="badge live">live</span> Everything on this page works on the hosted service
+            today.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>Sign up</h3>
+              <p>
+                Open <a href="/signup">Sign up</a>. Create the account with a passkey and a handle,
+                or continue with an email address and the six-digit code we send (it works for 10
+                minutes). A new email address then asks for a handle.
+              </p>
+              <figure
+                class="mock"
+                aria-label="The sign-up card: continue with a passkey, or an email address and a code"
+              >
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span class="mock-url">gitstalk.io/signup</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-decision">
+                    <span class="ms checking">Sign up</span>
+                    <p class="q">Create your account. No password.</p>
+                    <div class="opts">
+                      <div class="opt pick">
+                        <b>Create account with a passkey</b
+                        ><span>Pick a handle; fingerprint, face or device PIN.</span>
+                      </div>
+                      <div class="opt">
+                        <b>Continue with email</b
+                        ><span>We send a six-digit code; a new address then chooses a handle.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <figcaption>
+                  Either way you end up with a handle such as <code>@ada</code>. A passkey is
+                  offered after an email sign-up.
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <h3>Create a repository</h3>
+              <p>
+                Choose <strong>New repository</strong> from Home. The TypeScript starter has a test
+                every bean must pass, so your first push is checked for real.
+              </p>
+              <figure class="mock" aria-label="The New repository form">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span class="mock-url">gitstalk.io/new</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-field">
+                    <div class="label"><b>Name</b><span>Part of the clone URL.</span></div>
+                    <div class="m-input">ada / <b>notes-api</b></div>
+                  </div>
+                  <div class="m-field">
+                    <div class="label"><b>Visibility</b><span>Who can read it.</span></div>
+                    <div class="m-input">Private</div>
+                  </div>
+                  <div class="m-field">
+                    <div class="label">
+                      <b>Start with</b><span>A small library with tests and a check.</span>
+                    </div>
+                    <div class="m-input">TypeScript starter</div>
+                  </div>
+                  <div class="m-secret">
+                    <span class="key">Ready</span><span class="val">ada / notes-api</span
+                    ><span class="when"></span><span class="m-btn primary">Create repository</span>
+                  </div>
+                </div>
+                <figcaption>
+                  Choose the TypeScript starter, an empty repository (a README and nothing else), or
+                  import a public git URL. An import's default branch becomes the stalk. Visibility
+                  defaults to private.
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <h3>Connect your agent and git</h3>
+              <p>
+                Install the plugin in Claude Code or Codex. Your browser opens once to approve the
+                session.
+              </p>
+              <div class="install" data-agent-tabs id="qs-agents">
+                <section class="cmd" data-agent="claude-code" data-name="Claude Code">
+                  <header><span>Claude Code: paste in your terminal</span></header>
+                  <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude mcp login plugin:gitstalk:gitstalk</code></pre>
+                </section>
+                <section class="cmd" data-agent="codex" data-name="Codex">
+                  <header><span>Codex: paste in your terminal</span></header>
+                  <pre><code>codex plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
+                </section>
+                <section class="cmd" data-agent="mcp" data-name="Other">
+                  <header><span>Any MCP client: add as a remote (HTTP) server</span></header>
+                  <pre class="url"><code>https://mcp.gitstalk.io/mcp</code></pre>
+                </section>
+              </div>
+              <p>Then connect git on this machine. In Claude Code:</p>
+              <div class="cmd" data-copyable>
+                <header><span>Claude Code</span></header>
+                <pre class="chat"><code>/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;</code></pre>
+              </div>
+              <p>
+                It finds your SSH keys or makes one, opens a Gitstalk tab for you to approve it,
+                then clones the repository or points your clone at it. In Codex, ask it to run the
+                setup script (<code>setup.sh</code>, or <code>setup.ps1</code> on Windows).
+              </p>
+              <figure class="mock" aria-label="The browser approval screen for an SSH key">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span class="mock-url">gitstalk.io/settings/keys/add</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-field">
+                    <div class="label">
+                      <b>Add this SSH key to @ada?</b
+                      ><span>Sent by /gitstalk:setup from ada-laptop.</span>
+                    </div>
+                    <div class="m-input">ssh-ed25519</div>
+                  </div>
+                  <div class="m-field">
+                    <div class="label">
+                      <b>Fingerprint</b><span>Check it matches your terminal.</span>
+                    </div>
+                    <div class="m-input">SHA256:3q1x...e9Kc</div>
+                  </div>
+                  <div class="m-secret">
+                    <span class="key">Code</span><span class="val">BQXM-TWDK</span
+                    ><span class="when">Must match your terminal.</span
+                    ><span class="m-btn primary">Add key</span>
+                  </div>
+                </div>
+                <figcaption>
+                  You approve once per machine (or choose Deny), and can remove the key later in
+                  Settings. A key added here can push beans to your repositories. Only the public
+                  key is stored.
+                </figcaption>
+              </figure>
+              <aside class="callout note">
+                <p class="callout-title">Git runs over HTTPS today</p>
+                <p>
+                  Git over SSH is built but not public yet. Setup still registers your key (that
+                  approves the machine), and because the SSH remote is not public it stores an HTTPS
+                  token in git's credential helper and sets an HTTPS remote. Never paste that token
+                  into a chat or a remote URL.
+                </p>
+              </aside>
+            </li>
+            <li>
+              <h3>Push a bean</h3>
+              <p>
+                A bean is a branch named <code>bean/&lt;name&gt;</code>. Start from the sprout,
+                change something, and push with <code>-o wait</code> to hold the push until the
+                verdict.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>git switch -c work origin/sprout
+git commit -am "Add a truncate helper"
+git push -o wait origin HEAD:refs/heads/bean/add-truncate</code></pre>
+              </div>
+              <figure class="mock" aria-label="A terminal showing a push that lands">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+                </div>
+                <div class="mock-body">
+                  <pre
+                    class="m-term"
+                  ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/add-truncate
+<span class="dim">remote: gitstalk: new bean add-truncate received at 3f9c2ab: "Add a truncate helper"</span>
+<span class="dim">remote: gitstalk: pre-land check started: your change is merged onto the sprout and the whole suite runs on that tree</span>
+remote: gitstalk: <span class="ok">LANDED: add-truncate passed its pre-land check and is on the sprout as 3f9c2ab</span>
+remote: gitstalk:   it moves to the stalk once CI validates the sprout; git fetch origin sprout stalk
+remote: gitstalk:   web: https://gitstalk.io/ada/notes-api/changes/add-truncate</pre>
+                </div>
+                <figcaption>
+                  The push waits for the pre-land check and prints the verdict as
+                  <code>remote:</code> lines.
+                </figcaption>
+              </figure>
+              <p>
+                The stalk moves a little later, when CI validates the sprout. The bean's status ref
+                then gets the line <code>gitstalk: validated: on the stalk at &lt;sha&gt;</code>,
+                and the History tab moves the commit from
+                <em>On the sprout, not validated yet</em> to <em>The stalk</em>.
+              </p>
+            </li>
+            <li>
+              <h3>See it in the app</h3>
+              <p>
+                Open the repository and its <strong>Changes</strong> tab. It lists beans in three
+                groups, Open, Landed and Parked, and the page updates live.
+              </p>
+              <figure class="mock" aria-label="The Changes tab with three beans">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i
+                  ><span class="mock-url">gitstalk.io/ada/notes-api/changes</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-repo">
+                    <div class="title">
+                      <span>ada /</span> <b>notes-api</b> <span class="badge live">private</span>
+                    </div>
+                    <div class="m-tabs" aria-hidden="true">
+                      <span>Code</span><span class="on">Changes<small>1</small></span
+                      ><span>History</span><span>Automations</span><span>Ask</span
+                      ><span>People</span><span>Settings</span>
+                    </div>
+                  </div>
+                  <div class="m-tabs" aria-hidden="true">
+                    <span class="on">Open<small>1</small></span
+                    ><span>Landed<small>2</small></span
+                    ><span>Parked<small>0</small></span>
+                  </div>
+                  <div class="m-bean">
+                    <span class="dot" aria-hidden="true"></span
+                    ><span class="name">add-truncate</span><span class="by">@ada, just now</span
+                    ><span class="ms checking">in check</span>
+                  </div>
+                </div>
+                <figcaption>
+                  A bean in check sits under Open. Once it lands it moves to Landed and reads
+                  <em>on the sprout</em>, then <em>on the stalk</em> after validation. Open one to
+                  see its journey and diff. The number on the tab counts beans in check, red or
+                  waiting.
+                </figcaption>
+              </figure>
+              <figure class="mock" aria-label="A bean page with its journey">
+                <div class="mock-bar" aria-hidden="true">
+                  <i></i><i></i><i></i
+                  ><span class="mock-url">gitstalk.io/ada/notes-api/changes/add-truncate</span>
+                </div>
+                <div class="mock-body">
+                  <div class="m-run">
+                    <header>
+                      <b>bean/add-truncate</b><span class="ms landed">on the sprout</span
+                      ><span class="sub">@ada</span>
+                    </header>
+                    <div class="m-step ok">
+                      <span>Push 1 from @ada: 3f9c2ab</span><span class="t"></span>
+                    </div>
+                    <div class="m-step ok">
+                      <span>Pre-land check green on the merged tree (14.0 s)</span
+                      ><span class="t"></span>
+                    </div>
+                    <div class="m-step ok">
+                      <span>Landed on the sprout as 3f9c2ab</span><span class="t"></span>
+                    </div>
+                  </div>
+                </div>
+                <figcaption>
+                  The journey adds a line for each step. When CI validates the sprout it adds
+                  <em>Validated: on the stalk at ...</em>.
+                </figcaption>
+              </figure>
+            </li>
+            <li>
+              <h3>Ask your agent to do it</h3>
+              <p>The plugin teaches your agent this flow, so you can skip the commands. Try:</p>
+              <div class="cmd" data-copyable>
+                <header><span>Chat</span></header>
+                <pre
+                  class="chat"
+                ><code>Add a truncate helper to ada/notes-api with a test. Push it as a bean and tell me whether it landed.</code></pre>
+              </div>
+              <p>
+                If a bean goes red, the push tells the agent which tests failed and which landed
+                beans it collided with. See <a href="/docs/concepts">Concepts</a>.
+              </p>
+            </li>
+          </ol>
+
+          <h2 id="home">What you will see on Home</h2>
+          <figure class="mock" aria-label="The signed-in Home page">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.io/</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-run">
+                <header><b>Get started</b><span class="sub">2 of 3 done</span></header>
+                <div class="m-step ok">
+                  <span>Connect an agent session</span><span class="t"></span>
+                </div>
+                <div class="m-step ok">
+                  <span>Create or import a repository</span><span class="t"></span>
+                </div>
+                <div class="m-step run"><span>Push a first bean</span><span class="t"></span></div>
+              </div>
+            </div>
+            <figcaption>
+              Home lists these three first steps until they are done, then your repositories,
+              repositories shared with you, recent activity, invitations waiting for an answer, and
+              your connected agent sessions.
+            </figcaption>
+          </figure>
+          <p>
+            Invitations to other people's repositories appear on Home with the answer buttons.
+            Connected agents show under <strong>Your sessions</strong>, newest first; each can be
+            disconnected in <a href="/docs/account#sessions">Settings</a>.
+          </p>
+
+          <h2 id="next">Next steps</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/concepts"
+              ><h3>Concepts</h3>
+              <p>The life of a bean, step by step.</p></a
+            >
+            <a class="fcard" href="/docs/agents"
+              ><h3>Connecting agents <span class="badge live">live</span></h3>
+              <p>Other clients, tokens, and containers.</p></a
+            >
+            <a class="fcard" href="/docs/checks"
+              ><h3>Checks <span class="badge live">live</span></h3>
+              <p>Decide what a bean must pass.</p></a
+            >
+            <a class="fcard" href="/docs/secrets"
+              ><h3>Secrets <span class="badge live">live</span></h3>
+              <p>Give workflows a key without exposing it.</p></a
+            >
+          </div>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/"><small>Previous</small>Overview</a
+            ><a class="next" href="/docs/concepts"><small>Next</small>Concepts</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

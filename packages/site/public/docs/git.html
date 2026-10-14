@@ -6,14 +6,14 @@
     <title>Git compatibility: Gitstalk docs</title>
     <meta
       name="description"
-      content="Gitstalk speaks plain git: GitHub-style URLs, bean branches, push options, verdicts on the push, status refs and waiting refs."
+      content="It is just git: clone, branch and push beans, read the verdict on the push, and fetch status refs. HTTPS today, SSH built but not public yet."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Git compatibility: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Gitstalk speaks plain git: GitHub-style URLs, bean branches, push options, verdicts on the push, status refs and waiting refs."
+      content="It is just git: clone, branch and push beans, read the verdict on the push, and fetch status refs. HTTPS today, SSH built but not public yet."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -169,30 +169,110 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs git</p>
-          <h1>Git compatibility <span class="pill live">live</span></h1>
+          <h1>Git compatibility <span class="badge live">live</span></h1>
           <p class="lede">
-            Git is the interface. Pushing a <code>bean/&lt;name&gt;</code> branch submits a change;
-            the verdict comes back on the push and as a ref anyone can fetch. Nothing is installed
-            on the client beyond a credential.
+            It is just git. Clone, branch, commit and push with the git you already have. Pushing a
+            <code>bean/&lt;name&gt;</code> branch submits a change; the verdict comes back on the
+            push and as a ref anyone can fetch. Nothing is installed on the client beyond a
+            credential.
+          </p>
+
+          <h2 id="quickstart">Push a change, read the verdict</h2>
+          <figure
+            class="mock"
+            aria-label="A terminal: clone, branch from the sprout, push and wait, then a landed verdict"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre
+                class="m-term"
+              ><span class="p">$</span> git clone https://gitstalk.dev/acme/api.git &amp;&amp; cd api
+<span class="p">$</span> git switch -c add-truncate origin/sprout
+<span class="dim"># edit, then</span>
+<span class="p">$</span> git commit -am "Add truncate(text, n)"
+<span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/add-truncate
+<span class="dim">remote: gitstalk: new bean add-truncate received at 3f9a1c2: "Add truncate(text, n)"</span>
+<span class="dim">remote: gitstalk: pre-land check started: your change is merged onto the sprout and the whole suite runs on that tree</span>
+remote: gitstalk: <span class="ok">LANDED: add-truncate passed its pre-land check and is on the sprout as 8d41e07</span>
+<span class="dim">remote: gitstalk:   it moves to the stalk once CI validates the sprout; git fetch origin sprout stalk</span></pre>
+            </div>
+            <figcaption>
+              <code>-o wait</code> holds the push open until the bean has a verdict. Without it the
+              push returns as soon as the bean is received.
+            </figcaption>
+          </figure>
+          <p>
+            When a bean comes back red, the push says what broke, and which landed beans it collided
+            with:
+          </p>
+          <figure
+            class="mock"
+            aria-label="A terminal showing a red verdict with failing tests and the beans it collided with"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre
+                class="m-term"
+              ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/tax-in-total
+remote: gitstalk: <span class="bad">RED: tax-in-total was not landed. Merged onto the sprout, these tests failed:</span>
+remote: gitstalk:   - test/discount.test.js
+remote: gitstalk: it collided with these landed beans (accepted behaviour; keep both):
+remote: gitstalk:   - add-discount "Add percentage discounts"
+remote: gitstalk:     intent: discounted(items, rate) takes rate off the cart total.
+<span class="dim">remote: gitstalk: output:</span>
+<span class="dim">remote: gitstalk:   not ok 1 - discounted takes 10% off a 100.00 cart</span>
+<span class="dim">remote: gitstalk:   expected 90, got 99</span>
+remote: gitstalk: fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout
+remote: gitstalk:      then fix, commit and git push -f origin HEAD:refs/heads/bean/tax-in-total
+remote: gitstalk:      and keep working; git push -o bean=tax-in-total origin HEAD:refs/wait/any waits for its next verdict</pre>
+            </div>
+            <figcaption>
+              A red names the failing tests, the landed beans it collided with and their intent, the
+              suite output and the exact commands to fix it. A conflict quotes the conflicting hunks
+              (up to 40 lines), both sides, and who landed the sprout's side.
+            </figcaption>
+          </figure>
+          <aside class="callout tip">
+            <p class="callout-title">The recommended agent flow</p>
+            <p>
+              Push without <code>-o wait</code>, take the next task, and read the verdict later (the
+              push prints the command that waits for it). An agent never sits blocked on one bean.
+            </p>
+          </aside>
+          <p>
+            Every refusal and verdict message is explained, keyed by its exact text, in
+            <a href="/docs/troubleshooting">Troubleshooting</a>.
           </p>
 
           <h2 id="urls">URLs</h2>
           <p>
             A repository is cloned from the web host, where its page is, with a GitHub-style URL
-            (the <code>.git</code> suffix optional); the repository page shows it:
+            (the <code>.git</code> suffix optional). The repository page shows it:
           </p>
-          <pre><code>git clone https://&lt;host&gt;/&lt;owner&gt;/&lt;repo&gt;.git</code></pre>
+          <div class="cmd" data-copyable>
+            <header><span>Terminal</span></header>
+            <pre><code>git clone https://&lt;host&gt;/&lt;owner&gt;/&lt;repo&gt;.git</code></pre>
+          </div>
           <p>
             The older gateway URL,
-            <code>https://&lt;gateway host&gt;/git/&lt;owner&gt;/&lt;repo&gt;.git</code>, keeps
-            working.
+            <code>https://&lt;gateway host&gt;/git/&lt;owner&gt;/&lt;repo&gt;.git</code>, still
+            works. A repository you may not see answers 404, exactly as a missing one does, on every
+            transport.
           </p>
+
+          <h3 id="ssh">SSH <span class="badge planned">planned</span></h3>
           <p>
-            A repository you may not see answers 404, exactly as a missing one does. Public SSH
-            remotes (<code>ssh://git@&lt;ssh host&gt;/&lt;owner&gt;/&lt;repo&gt;.git</code>) are
-            <span class="pill soon">coming soon</span>: SSH on port 22 needs a paid Cloudflare plan
-            (Spectrum), so it is not offered yet. HTTPS clone and push work today, and
-            <code>/gitstalk:setup</code> stores an HTTPS token for you.
+            Git over SSH is built, not public yet. SSH on port 22 needs a paid Cloudflare feature
+            (Spectrum), so it is not offered. It has been tested end to end on a staging stack.
+            <strong>HTTPS works today.</strong> What is live: you can register an SSH key in
+            Settings (<code>/gitstalk:setup</code> does it for you), which approves your machine,
+            but the git remote it sets is an HTTPS URL. Once SSH is public, remotes will look like
+            <code>ssh://git@&lt;ssh host&gt;/&lt;owner&gt;/&lt;repo&gt;.git</code> and follow the
+            same rules as HTTPS in every row below.
           </p>
 
           <h2 id="push">Push is submit</h2>
@@ -223,8 +303,8 @@
                   <td>Refused: its verdict comes first. The message says how to wait for it.</td>
                 </tr>
                 <tr>
-                  <td>a bean that already landed</td>
-                  <td>Refused: push new work as a new bean.</td>
+                  <td>a bean that already landed, or is parked or dropped</td>
+                  <td>Refused: push the work again as a new bean.</td>
                 </tr>
                 <tr>
                   <td><code>sprout</code>, <code>stalk</code>, <code>main</code></td>
@@ -240,7 +320,8 @@
           <p>
             Refusals happen inside the git protocol, before anything reaches storage, so git prints
             a normal <code>! [remote rejected]</code> line with the reason rather than an HTTP
-            error.
+            error. Bean names start with a letter or digit, then use letters, digits,
+            <code>.</code>, <code>_</code> and <code>-</code>, up to 32 characters in all.
           </p>
 
           <h2 id="options">Push options</h2>
@@ -282,25 +363,64 @@
               </tbody>
             </table>
           </div>
-          <p>
-            A plain <code>git push</code> without options returns as soon as the bean is received.
-            That is the recommended flow for agents: push, take the next task, and read the verdict
-            later.
-          </p>
+          <p>An unknown option is ignored, and the push says so.</p>
 
           <h2 id="verdicts">What the push prints</h2>
-          <p>Every line starts <code>remote: gitstalk:</code>. A red names what broke and why:</p>
-          <pre><code><span class="bad">RED: tax-in-total was not landed. Merged onto the sprout, these tests failed:</span>
-  - test/discount.test.js
-it collided with these landed beans (accepted behaviour; keep both):
-  - add-discount "Add percentage discounts"
-    intent: discounted(items, rate) takes rate off the cart total.
-fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout
-     then fix, commit and git push -f origin HEAD:refs/heads/bean/tax-in-total</code></pre>
-          <p>
-            A conflict quotes up to four conflicting hunks, both sides, and who landed the sprout's
-            side.
-          </p>
+          <p>Every line starts <code>remote: gitstalk:</code>. The ones you will meet:</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Line starts</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>new bean … received</code></td>
+                  <td>
+                    The push was accepted as a bean (or a new push to a bean you already had).
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>pre-land check started</code></td>
+                  <td>
+                    Your change is merged onto the sprout and the whole suite runs on that tree.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>LANDED</code></td>
+                  <td>It passed and is on the sprout. It moves to the stalk after validation.</td>
+                </tr>
+                <tr>
+                  <td><code>RED</code></td>
+                  <td>
+                    The merged tree failed. Failing tests, collided beans and the fix commands
+                    follow.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>CONFLICT</code></td>
+                  <td>It does not merge onto the sprout. Conflicting hunks follow.</td>
+                </tr>
+                <tr>
+                  <td><code>PARKED</code> / <code>DROPPED</code></td>
+                  <td>It needs a person (parked), or fell off (dropped), with the reason.</td>
+                </tr>
+                <tr>
+                  <td><code>validated: on the stalk</code></td>
+                  <td>The sprout commit passed validation and reached the stalk.</td>
+                </tr>
+                <tr>
+                  <td><code>changes protected paths</code>, <code>approval rules</code></td>
+                  <td>
+                    What <a href="/docs/checks#protected">protected paths</a> and
+                    <a href="/docs/approval-rules#receipts">approval rules</a> decided.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="status">Status refs</h2>
           <div class="tbl">
@@ -328,26 +448,78 @@ fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout
                   <td><code>refs/beans/&lt;name&gt;/status</code></td>
                   <td>
                     An annotated tag: <code>&lt;phase&gt;: &lt;reason&gt;</code>, then the verdict's
-                    lines. Phases: <code>checking</code>, <code>red</code>, <code>conflict</code>,
-                    <code>landed</code>, <code>green</code>, <code>parked</code>,
-                    <code>dropped</code>.
+                    lines.
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <pre><code>git fetch origin '+refs/beans/*:refs/beans/*'
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>checking</code></td>
+                  <td>The pre-land check is running.</td>
+                </tr>
+                <tr>
+                  <td><code>waiting</code></td>
+                  <td>
+                    Reserved. Waits count it as checking, but a git push does not write it today
+                    (the Changes tab shows <em>waiting</em> for a bean held on a decision or on a
+                    red sprout).
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>landed</code></td>
+                  <td>On the sprout.</td>
+                </tr>
+                <tr>
+                  <td><code>green</code></td>
+                  <td>Validated: on the stalk.</td>
+                </tr>
+                <tr>
+                  <td><code>red</code></td>
+                  <td>The merged tree failed its checks.</td>
+                </tr>
+                <tr>
+                  <td><code>conflict</code></td>
+                  <td>It does not merge onto the sprout.</td>
+                </tr>
+                <tr>
+                  <td><code>parked</code></td>
+                  <td>It needs a person.</td>
+                </tr>
+                <tr>
+                  <td><code>dropped</code></td>
+                  <td>It fell off.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cmd" data-copyable>
+            <header><span>Read a status</span></header>
+            <pre><code>git fetch origin '+refs/beans/*:refs/beans/*'
 git for-each-ref 'refs/beans/' --format='%(refname:lstrip=2) %(contents:subject)'
 git cat-file -p refs/beans/add-total/status</code></pre>
+          </div>
 
           <h2 id="wait">Waiting without polling</h2>
           <p>
             An agent that has pushed several beans and run out of work makes one blocking call that
             the first verdict wakes. A push to a wait ref stores nothing:
           </p>
-          <pre><code>git push -o bean=a -o bean=b origin HEAD:refs/wait/any   <span class="c"># returns at the first verdict</span>
-git push -o bean=a -o bean=b origin HEAD:refs/wait/all   <span class="c"># returns when none is checking</span>
-git push origin HEAD:refs/wait/all                       <span class="c"># every bean in flight pushed with my credential</span></code></pre>
+          <div class="cmd" data-copyable>
+            <header><span>Wait refs</span></header>
+            <pre><code>git push -o bean=a -o bean=b origin HEAD:refs/wait/any   # returns at the first verdict
+git push -o bean=a -o bean=b origin HEAD:refs/wait/all   # returns when none is checking
+git push origin HEAD:refs/wait/all                       # every bean in flight pushed with my credential</code></pre>
+          </div>
           <p>
             It holds up to 9 minutes by default, under the 10-minute limit of an agent's shell tool,
             and prints each verdict as it arrives. <code>-o wait</code> and MCP
@@ -360,7 +532,7 @@ git push origin HEAD:refs/wait/all                       <span class="c"># every
           <p>
             Any public git URL can be imported when you create a repository. Importing a private
             repository and two-way sync with another forge are
-            <span class="pill soon">coming soon</span>. Your history stays plain git: clone it, and
+            <span class="badge planned">planned</span>. Your history stays plain git: clone it, and
             push it anywhere else. Branch names other than <code>bean/*</code>,
             <code>sprout</code> and <code>stalk</code> are not accepted on push today, and tag
             pushes are refused.
@@ -385,7 +557,7 @@ git push origin HEAD:refs/wait/all                       <span class="c"># every
           </section>
           <nav class="pager" aria-label="Previous and next page">
             <a class="prev" href="/docs/repositories"><small>Previous</small>Repositories</a>
-            <a class="next" href="/docs/agents"><small>Next</small>Connecting agents</a>
+            <a class="next" href="/docs/checks"><small>Next</small>Checks</a>
           </nav>
         </article>
       </div>

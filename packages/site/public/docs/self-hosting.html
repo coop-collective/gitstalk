@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Self-hosting: Gitstalk docs</title>
+    <title>Self-hosting and custom hosts: Gitstalk docs</title>
     <meta
       name="description"
-      content="Run Gitstalk on your own Cloudflare account: what it needs, the one deploy command, and the limits you set."
+      content="Run Gitstalk on your own Cloudflare account: what it needs, provision, secrets, deploy and smoke, environment files, custom domains, pointing agents at your host and limits."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
-    <meta property="og:title" content="Self-hosting: Gitstalk docs" />
+    <meta property="og:title" content="Self-hosting and custom hosts: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Run Gitstalk on your own Cloudflare account: what it needs, the one deploy command, and the limits you set."
+      content="Run Gitstalk on your own Cloudflare account: what it needs, provision, secrets, deploy and smoke, environment files, custom domains, pointing agents at your host and limits."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -100,7 +100,7 @@
     <main id="main">
       <div class="wrap docs">
         <details class="dnav">
-          <summary>Docs: Self-hosting</summary>
+          <summary>Docs: Self-hosting and custom hosts</summary>
           <nav class="inner" aria-label="Docs pages">
             <h2>Start</h2>
             <ul>
@@ -148,7 +148,7 @@
                 ></a>
               </li>
               <li>
-                <a href="/docs/self-hosting" aria-current="page"
+                <a href="/docs/self-hosting"
                   >Self-hosting<span class="st live" title="live"></span
                 ></a>
               </li>
@@ -167,104 +167,334 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs self-hosting</p>
-          <h1>Self-hosting <span class="pill live">live</span></h1>
+          <h1>Self-hosting and custom hosts <span class="badge live">live</span></h1>
           <p class="lede">
             All of Gitstalk's source is public, and the whole forge deploys to one Cloudflare
-            account with two commands: one creates what an environment needs, one deploys it. Run
-            staging and production side by side. You set the limits.
+            account with a handful of commands. Run staging and production side by side, put it on
+            your own domain, and set your own limits.
           </p>
 
-          <h2 id="licence">Licence</h2>
+          <h2 id="needs">What you get and what it needs</h2>
           <p>
-            <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE">Apache-2.0</a>:
-            you may use, modify and redistribute it, including running it as a service, under the
-            licence's terms. The Gitstalk name and logos are not licensed: a copy you run for others
-            needs its own name and logo (<a
-              href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
-              >trademarks</a
-            >).
+            You get the same forge as the hosted service: the git proxy and engine, pre-land check
+            sandboxes, GitHub Actions and automations, the web app, the MCP server for agents and
+            these docs. You own the Cloudflare resources.
           </p>
-
-          <h2 id="needs">What you need</h2>
           <ul>
             <li>
-              Node 24 or later, pnpm 11, stable Rust, and Docker (it builds the container images).
+              <strong>A Cloudflare account</strong> on Workers Paid, with Containers, Durable
+              Objects and Artifacts, and Workers AI for Ask and automations. Workers AI calls go
+              through an AI Gateway named <code>default</code>: provision creates it when your API
+              token may, and otherwise tells you to create it under AI, AI Gateway.
             </li>
             <li>
-              A Cloudflare account on Workers Paid, with Containers, Durable Objects and Artifacts,
-              and Workers AI for Ask.
+              <strong>On your machine</strong>: Node 24 or later, pnpm 11, stable Rust, and Docker
+              (it builds the container images).
             </li>
           </ul>
+
+          <h3 id="picture">What you will own</h3>
+          <ol
+            class="flow"
+            aria-label="Browser and agents reach the web app, MCP server and git proxy; the gateway holds the engine and sandboxes"
+          >
+            <li><b>People and agents</b><span>browser, git, MCP</span></li>
+            <li class="bean"><b>web, mcp, site, ssh</b><span>Workers</span></li>
+            <li class="sprout">
+              <b>gateway</b><span>engine in Durable Objects, runner containers</span>
+            </li>
+            <li class="stalk"><b>Storage</b><span>Artifacts, D1, KV, R2, Queues</span></li>
+          </ol>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Piece</th>
+                  <th>Cloudflare product</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Gateway: git proxy, engine, registry, repository RPC</td>
+                  <td>Workers, Durable Objects (SQLite)</td>
+                </tr>
+                <tr>
+                  <td>Runner: squash, merge, revert, run the suite (the check sandboxes)</td>
+                  <td>Containers (Rust)</td>
+                </tr>
+                <tr>
+                  <td>Actions executor: one container per workflow job</td>
+                  <td>Workers, Containers</td>
+                </tr>
+                <tr>
+                  <td>Git storage</td>
+                  <td>Artifacts</td>
+                </tr>
+                <tr>
+                  <td>Accounts, repositories, access, the activity index</td>
+                  <td>D1</td>
+                </tr>
+                <tr>
+                  <td>OAuth grants</td>
+                  <td>KV</td>
+                </tr>
+                <tr>
+                  <td>Repository events to the index</td>
+                  <td>Queues</td>
+                </tr>
+                <tr>
+                  <td>Actions logs and dependency snapshots</td>
+                  <td>R2</td>
+                </tr>
+                <tr>
+                  <td>Web app (Next.js App Router on vinext), site and docs</td>
+                  <td>Workers</td>
+                </tr>
+                <tr>
+                  <td>MCP server</td>
+                  <td>Workers, Workers AI</td>
+                </tr>
+                <tr>
+                  <td>SSH (not offered publicly yet)</td>
+                  <td>Workers, Durable Objects, Containers, Spectrum</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="deploy">Deploy</h2>
           <p>
             The repository holds no account's ids. Each package's <code>wrangler.jsonc</code> is a
-            template, and each deployment you run is an environment: one directory,
+            template, and each deployment you run is an <strong>environment</strong>: one directory,
             <code>environments/&lt;name&gt;/</code>, with your account, a name suffix and the
-            packages to run.
+            packages to run. Never <code>wrangler deploy</code> a template; the package's
+            <code>deploy</code> script refuses on purpose.
           </p>
-          <pre><code>pnpm install
-pnpm check                                   <span class="c"># format, lint, typecheck, tests</span>
+          <ol class="steps">
+            <li>
+              <h3>Create the environment</h3>
+              <p>Copy the example and fill in your account.</p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>pnpm install
 npx wrangler login
-npx wrangler whoami                          <span class="c"># your account id</span>
-cp -r environments/example environments/staging
-<span class="c"># edit environments/staging/env.jsonc: account_id, workers_dev_subdomain</span>
-pnpm env:provision staging                   <span class="c"># create resources, secrets, migrate D1</span>
-pnpm env:deploy staging                      <span class="c"># --dry-run checks without uploading</span></code></pre>
+cp -r environments/example environments/staging</code></pre>
+              </div>
+              <p>
+                Edit <code>environments/staging/env.jsonc</code>. Find your account id with
+                <code>npx wrangler whoami</code>.
+              </p>
+            </li>
+            <li>
+              <h3>Provision</h3>
+              <p>
+                Creates what the environment needs if it is missing (D1 databases, the OAuth KV
+                namespace, R2 buckets, the events queue and the Artifacts namespace), records their
+                ids in
+                <code>resources.json</code>, generates the Workers' secrets into
+                <code>secrets/</code> (never printed, never committed) and applies the D1
+                migrations. Run it again after an update that adds a resource or a migration.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>pnpm env:provision staging</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Push the secrets</h3>
+              <p>Sends the generated values to the Workers. They are never printed.</p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>pnpm env:secrets staging</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Deploy</h3>
+              <p>
+                Stops if a required secret is missing, then deploys the Actions executor, the
+                gateway with its runner container, the MCP server, the site, the web app and SSH, in
+                that order. Add <code>--dry-run</code> to check without uploading, or
+                <code>--only mcp</code> to deploy one package.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>pnpm env:deploy staging</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Smoke test</h3>
+              <p>
+                Checks health, the sign-up and sign-in pages, MCP metadata,
+                <code>robots.txt</code> and the docs on the live origins. Set
+                <code>GITSTALK_TOKEN</code> to a personal token and it also checks
+                <code>whoami</code> and a clone.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>pnpm env:smoke staging</code></pre>
+              </div>
+            </li>
+          </ol>
           <p>
-            <code>env:provision</code> creates what the environment needs if it is missing (D1
-            databases, the OAuth KV namespace, R2 buckets, the repository-events queue), writes
-            their ids to <code>environments/staging/resources.json</code>, generates the Workers'
-            secrets into <code>environments/staging/secrets/</code> (never printed, never committed)
-            and applies the D1 migrations. Artifacts namespaces are created by the first repository.
-            Run it again after an update that adds a resource or a migration.
-          </p>
-          <p>
-            <code>env:deploy</code> writes each package's config for the environment, stops if a
-            required secret is missing, then deploys the Actions executor, the gateway with its
-            runner container, the MCP server, the site, the web app and SSH, in that order. Every
-            Worker and resource is named <code>&lt;prefix&gt;-&lt;name&gt;&lt;suffix&gt;</code>: the
-            prefix defaults to <code>gitstalk</code>, and with the suffix <code>-staging</code> you
-            get <code>gitstalk-gateway-staging</code> and <code>gitstalk-forge-staging</code>. An
-            empty suffix keeps the base names. An emergency stop for everything:
-            <code>POST /v1/admin/halt</code> with the admin token.
+            Every Worker and resource is named
+            <code>&lt;prefix&gt;-&lt;name&gt;&lt;suffix&gt;</code>: the prefix defaults to
+            <code>gitstalk</code>, and with the suffix <code>-staging</code> you get
+            <code>gitstalk-gateway-staging</code>. An empty suffix keeps the base names. A kill
+            switch for benchmark races: <code>POST /v1/admin/halt</code> with the admin token
+            refuses new race runs and starts (<code>DELETE</code> on the same path resumes them). It
+            does not stop repositories.
           </p>
 
-          <h2 id="domains">Your own domains</h2>
+          <h3 id="env-file">The environment file</h3>
+          <figure class="mock" aria-label="The fields of an environment's env.jsonc">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">environments/staging/env.jsonc</span>
+            </div>
+            <div class="mock-body">
+              <div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>account_id</b><span>The Cloudflare account every command targets.</span>
+                  </div>
+                  <div class="m-input">"00000000000000000000000000000000"</div>
+                </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>suffix</b><span>Added to every Worker and resource name.</span>
+                  </div>
+                  <div class="m-input">"-staging"</div>
+                </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>workers_dev_subdomain</b
+                    ><span>Where Workers answer without custom domains.</span>
+                  </div>
+                  <div class="m-input">"your-subdomain"</div>
+                </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>urls</b><span>Optional custom origins, one per package.</span>
+                  </div>
+                  <div class="m-input">{ "web": "https://git.example.com", … }</div>
+                </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>search_indexing</b><span>Let search engines index this deployment.</span>
+                  </div>
+                  <div class="m-input">false (default)</div>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              Placeholders only. Your real account id stays in your private fork, never in public
+              docs.
+            </figcaption>
+          </figure>
+          <p>
+            <code>prefix</code> renames the Workers, <code>packages</code> lists what to run, and
+            <code>overrides</code> merges into each package's generated config, such as smaller
+            container pools for a test stack. Search engines stay out unless you say otherwise:
+            every environment answers <code>/robots.txt</code> with <code>Disallow: /</code> and
+            marks its pages <code>X-Robots-Tag: noindex</code>. For the one deployment that should
+            be found, set <code>"search_indexing": true</code>.
+          </p>
+
+          <h2 id="custom-host">Your own domain and custom host</h2>
           <p>
             Without <code>urls</code>, every Worker answers on its <code>workers.dev</code> address.
             To use your own hostnames, put the zone in the same Cloudflare account and name one
-            origin per package in <code>env.jsonc</code>. Each becomes a Workers Custom Domain of
-            that Worker (Cloudflare creates the DNS record and the certificate on deploy), and every
-            address the code prints follows: clone URLs, the MCP URL, the docs link, the OAuth and
-            Actions OIDC issuers.
+            origin per package. Each becomes a Workers Custom Domain of that Worker; Cloudflare
+            creates the DNS record and the certificate on deploy.
           </p>
           <pre><code>"urls": {
-  "web": "https://git.example.com",       <span class="c"># the app, and git: https://git.example.com/&lt;owner&gt;/&lt;repo&gt;.git</span>
-  "site": "https://git.example.com",      <span class="c"># same origin: the web serves the site's pages</span>
-  "mcp": "https://mcp.git.example.com",   <span class="c"># agents connect to /mcp</span>
-  "gateway": "https://api.git.example.com", <span class="c"># Actions jobs and the OIDC issuer /_actions/oidc</span>
+  "web": "https://git.example.com",
+  "site": "https://git.example.com",
+  "mcp": "https://mcp.git.example.com",
+  "gateway": "https://api.git.example.com",
   "ssh": "https://ssh.git.example.com"
 }</code></pre>
+          <h3 id="what-changes">What changes when you set <code>urls</code></h3>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>What</th>
+                  <th>Becomes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Clone URL</td>
+                  <td>
+                    <code>https://git.example.com/&lt;owner&gt;/&lt;repo&gt;.git</code> (the web
+                    origin)
+                  </td>
+                </tr>
+                <tr>
+                  <td>MCP URL</td>
+                  <td><code>https://mcp.git.example.com/mcp</code></td>
+                </tr>
+                <tr>
+                  <td>OAuth issuer and Actions OIDC issuer</td>
+                  <td>The MCP and gateway origins</td>
+                </tr>
+                <tr>
+                  <td>Docs link</td>
+                  <td>The site origin, <code>/docs/</code></td>
+                </tr>
+                <tr>
+                  <td>Passkeys</td>
+                  <td>
+                    Belong to the web app's hostname. Pick it before people sign up; changing it
+                    later means people register passkeys again.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p>
             When <code>site</code> and <code>web</code> share an origin, the web app hands the
-            site's paths to the site Worker over a service binding: <code>/docs/</code>, the site's
-            files and pages, and <code>/</code> for someone signed out. Passkeys belong to the web
-            app's hostname, so pick it before people sign up. Git over SSH on port 22 needs
-            Spectrum, which a zone on the Free plan does not have; without it, leave
-            <code>SSH_TUNNEL</code> on and people use HTTPS.
-          </p>
-          <p>
-            Search engines stay out unless you say otherwise: every environment answers
-            <code>/robots.txt</code> with <code>Disallow: /</code> and marks its pages
-            <code>X-Robots-Tag: noindex</code>, so staging and test stacks never show up in results.
-            For the one deployment that should be found, set <code>"search_indexing": true</code> in
-            its <code>env.jsonc</code>: its <code>robots.txt</code> then keeps crawlers out of only
-            the app's private areas and names <code>/sitemap.xml</code>, which lists the landing,
-            these docs and the sign-up pages on that deployment's own origin.
+            site's paths (<code>/docs/</code>, its files, and <code>/</code> for someone signed out)
+            to the site Worker over a service binding.
           </p>
 
+          <h3 id="point-agents">Point agents at your host</h3>
+          <p>
+            The plugin's marketplace entry points at the <strong>hosted</strong> MCP server, so on
+            your own host add the server directly with your MCP URL. Your deployment's
+            <code>/signup/agent</code> page prints these lines for you.
+          </p>
+          <div class="install" data-agent-tabs id="custom-host-agents">
+            <section class="cmd" data-agent="claude-code" data-name="Claude Code">
+              <header><span>Claude Code</span></header>
+              <pre><code>claude mcp add --transport http gitstalk https://mcp.git.example.com/mcp &amp;&amp; claude mcp login gitstalk</code></pre>
+            </section>
+            <section class="cmd" data-agent="codex" data-name="Codex">
+              <header><span>Codex</span></header>
+              <pre><code>codex mcp add gitstalk --url https://mcp.git.example.com/mcp &amp;&amp; codex mcp login gitstalk</code></pre>
+            </section>
+            <section class="cmd" data-agent="git" data-name="Setup script">
+              <header><span>Connect git</span></header>
+              <pre><code>curl -fsSL https://git.example.com/setup.sh | sh -s -- detect</code></pre>
+              <p class="cmd-note">
+                A script served by your deployment already points at it. For a copy you downloaded
+                elsewhere, set <code>GITSTALK_WEB=https://git.example.com</code>.
+              </p>
+            </section>
+          </div>
+          <aside class="callout note">
+            <p class="callout-title">SSH</p>
+            <p>
+              Git over SSH on port 22 needs Cloudflare Spectrum, which a zone on the Free plan does
+              not have, and it is not public on the hosted service either. If you deploy the
+              <code>ssh</code> package at all, set <code>SSH_TUNNEL</code> to <code>"on"</code> (the
+              example does; the template's default is off) and leave the web app's
+              <code>SSH_HOST</code> empty, and people use HTTPS.
+            </p>
+          </aside>
+
           <h2 id="secrets">Secrets each Worker needs</h2>
+          <p>Names only. Provision generates them, and never replaces one a Worker already has.</p>
           <div class="tbl">
             <table>
               <thead>
@@ -288,7 +518,10 @@ pnpm env:deploy staging                      <span class="c"># --dry-run checks 
                 </tr>
                 <tr>
                   <td>Web app</td>
-                  <td><code>DEMO_PASSWORD</code> (optional: <code>TURNSTILE_SECRET_KEY</code>)</td>
+                  <td>
+                    <code>DEMO_PASSWORD</code>, <code>EMAIL_SIGNIN_KEY</code> (optional:
+                    <code>TURNSTILE_SECRET_KEY</code>)
+                  </td>
                 </tr>
                 <tr>
                   <td>SSH</td>
@@ -301,113 +534,29 @@ pnpm env:deploy staging                      <span class="c"># --dry-run checks 
               </tbody>
             </table>
           </div>
+          <aside class="callout warning">
+            <p class="callout-title">Back up <code>secrets/</code></p>
+            <p>
+              A new <code>ACTIONS_SECRETS_KEY</code> would make every stored Actions secret
+              unreadable. For CI, store the values once from your machine as the GitHub environment
+              secret <code>GITSTALK_SECRETS_JSON</code> with
+              <code
+                >pnpm env:secrets staging --to-github &lt;owner&gt;/&lt;private repository&gt;</code
+              >.
+            </p>
+          </aside>
           <p>
-            A secret already set on the Worker counts. Provision never replaces a secret a Worker
-            already has: a new <code>ACTIONS_SECRETS_KEY</code> would make every stored Actions
-            secret unreadable, so keep a backup of <code>secrets/</code>.
-            <code>pnpm env:secrets staging</code> pushes the values to the Workers (they are never
-            printed). For CI, store them once from your machine as the GitHub environment secret
-            <code>GITSTALK_SECRETS_JSON</code>:
+            Email sign-in codes need <code>EMAIL_SENDER_DOMAIN</code> in the web package's
+            <code>overrides.web.vars</code>: a zone in your account onboarded to Email Sending. Left
+            empty, sign-in is passkeys only. <code>PLATFORM_ADMINS</code> (comma-separated handles)
+            sets who sees the admin area; by default nobody does.
           </p>
-          <pre><code>pnpm env:secrets staging --to-github &lt;owner&gt;/&lt;private repository&gt;</code></pre>
-
-          <h2 id="fork">Keep your environments in a private fork</h2>
-          <p>
-            The public repository ignores <code>environments/</code> except the example. Keep yours
-            in a private repository with the public one as <code>upstream</code>:
-          </p>
-          <pre><code>git clone https://github.com/coop-collective/gitstalk.git my-gitstalk
-cd my-gitstalk
-git remote rename origin upstream
-git remote add origin &lt;your private repository&gt;
-git checkout -b main
-git add -f environments/staging/env.jsonc environments/staging/resources.json
-git commit -m "environments: staging"
-git push -u origin main
-
-git fetch upstream &amp;&amp; git merge upstream/prototype   <span class="c"># later: stay in sync</span></code></pre>
-          <p>
-            Your fork only adds files under <code>environments/</code>, which upstream never writes,
-            so the merge does not conflict. Never add <code>secrets/</code>. A scheduled workflow
-            can do the merge for you: fetch upstream, merge (a pull request when it conflicts),
-            push.
-          </p>
-          <p>
-            The <code>deploy</code> workflow in <code>.github/workflows/</code> deploys staging on
-            every push to <code>main</code>, and production only when you run it by hand or push a
-            <code>production-*</code> tag, through the GitHub environment <code>production</code>,
-            where you can require a reviewer. Each run checks the code, provisions, pushes the
-            secrets, deploys and smoke-tests. It does nothing in a repository without
-            <code>environments/&lt;name&gt;/env.jsonc</code>. Each GitHub environment
-            (<code>staging</code>, <code>production</code>) needs two secrets:
-          </p>
-          <ul>
-            <li>
-              <code>CLOUDFLARE_API_TOKEN</code>: an account token with edit on Workers Scripts, D1,
-              Workers KV Storage, Workers R2 Storage, Queues, Containers, Artifacts and AI Gateway,
-              read on Account Settings, and for your zones edit on Workers Routes, DNS and SSL and
-              Certificates, read on Zone.
-            </li>
-            <li>
-              <code>GITSTALK_SECRETS_JSON</code>: set with <code>env:secrets --to-github</code>.
-            </li>
-          </ul>
-
-          <h2 id="runs-on">What it runs on</h2>
-          <div class="tbl">
-            <table>
-              <thead>
-                <tr>
-                  <th>Piece</th>
-                  <th>Cloudflare product</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Gateway: git proxy, engine, registry, repository RPC</td>
-                  <td>Workers, Durable Objects (SQLite)</td>
-                </tr>
-                <tr>
-                  <td>Runner: squash, merge, revert, run the suite</td>
-                  <td>Containers (Rust, standard-4)</td>
-                </tr>
-                <tr>
-                  <td>Git storage</td>
-                  <td>Artifacts</td>
-                </tr>
-                <tr>
-                  <td>Accounts, repositories, access, the activity index</td>
-                  <td>D1</td>
-                </tr>
-                <tr>
-                  <td>OAuth grants</td>
-                  <td>KV</td>
-                </tr>
-                <tr>
-                  <td>Repository events to the index</td>
-                  <td>Queues</td>
-                </tr>
-                <tr>
-                  <td>Actions logs</td>
-                  <td>R2</td>
-                </tr>
-                <tr>
-                  <td>Web app (Next.js App Router on vinext)</td>
-                  <td>Workers</td>
-                </tr>
-                <tr>
-                  <td>MCP server</td>
-                  <td>Workers, Workers AI</td>
-                </tr>
-                <tr>
-                  <td>SSH (when enabled)</td>
-                  <td>Workers, Durable Objects, Containers, Spectrum</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
 
           <h2 id="limits">Limits you set</h2>
+          <p>
+            The hosted beta's limits are these defaults; see
+            <a href="/docs/limits">Limits and plans</a>. When you self-host, you set every one.
+          </p>
           <div class="tbl">
             <table>
               <thead>
@@ -421,12 +570,15 @@ git fetch upstream &amp;&amp; git merge upstream/prototype   <span class="c"># l
                 <tr>
                   <td>Pre-land checks at once per repository (one sandbox each)</td>
                   <td class="num">32 (1–64)</td>
-                  <td>repository engine setting <code>preland_sandboxes</code></td>
+                  <td>
+                    operator setting <code>preland_sandboxes</code> on a repository's engine (not an
+                    <code>env.jsonc</code> field)
+                  </td>
                 </tr>
                 <tr>
                   <td>Validations at once</td>
                   <td class="num">2 (1–16)</td>
-                  <td><code>ci_slots</code></td>
+                  <td>operator setting <code>ci_slots</code> on a repository's engine</td>
                 </tr>
                 <tr>
                   <td>Runner containers in the shared pool</td>
@@ -460,15 +612,82 @@ git fetch upstream &amp;&amp; git merge upstream/prototype   <span class="c"># l
             </table>
           </div>
 
+          <h2 id="fork">Keep your environments in a private fork</h2>
+          <p>
+            The public repository ignores <code>environments/</code> except the example. Keep yours
+            in a private repository with the public one as <code>upstream</code>:
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Terminal</span></header>
+            <pre><code>git clone https://github.com/coop-collective/gitstalk.git my-gitstalk
+cd my-gitstalk
+git remote rename origin upstream
+git remote add origin &lt;your private repository&gt;
+git add -f environments/staging/env.jsonc environments/staging/resources.json
+git commit -m "environments: staging"
+git push -u origin main
+
+git fetch upstream &amp;&amp; git merge upstream/main   # later: stay in sync</code></pre>
+          </div>
+          <p>
+            Your fork only adds files under <code>environments/</code>, which upstream never writes,
+            so the merge does not conflict. Never add <code>secrets/</code>. A scheduled workflow
+            can do the merge for you: fetch upstream, merge (a pull request when it conflicts),
+            push.
+          </p>
+          <details class="fold" id="ci">
+            <summary>Deploying from CI</summary>
+            <p>
+              The <code>deploy</code> workflow in <code>.github/workflows/</code> deploys staging on
+              every push to <code>main</code>, and production only when you run it by hand or push a
+              <code>production-*</code> tag, through the GitHub environment <code>production</code>,
+              where you can require a reviewer. Each run checks the code, provisions, pushes the
+              secrets, deploys and smoke-tests. It does nothing in a repository without
+              <code>environments/&lt;name&gt;/env.jsonc</code> (or a
+              <code>GITSTALK_ENV_CONFIG</code> variable on the GitHub environment). Each GitHub
+              environment needs two secrets:
+            </p>
+            <ul>
+              <li>
+                <code>CLOUDFLARE_API_TOKEN</code>: an account token with edit on Workers Scripts,
+                D1, Workers KV Storage, Workers R2 Storage, Queues, Containers, Artifacts and AI
+                Gateway, read on Account Settings, and for your zones edit on Workers Routes, DNS
+                and SSL and Certificates, read on Zone.
+              </li>
+              <li>
+                <code>GITSTALK_SECRETS_JSON</code>: set with <code>env:secrets --to-github</code>.
+              </li>
+            </ul>
+          </details>
+
           <h2 id="race">Run a race against your own deployment</h2>
           <p>
-            The race harness reproduces the published numbers on your account. Replay agents cost
-            nothing; real agents need the <code>claude</code> CLI. Each race deletes its repository
-            when it ends and prints its infrastructure cost, about $0.40 per 30-agent Gitstalk race
-            in our runs. Commands are in the
-            <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/README.md#run-it"
-              >README</a
-            >.
+            The race harness can rerun the benchmark against your account. Replay agents use no
+            model tokens; real agents need the <code>claude</code> or <code>codex</code> CLI. Each
+            race deletes its repository when it ends (unless you keep it) and prints the
+            infrastructure cost it metered: $0.35 to $0.42 for each of three 12-agent Gitstalk
+            races, plus $4 to $6 of model spend for the agents. Commands are in the research docs
+            for
+            <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/REMOTE.md"
+              >races on Cloudflare</a
+            >
+            and
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/loadgen/README.md"
+              >token-free replay</a
+            >. This is a benchmark, not a user feature; see
+            <a href="/docs/cloud-agents">Cloud agents and sandboxes</a>.
+          </p>
+
+          <h2 id="licence">Licence and name</h2>
+          <p>
+            <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE">Apache-2.0</a>:
+            you may use, modify and redistribute it, including running it as a service, under the
+            licence's terms. The Gitstalk name and logos are not licensed: a copy you run for others
+            needs its own name and logo (<a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+              >trademarks</a
+            >).
           </p>
 
           <section class="sources">
@@ -494,8 +713,8 @@ git fetch upstream &amp;&amp; git merge upstream/prototype   <span class="c"># l
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/automations"><small>Previous</small>Automations</a>
-            <a class="next" href="/docs/architecture"><small>Next</small>Architecture</a>
+            <a class="prev" href="/docs/limits"><small>Previous</small>Limits and plans</a>
+            <a class="next" href="/docs/troubleshooting"><small>Next</small>Troubleshooting</a>
           </nav>
         </article>
       </div>

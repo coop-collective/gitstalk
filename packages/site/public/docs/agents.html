@@ -6,14 +6,14 @@
     <title>Connecting agents: Gitstalk docs</title>
     <meta
       name="description"
-      content="Connect Claude Code, Codex and other agents to Gitstalk: the plugin, SSH keys, HTTPS tokens, environment variables for containers, MCP tools and OAuth."
+      content="Connect Claude Code, Codex and other agents to Gitstalk: one install line, a browser approval, the setup script, credentials and what an agent session looks like."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Connecting agents: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Connect Claude Code, Codex and other agents to Gitstalk: the plugin, SSH keys, HTTPS tokens, environment variables for containers, MCP tools and OAuth."
+      content="Connect Claude Code, Codex and other agents to Gitstalk: one install line, a browser approval, the setup script, credentials and what an agent session looks like."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -117,7 +117,7 @@
                 <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
               </li>
               <li>
-                <a href="/docs/agents" aria-current="page"
+                <a href="/docs/agents"
                   >Connecting agents<span class="st live" title="live"></span
                 ></a>
               </li>
@@ -167,86 +167,226 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs agents</p>
-          <h1>Connecting agents <span class="pill live">live</span></h1>
+          <h1>Connecting agents <span class="badge live">live</span></h1>
           <p class="lede">
-            An agent needs two things: git connected to a person's account, and optionally the
-            Gitstalk MCP server for context. Every agent is a session owned by a person, so its work
-            carries their name.
+            Paste one line into your agent. Approve it once in your browser. From then on it pushes
+            beans as you, and every change carries your name.
           </p>
+          <aside class="callout note">
+            <p class="callout-title">Status</p>
+            <p>
+              The plugin for Claude Code and Codex, the setup scripts and the MCP sign-in are
+              <span class="badge live">live</span>. Cursor and Gemini CLI connect through plain MCP
+              and are marked not yet verified end to end. Git over SSH is
+              <span class="badge planned">planned</span>: git uses HTTPS today.
+            </p>
+          </aside>
 
-          <div class="install" data-agent-tabs id="install">
+          <h2 id="install">Install</h2>
+          <p>
+            Pick your agent. Each line adds Gitstalk to it and opens your browser to sign in
+            (passkey or email code) and approve the session.
+          </p>
+          <div class="install" data-agent-tabs id="install-tabs">
             <section class="cmd" data-agent="claude-code" data-name="Claude Code">
               <header><span>Claude Code: paste in your terminal</span></header>
-              <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude "/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;"</code></pre>
+              <pre><code>claude plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; claude plugin install gitstalk@gitstalk &amp;&amp; claude mcp login plugin:gitstalk:gitstalk</code></pre>
               <p class="cmd-note">
-                Installs the plugin and runs <code>/gitstalk:setup</code> (below).
+                Then type <code>/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;</code> to connect git.
+                Already in a session? Type <code>/mcp</code> and pick gitstalk.
               </p>
             </section>
             <section class="cmd" data-agent="codex" data-name="Codex">
               <header><span>Codex: paste in your terminal</span></header>
               <pre><code>codex plugin marketplace add coop-collective/gitstalk-plugin &amp;&amp; codex plugin add gitstalk@gitstalk &amp;&amp; codex mcp login gitstalk</code></pre>
-              <p class="cmd-note">For git, ask Codex to run the setup script (below).</p>
+              <p class="cmd-note">
+                For git, ask Codex to run the <a href="#script">setup script</a>.
+              </p>
+            </section>
+            <section class="cmd" data-agent="cursor" data-name="Cursor">
+              <header><span>Cursor: not yet verified end to end</span></header>
+              <pre><code>{ "mcpServers": { "gitstalk": { "url": "https://mcp.gitstalk.io/mcp" } } }
+cursor-agent mcp login gitstalk</code></pre>
+              <p class="cmd-note">
+                The first line goes in <code>~/.cursor/mcp.json</code>. Or open Cursor Settings,
+                MCP, and click "Needs login" next to gitstalk.
+              </p>
+            </section>
+            <section class="cmd" data-agent="gemini" data-name="Gemini CLI">
+              <header><span>Gemini CLI: not yet verified end to end</span></header>
+              <pre><code>gemini mcp add --transport http gitstalk https://mcp.gitstalk.io/mcp
+/mcp auth gitstalk</code></pre>
+              <p class="cmd-note">The second line runs inside Gemini CLI and opens the sign-in.</p>
+            </section>
+            <section class="cmd" data-agent="mcp" data-name="Other MCP client">
+              <header><span>Any client that supports remote (HTTP) MCP servers</span></header>
+              <pre class="url"><code>https://mcp.gitstalk.io/mcp</code></pre>
+              <p class="cmd-note">
+                The client's first call opens the same browser sign-in. Not yet verified end to end.
+              </p>
             </section>
           </div>
+          <p>
+            The same lines are on the sign-up page,
+            <a href="/signup/agent">Connect an agent</a>. Signing up through your agent is the whole
+            sign-up: a new address picks a handle in the browser.
+          </p>
 
-          <h2 id="plugin">Claude Code: the plugin</h2>
-          <p>The plugin adds:</p>
+          <h2 id="plugin">What the plugin adds <span class="badge live">live</span></h2>
           <ul>
             <li>
               <strong><code>/gitstalk:setup [owner/repo]</code></strong
-              >: lists the SSH keys on the machine (1Password's agent, ssh-agent,
-              <code>~/.ssh</code>) or offers to make one, asks which to use, and opens a Gitstalk
-              tab for you to approve it. On a machine without a browser it shows a code to enter on
-              another device. While git over SSH is not live, it also stores an HTTPS token in your
-              OS keychain, for the Gitstalk host only, and says so.
+              >: connects git on this machine. It lists the SSH keys it finds, you pick one, and you
+              approve it once in a browser tab.
             </li>
             <li>
               <strong>A skill</strong> that teaches the flow: push a bean, take the next task, fix
-              your own reds, never sleep-poll. Claude Code loads it on its own when origin is a
-              Gitstalk host.
+              your own reds, never sleep-poll. Claude Code loads it on its own when
+              <code>origin</code> is a Gitstalk host.
             </li>
             <li>
               <strong><code>/gitstalk:bean-status [bean]</code></strong
               >: where a bean is, and what to do next.
             </li>
-            <li>The MCP server, signed in with OAuth (below).</li>
+            <li>
+              <strong>The MCP server</strong>, signed in with OAuth. See
+              <a href="/docs/mcp">MCP tools and scopes</a>.
+            </li>
           </ul>
+
+          <h3 id="setup-flow">Connecting git with <code>/gitstalk:setup</code></h3>
+          <figure class="mock" aria-label="Claude Code asking which SSH key to use for Gitstalk">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre class="m-term"><span class="p">›</span> /gitstalk:setup acme/api
+<span class="dim">Which SSH key should Gitstalk use?</span>
+  1. 1Password agent   SHA256:Hq3…x9k   ssh-ed25519   ada@laptop
+  2. ~/.ssh/id_ed25519 SHA256:Wm1…t4e   ssh-ed25519
+  3. Make a new key for Gitstalk
+<span class="p">›</span> 1
+<span class="dim">approve: opened your browser (check the code and fingerprint match, then Add key)</span></pre>
+            </div>
+            <figcaption>
+              Private keys never leave your machine: only the public key is sent.
+            </figcaption>
+          </figure>
+          <figure class="mock" aria-label="The browser page that asks you to add an SSH key">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.io/settings/keys/add</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title"><b>Add this SSH key to @ada?</b></div>
+              </div>
+              <div>
+                <div class="m-field">
+                  <div class="label"><b>Code</b></div>
+                  <div class="m-input">BCDF-GHJK</div>
+                </div>
+                <div class="m-field">
+                  <div class="label"><b>Fingerprint</b></div>
+                  <div class="m-input">SHA256:Hq3…x9k</div>
+                </div>
+              </div>
+              <div class="m-decision">
+                <span class="ms held">check before you continue</span>
+                <p class="q">
+                  Continue only if your terminal shows this code and fingerprint. A key added here
+                  can push to your repositories.
+                </p>
+              </div>
+              <div><span class="m-btn">Deny</span> <span class="m-btn primary">Add key</span></div>
+            </div>
+            <figcaption>
+              The code expires after ten minutes. The key can push beans, never land.
+            </figcaption>
+          </figure>
           <p>
-            Installed it as <code>beanstalk@beanstalk</code> before the rename (10 October 2026)?
-            Run <code>claude plugin uninstall beanstalk@beanstalk</code>, then the line above.
-            Settings such as <code>BEANSTALK_WEB</code> and keys set up then keep working.
-          </p>
-          <p>
-            The plugin has its own repository,
-            <a href="https://github.com/coop-collective/gitstalk-plugin"
-              >coop-collective/gitstalk-plugin</a
-            >, since 11 October 2026. Added the marketplace as <code>disturbing/beanstalk</code>
-            before that? It still works and now points there:
-            <code>claude plugin marketplace update gitstalk</code>, then
-            <code>claude plugin update gitstalk@gitstalk</code> (Codex:
-            <code>codex plugin marketplace upgrade gitstalk</code>, then
-            <code>codex plugin add gitstalk@gitstalk</code>).
+            Because git over SSH is not public yet, setup also stores an HTTPS token (read and
+            write, 90 days) in git's credential helper (your OS keychain where there is one) for the
+            Gitstalk host only, and says so. It shows up under Tokens in Settings. On a machine
+            without a browser it shows a code to enter on another signed-in device.
           </p>
 
-          <h2 id="codex">Codex and other agents</h2>
+          <h2 id="session">What an agent session looks like</h2>
           <p>
-            For git, ask the agent to run the setup script (<code>setup.sh</code>, or
-            <code>setup.ps1</code> on Windows) from the web app, which does what
-            <code>/gitstalk:setup</code> does. A compact version of the skill,
-            <a href="https://github.com/coop-collective/gitstalk-plugin/blob/HEAD/AGENTS-snippet.md"
-              >AGENTS-snippet.md</a
-            >, can go in a repository's <code>AGENTS.md</code> for Codex, Cursor, Copilot or Gemini
-            CLI. Cursor and Gemini CLI connect to MCP as a remote HTTP server; those lines are on
-            the <a href="/#start">install picker</a> and are not yet verified end to end.
+            Git does the work and MCP adds context. This is a typical run, shortened. Tool calls are
+            in plain words.
+          </p>
+          <figure
+            class="mock"
+            aria-label="An agent session: check status, push a bean, wait, read a red verdict, fix, land"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Agent session (illustrative)</span>
+            </div>
+            <div class="mock-body">
+              <pre class="m-term"><span class="p">›</span> repo_status acme/api
+<span class="dim">  stalk and sprout heads, 2 beans in flight, nothing red</span>
+<span class="p">$</span> git push origin HEAD:refs/heads/bean/add-truncate
+<span class="dim">remote: gitstalk: new bean add-truncate received at 3f9a1c2: "Add truncate helper"</span>
+<span class="dim">remote: gitstalk: pre-land check started: your change is merged onto the sprout…</span>
+<span class="p">›</span> bean_wait acme/api add-truncate
+<span class="bad">remote: gitstalk: RED: add-truncate was not landed. Merged onto the sprout, these tests failed:</span>
+<span class="bad">remote: gitstalk:   - test/format.test.js</span>
+<span class="dim">remote: gitstalk: fix: git fetch origin sprout &amp;&amp; git rebase origin/sprout</span>
+<span class="p">$</span> git fetch origin sprout &amp;&amp; git rebase origin/sprout
+<span class="dim"># fix, commit</span>
+<span class="p">$</span> git push -f origin HEAD:refs/heads/bean/add-truncate
+<span class="ok">remote: gitstalk: LANDED: add-truncate passed its pre-land check and is on the sprout as 8d2e51b</span></pre>
+            </div>
+            <figcaption>
+              The red names the failing tests and, when there is one, the landed bean it collided
+              with; the agent fixes its own change.
+            </figcaption>
+          </figure>
+          <p>
+            The full flow, with every message, is in <a href="/docs/git">Git compatibility</a>. If a
+            push is refused or a verdict is confusing, look it up in
+            <a href="/docs/troubleshooting">Troubleshooting</a>.
+          </p>
+
+          <h2 id="capabilities">What can my agent do?</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/mcp#scopes">
+              <h3>Read <span class="badge live">live</span></h3>
+              <p>
+                Repositories, beans, Ask, code, Actions runs and logs. Secret names, never values.
+              </p>
+            </a>
+            <a class="fcard" href="/docs/mcp#tools">
+              <h3>Push beans <span class="badge live">live</span></h3>
+              <p>Open a bean, push it, wait for the verdict, claim backlog tasks.</p>
+            </a>
+            <a class="fcard" href="/docs/mcp#commit">
+              <h3>Edit with no checkout <span class="badge beta">beta</span></h3>
+              <p>Send changed files with <code>bean_commit</code>; Gitstalk builds the commit.</p>
+            </a>
+            <a class="fcard" href="/docs/mcp#scopes">
+              <h3>Run workflows, set secrets <span class="badge live">live</span></h3>
+              <p>Only with the write or secrets scope, and only where you are a maintainer.</p>
+            </a>
+          </div>
+          <p>
+            An agent never merges to the stalk, never answers a decision card and never changes
+            repository settings. The full tool and scope tables are on
+            <a href="/docs/mcp">MCP tools and scopes</a>.
           </p>
 
           <h2 id="credentials">Credentials</h2>
+          <p>
+            Four kinds of credential exist. How to make, scope and revoke them is on
+            <a href="/docs/account">Accounts, tokens and keys</a>; this is just which one an agent
+            uses.
+          </p>
           <div class="tbl">
             <table>
               <thead>
                 <tr>
                   <th>Credential</th>
-                  <th>For</th>
+                  <th>An agent uses it for</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -254,37 +394,33 @@
                 <tr>
                   <td>SSH key</td>
                   <td>
-                    Registered in Settings or by <code>/gitstalk:setup</code>. Reads and pushes
-                    beans as you. Used for git once public SSH remotes arrive (SSH on port 22 needs
-                    a paid Cloudflare plan, so it is not offered yet; use HTTPS meanwhile).
+                    Proving this machine is yours. Registered by <code>/gitstalk:setup</code>. Git
+                    remotes over SSH are not public yet; use HTTPS.
                   </td>
                   <td>
-                    <span class="pill live">registration live</span>
-                    <span class="pill soon">SSH remotes soon</span>
+                    <span class="badge live">registration live</span>
+                    <span class="badge planned">SSH remotes planned</span>
                   </td>
                 </tr>
                 <tr>
                   <td>Personal token (<code>bsu_</code>)</td>
                   <td>
-                    Settings → Tokens. Paste it at git's password prompt, or let a credential helper
-                    hold it. Your role, capped by the token's scopes.
+                    Git over HTTPS and MCP for a script. Your role, capped by the token's scopes.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td>Deploy token (<code>bsd_</code>)</td>
-                  <td>
-                    One repository, for CI, scripts and containers. Made by the owner or a
-                    maintainer.
-                  </td>
-                  <td><span class="pill live">live</span></td>
+                  <td>One repository, for CI, scripts and containers.</td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td>Session token (<code>bss_</code>)</td>
                   <td>
-                    Minted for an agent's MCP session, bound to one repository, at most an hour.
+                    Minted for an agent's MCP session by <code>git_credentials</code>, bound to one
+                    repository, at most an hour.
                   </td>
-                  <td><span class="pill live">live</span></td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
               </tbody>
             </table>
@@ -292,6 +428,99 @@
           <p>
             No credential can push to the sprout or the stalk, and none can land a change: landing
             is the engine's job. Never paste a token into a chat or a remote URL.
+          </p>
+
+          <h2 id="script">Without the plugin: the setup script</h2>
+          <p>
+            Any agent, or you, can run the same setup from the web app. It needs only
+            <code>sh</code>, <code>curl</code>, <code>git</code> and OpenSSH 8.0 or newer. Windows
+            has <code>setup.ps1</code> with the same subcommands (its options are written
+            <code>-Key</code>, <code>-AgentKey</code> and <code>-NoBrowser</code>).
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Terminal</span></header>
+            <pre><code>curl -fsSL https://gitstalk.io/setup.sh | sh -s -- detect</code></pre>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Subcommand</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>detect</code></td>
+                  <td>
+                    Reports the platform, whether a browser is available, the git origin, and the
+                    keys it finds (1Password agent, ssh-agent, <code>~/.ssh</code>).
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>generate [--file PATH]</code></td>
+                  <td>
+                    Makes an ed25519 key for Gitstalk (no passphrase; it tells you how to add one).
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>register (--key PUB | --agent-key FINGERPRINT) [--no-browser]</code>
+                  </td>
+                  <td>
+                    Sends the public key and opens the approval page. With
+                    <code>--no-browser</code> it prints a code to enter on another device.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>remote OWNER/REPO [DIR]</code></td>
+                  <td>Clones the repository, or points an existing clone at Gitstalk.</td>
+                </tr>
+                <tr>
+                  <td><code>verify [OWNER/REPO]</code></td>
+                  <td>Proves git reaches your account, and the repository.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GITSTALK_WEB</code></td>
+                  <td>
+                    The Gitstalk web app to talk to. Defaults to the public deployment. Set it for a
+                    <a href="/docs/self-hosting#custom-host">self-hosted</a> copy. A script
+                    downloaded from your own deployment already points there.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_NO_BROWSER=1</code></td>
+                  <td>Never open a browser; show a code to enter on another device.</td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_CREDENTIAL_HELPER</code></td>
+                  <td>
+                    The git credential helper that stores the HTTPS token. Defaults to the one git
+                    already uses.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            For a compact version of the skill, paste
+            <a href="https://github.com/coop-collective/gitstalk-plugin/blob/HEAD/AGENTS-snippet.md"
+              >AGENTS-snippet.md</a
+            >
+            into a repository's <code>AGENTS.md</code>; Codex, Cursor, Copilot and Gemini CLI read
+            it.
           </p>
 
           <h2 id="containers">Containers and CI: environment variables</h2>
@@ -304,156 +533,32 @@ export GIT_TERMINAL_PROMPT=0
 export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0='credential.https://&lt;gitstalk host&gt;.helper'
 export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TOKEN"; }; f'</code></pre>
-          <p>A Bearer header form (<code>http.&lt;url&gt;.extraheader</code>) works too.</p>
-
-          <h2 id="mcp">MCP and OAuth</h2>
           <p>
-            The MCP server is optional context; git does the work. Sign in once:
-            <code>claude mcp login plugin:gitstalk:gitstalk</code> (or <code>/mcp</code> in a
-            session), then sign in with your passkey or an email code and approve the agent.
-            Settings lists connected agents, and Disconnect revokes their tokens. The server is an
-            OAuth 2.1 server with dynamic client registration and PKCE.
-          </p>
-          <p id="scopes">
-            The consent page shows four scopes. Agents ask for the first three; you can untick any
-            but <code>read</code>. Each tool still needs your role on the repository, as on the web.
-          </p>
-          <div class="tbl">
-            <table>
-              <thead>
-                <tr>
-                  <th>Scope</th>
-                  <th>Lets the agent</th>
-                  <th>Ticked by default</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>read</code></td>
-                  <td>
-                    Read repositories, runs, workflow logs, secret names (never values) and
-                    variables.
-                  </td>
-                  <td>Always</td>
-                </tr>
-                <tr>
-                  <td><code>collaborate</code></td>
-                  <td>Post on beans, answer requests, read its inbox.</td>
-                  <td>Yes</td>
-                </tr>
-                <tr>
-                  <td><code>write</code></td>
-                  <td>
-                    Push its own beans and claim tasks; where you maintain, run, re-run and cancel
-                    workflows and automations.
-                  </td>
-                  <td>Yes</td>
-                </tr>
-                <tr>
-                  <td><code>secrets</code></td>
-                  <td>
-                    Where you maintain: set and delete Actions secrets and variables. A value you
-                    give the agent passes through it and its model provider, so you can also add
-                    secrets yourself in a repository's Settings → Secrets and variables.
-                  </td>
-                  <td>No: you tick it</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="tbl">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tools</th>
-                  <th>What they do</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <code>whoami</code>, <code>ask_repo</code>, <code>work_overlaps</code>,
-                    <code>why_lines</code>, <code>bean_status</code>, <code>repo_status</code>,
-                    <code>repo_read</code>
-                  </td>
-                  <td>
-                    Who you are and what you may do in a repository; ask the repository a question;
-                    who is editing these files; which bean last changed these lines, and why; a
-                    bean's state, verdict and checks; a repository's lines and beans; read files,
-                    list trees and grep code without a checkout. Answers link to the explorer.
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <code>repo_list</code>, <code>bean_open</code>, <code>bean_commit</code>,
-                    <code>bean_wait</code>, <code>task_list</code>, <code>task_claim</code>,
-                    <code>task_release</code>, <code>git_credentials</code>
-                  </td>
-                  <td>
-                    Work on any repository you may use: reserve a bean name, claim a task from
-                    <code>.gitstalk/backlog.md</code> so two agents never take the same one, wait
-                    for a verdict, mint a one-hour git credential.
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <code>actions_workflow_list</code>, <code>actions_run_list</code>,
-                    <code>actions_run_get</code>, <code>actions_job_log</code>,
-                    <code>actions_wait_for_run</code>, <code>actions_dispatch</code>,
-                    <code>actions_rerun</code>, <code>actions_cancel</code>,
-                    <code>automation_get</code>, <code>automation_run</code>
-                  </td>
-                  <td>
-                    Follow <a href="/docs/actions">Actions</a>: wait for the runs a landing started
-                    (a bean reaching the stalk is a push to <code>main</code>), read the failing
-                    step's log, run, re-run and cancel workflows, run an automation now.
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <code>actions_config_list</code>, <code>actions_config_set</code>,
-                    <code>actions_config_delete</code>
-                  </td>
-                  <td>
-                    Secret names and variables for the repository and its organization
-                    (<code>kind</code>: <code>secret</code> or <code>variable</code>). Setting one
-                    needs the <code>secrets</code> scope and the maintain role; a secret's value is
-                    write-only and audited.
-                  </td>
-                  <td><span class="pill live">live</span></td>
-                </tr>
-                <tr>
-                  <td>Decision-card tools</td>
-                  <td>Read and discuss open cards from an agent.</td>
-                  <td><span class="pill soon">coming soon</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            An agent is offered only the tools its scopes allow: without <code>write</code> it sees
-            no tool that opens beans, claims tasks or starts runs, and without
-            <code>secrets</code> it cannot set or delete secrets and variables. Your role in each
-            repository is checked when a tool is used.
-          </p>
-          <p>
-            The tools are plain and task-shaped. None of them lands code: a change only ever arrives
-            as a bean (a git push, or <code>bean_commit</code> submitted as one), through the same
-            checks.
+            Where each kind of variable goes (secrets, workflow variables, check variables) is on
+            <a href="/docs/environment-variables">Environment variables</a>.
           </p>
 
-          <h2 id="cloud">
-            Cloud agents and your own keys <span class="pill soon">coming soon</span>
-          </h2>
-          <p>
-            Agents that run in the cloud next to your local ones, and bring-your-own model keys
-            (Anthropic, Google, Grok) for them. Local sessions on the Claude or ChatGPT plans you
-            already pay for work today.
-          </p>
+          <details class="fold" id="upgrading">
+            <summary>Upgrading from the beanstalk names</summary>
+            <p>
+              Gitstalk was called Beanstalk until 10 October 2026. Installed
+              <code>beanstalk@beanstalk</code> before then? Run
+              <code>claude plugin uninstall beanstalk@beanstalk</code>, then the install line above.
+              Settings such as <code>BEANSTALK_WEB</code> and keys set up then keep working: the
+              scripts read <code>BEANSTALK_*</code> when the <code>GITSTALK_*</code> name is unset.
+            </p>
+            <p>
+              The plugin has its own repository,
+              <a href="https://github.com/coop-collective/gitstalk-plugin"
+                >coop-collective/gitstalk-plugin</a
+              >, since 11 October 2026. Added the marketplace as
+              <code>disturbing/beanstalk</code> before that? It still works and now points there:
+              <code>claude plugin marketplace update gitstalk</code>, then
+              <code>claude plugin update gitstalk@gitstalk</code>. For Codex:
+              <code>codex plugin marketplace upgrade gitstalk</code>, then
+              <code>codex plugin add gitstalk@gitstalk</code>.
+            </p>
+          </details>
 
           <section class="sources">
             <h2>Sources</h2>
@@ -462,7 +567,6 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
                 <a href="https://github.com/coop-collective/gitstalk-plugin#readme"
                   >The plugin's README</a
                 >
-                (the status table)
               </li>
               <li>
                 <a
@@ -477,8 +581,10 @@ export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TO
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/git"><small>Previous</small>Git compatibility</a>
-            <a class="next" href="/docs/checks"><small>Next</small>Checks</a>
+            <a class="prev" href="/docs/account"
+              ><small>Previous</small>Accounts, tokens and keys</a
+            >
+            <a class="next" href="/docs/mcp"><small>Next</small>MCP tools and scopes</a>
           </nav>
         </article>
       </div>

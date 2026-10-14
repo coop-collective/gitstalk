@@ -13,20 +13,36 @@ export const SITE_ROOT_PAGES: ReadonlyArray<string> = [
   'terms',
 ];
 
-/** The public docs: packages/site/public/docs/<name>.html, served at /docs/<name>. */
+/** The public docs: packages/site/public/docs/<name>.html, served at /docs/<name>. A `_` file (the kit demo) is not a page. */
 export const DOCS_PAGES: ReadonlyArray<string> = [
+  'account',
   'actions',
   'agents',
+  'approval-rules',
   'architecture',
+  'ask',
+  'automation-builder',
   'automations',
+  'blame',
   'checks',
+  'cloud-agents',
   'collaborators',
+  'concepts',
   'decisions',
+  'dependency-cache',
+  'environment-variables',
   'git',
+  'limits',
+  'mcp',
+  'organizations',
+  'quickstart',
   'repositories',
   'research',
+  'secrets',
   'self-hosting',
+  'settings',
   'streaming-diffs',
+  'troubleshooting',
 ];
 
 /**

@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ask the repository: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Ask a repository a question in plain words and the page reshapes around it: files, diffs, beans and decisions, picked by rules and a small model that never writes code."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Ask the repository: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Ask a repository a question in plain words and the page reshapes around it: files, diffs, beans and decisions, picked by rules and a small model that never writes code."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Ask the repository</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs ask</p>
+          <h1>Ask the repository <span class="badge live">live</span></h1>
+          <p class="lede">
+            Type a question in plain words, such as "what changed on coupons today?". The page
+            reshapes itself around it: the files that matter, their diffs, the beans behind them and
+            the decisions taken. Nothing is generated; the page picks from views Gitstalk already
+            has.
+          </p>
+
+          <h2 id="try">Try it</h2>
+          <ol class="steps">
+            <li>
+              <h3>Open the Ask tab</h3>
+              <p>
+                Open a repository and choose <strong>Ask</strong>. Until the first bean has been
+                pushed there is nothing to ask about, and you see the start page instead.
+              </p>
+            </li>
+            <li>
+              <h3>Type a question</h3>
+              <p>
+                Click the bar (or press <code>/</code>, or Cmd/Ctrl+K) to see suggested questions,
+                or write your own.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Questions that work in any repository</span></header>
+                <pre class="chat"><code>what changed recently?
+what's being worked on right now?
+why did the sprout go red?
+what's on sprout but not on stalk?
+what did we decide?</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Read the answer, and why it looks that way</h3>
+              <p>
+                The page answers in one sentence, then shows the views that fit: the files, a bean's
+                journey with its diff, a decision card, a red-validation card, or who overlaps with
+                whom. A line under the sentence lists the views it chose. Choose
+                <strong>Clear the question</strong> to go back.
+              </p>
+            </li>
+          </ol>
+
+          <h2 id="mock">What you see</h2>
+          <figure
+            class="mock"
+            aria-label="The Ask tab with a question, a one-sentence answer and the views chosen for it"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url"
+                >gitstalk.io/acme/shop/ask?q=what changed on coupons today</span
+              >
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title"><span>acme /</span> <b>shop</b></div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Code</span><span>Changes</span><span>History</span><span>Automations</span
+                  ><span class="on">Ask</span>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>?</b><span>Ask the beanstalk anything</span></div>
+                <div class="m-input">what changed on coupons today?</div>
+              </div>
+              <div class="m-decision">
+                <span class="ms landed">answer</span>
+                <p class="q">2 files about coupons changed in 2 landings the last 1440 minutes.</p>
+              </div>
+              <pre
+                class="m-term"
+              ><span class="dim">You asked "what changed on coupons today?"  Clear the question
+This view: 1 Files · 2 Bean journey + diff · 3 Decision card</span></pre>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">src/coupons/apply.ts</span>
+                <span class="by">+18 −4 · stack-coupons</span>
+                <span class="ms landed">landed</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">src/coupons/expiry.ts</span>
+                <span class="by">+6 −0 · expire-coupons</span>
+                <span class="ms checking">checking</span>
+              </div>
+              <pre class="m-term"><span class="dim">src/coupons/apply.ts</span>
+<span class="bad">- const total = price - coupon.amount;</span>
+<span class="ok">+ const total = Math.max(0, price - sum(coupons));</span></pre>
+              <div class="m-decision">
+                <span class="ms held">decision</span>
+                <p class="q">Stacking coupons: allow two, or only one?</p>
+              </div>
+            </div>
+            <figcaption>
+              One sentence first, then the views Gitstalk chose. The small info mark beside "This
+              view" says who chose them.
+            </figcaption>
+          </figure>
+
+          <h2 id="explorer">The Files explorer: chips and the line</h2>
+          <p>
+            On the Ask tab, before you ask anything, choose <strong>Browse all files</strong> (or
+            click a file in its list) and you are in the Files explorer. It has its own ask bar. It
+            turns a question into chips: the area, the time range, the agent, the bean and the files
+            it picked. Remove a chip and the answer is asked again without it. The
+            <strong>Line</strong> menu switches between the sprout (staged) and the stalk (stable).
+          </p>
+          <figure
+            class="mock"
+            aria-label="The Files explorer's ask bar with removable chips and a line menu"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url"
+                >gitstalk.io/acme/shop/files?q=what changed on coupons today</span
+              >
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label"><b>Ask</b><span>Line: Sprout (staged)</span></div>
+                <div class="m-input">what changed on coupons today?</div>
+              </div>
+              <div>
+                <span class="ms landed">Recent changes</span>
+                <span class="ms checking">about coupons ×</span>
+                <span class="ms checking">range last 24 h ×</span>
+                <span class="ms held">file apply.ts ×</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">In this answer: 2 files</span>
+                <span class="by">tree · main view · side rail of beans and decisions</span>
+              </div>
+            </div>
+            <figcaption>
+              Each kind of question has a fixed arrangement of file tree, main view and side rail.
+            </figcaption>
+          </figure>
+
+          <h2 id="where">Where it lives</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Place</th>
+                  <th>What you get</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>A repository's <strong>Ask</strong> tab</td>
+                  <td>
+                    The ask bar with completions on focus and example questions under it, then the
+                    answer sentence and the chosen views. Before you ask, it shows the stalk, what
+                    is growing now and what happened.
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    The Files explorer (<strong>Browse all files</strong> on the Ask tab's start
+                    view)
+                  </td>
+                  <td>
+                    The chips, the line menu, the file tree, the main pane (file, diff or bean) and
+                    a side rail of beans, decisions, tests or agents.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Your agent: <code>ask_repo</code></td>
+                  <td>
+                    The same answer as JSON (the question's kind, files, beans, decisions and who
+                    picked them) with a <code>preview_url</code> that opens the same view for you.
+                    See <a href="/docs/mcp">MCP tools and scopes</a>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="classes">What it understands</h3>
+          <p>
+            Every question lands in one of ten kinds, and each kind has a fixed arrangement of
+            views. That is why the answers feel the same from one question to the next.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kind</th>
+                  <th>Example</th>
+                  <th>Shows</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Recent changes</td>
+                  <td><code>what changed recently on coupons?</code></td>
+                  <td>Diffs of the files, with beans and decisions beside them</td>
+                </tr>
+                <tr>
+                  <td>Who and why</td>
+                  <td><code>who changed tax rounding and why?</code></td>
+                  <td>
+                    The file with <a href="/docs/blame">blame by bean</a>, in the Files explorer
+                  </td>
+                </tr>
+                <tr>
+                  <td>In flight</td>
+                  <td><code>what's being worked on in billing right now?</code></td>
+                  <td>Beans not landed yet, their agents and overlaps</td>
+                </tr>
+                <tr>
+                  <td>What broke</td>
+                  <td><code>why did the sprout go red?</code></td>
+                  <td>Red validations, failing tests, culprits and reverts</td>
+                </tr>
+                <tr>
+                  <td>Waiting for the stalk</td>
+                  <td><code>what's on sprout but not on stalk?</code></td>
+                  <td>Commits the stalk does not have yet</td>
+                </tr>
+                <tr>
+                  <td>Decisions</td>
+                  <td><code>what did we decide about money formatting?</code></td>
+                  <td>Decision cards: two specs that disagreed and which won</td>
+                </tr>
+                <tr>
+                  <td>Tests</td>
+                  <td><code>what tests cover checkout?</code></td>
+                  <td>The tests that exercise some code, passing or not</td>
+                </tr>
+                <tr>
+                  <td>Agent activity</td>
+                  <td><code>what has a3 done?</code></td>
+                  <td>One agent's beans and the files they touch</td>
+                </tr>
+                <tr>
+                  <td>Bean</td>
+                  <td><code>show bean t032</code></td>
+                  <td>One bean: intent, diff, checks, reworks and decision</td>
+                </tr>
+                <tr>
+                  <td>Explore</td>
+                  <td><code>src/lib/money.ts</code></td>
+                  <td>The repository, with search hits for the words</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            The router recognises bean ids written like <code>t032</code> and agent slots like
+            <code>a3</code>, the names benchmark races use. For a bean named
+            <code>add-truncate</code> in your own repository, open it from its link in a list
+            instead of asking for it by name.
+          </p>
+
+          <h2 id="how">How the answer is chosen</h2>
+          <ol class="steps">
+            <li>
+              <h3>A keyword router reads the question</h3>
+              <p>
+                A plain, deterministic keyword router decides the kind of question and which area,
+                time range, agent or bean it names. Its answer stands whenever the words match one
+                of the kinds.
+              </p>
+            </li>
+            <li>
+              <h3>Code finds the candidates</h3>
+              <p>
+                Gitstalk lists the files, beans, decisions and sections it could show, from the
+                repository's own history.
+              </p>
+            </li>
+            <li>
+              <h3>A small model only chooses among them</h3>
+              <p>
+                A decision model (Clef Flash by default; Clef 27B or Jev can be configured) is asked
+                three things, each with a fixed list of options: which kind the question is, but
+                only when the keywords could not place it; which of the many matching files the
+                answer is about; and in what order to show the views. It never writes code, text or
+                layout.
+              </p>
+            </li>
+            <li>
+              <h3>Every pick leaves a receipt</h3>
+              <p>
+                Click the small info mark beside a pick, or open "How this was ordered" on the
+                status line, to see what was asked, the candidates, what was chosen and which model
+                answered. If no model answered, the receipt says a fixed rule did.
+              </p>
+            </li>
+          </ol>
+          <aside class="callout note">
+            <p class="callout-title">Slow model, fixed rules</p>
+            <p>
+              A model gets a budget of about a second and a half. If it is slow, fails or answers
+              outside the options, the fixed rules answer instead, so the page never waits on it.
+              Answers that use a model can take a moment longer than rule-only ones.
+            </p>
+          </aside>
+          <p>
+            The same models rank other choices in the product, such as how a bean is routed under
+            <a href="/docs/approval-rules">approval rules</a>. Where they appear they only choose a
+            route or an order, and a fixed rule is always the fallback.
+          </p>
+
+          <h2 id="blame">Blame in the Files explorer</h2>
+          <p>
+            When you ask a who or why question ("who changed tax rounding and why?"), the Files
+            explorer opens the first matching file with a column that shows which bean last changed
+            each run of lines, linked to the bean. Lines from before the first landing show as base.
+            The rest of that story is on
+            <a href="/docs/blame">Why this line: blame by bean</a>.
+          </p>
+
+          <h2 id="limits">Limits</h2>
+          <ul>
+            <li>
+              Ask reads the <strong>sprout</strong> or the <strong>stalk</strong>, not other
+              branches.
+            </li>
+            <li>
+              A private repository answers 404 to anyone without a role on it, as every page of it
+              does. See <a href="/docs/collaborators">collaborators and visibility</a>.
+            </li>
+            <li>
+              A question is up to 300 characters through <code>ask_repo</code>. Answers leave out
+              file bodies and diffs; the handles and the <code>preview_url</code> lead to them.
+            </li>
+          </ul>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/13-ask-explorer-design.md"
+                  >docs/claude-opus/13-ask-explorer-design.md</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/packages/web/README.md"
+                  >packages/web/README.md</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/mcp"><small>Previous</small>MCP tools and scopes</a>
+            <a class="next" href="/docs/blame"><small>Next</small>Why this line: blame by bean</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

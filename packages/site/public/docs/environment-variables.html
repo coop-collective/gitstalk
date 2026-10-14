@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Environment variables: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.toml, deploy tokens, the setup script, and what a run sees."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Environment variables: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.toml, deploy tokens, the setup script, and what a run sees."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Environment variables</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs environment-variables</p>
+          <h1>Environment variables <span class="badge live">live</span></h1>
+          <p class="lede">
+            Where you set one depends on what it is for. Pick the row that matches, then read what a
+            run sees.
+          </p>
+
+          <h2 id="where">Where do I set it?</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>You need</th>
+                  <th>Use</th>
+                  <th>Read as</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>A credential (token, key, password)</td>
+                  <td><a href="/docs/secrets">A secret</a>, in Settings</td>
+                  <td><code>${{ secrets.NAME }}</code></td>
+                </tr>
+                <tr>
+                  <td>Plain configuration the whole team may read</td>
+                  <td><a href="/docs/secrets">A variable</a>, in Settings</td>
+                  <td><code>${{ vars.NAME }}</code></td>
+                </tr>
+                <tr>
+                  <td>A value for one workflow, job or step</td>
+                  <td><code>env:</code> in the workflow YAML</td>
+                  <td>The environment, and <code>${{ env.NAME }}</code></td>
+                </tr>
+                <tr>
+                  <td>Tests during a pre-land check</td>
+                  <td><code>[env]</code> in <code>.gitstalk/checks.toml</code></td>
+                  <td>The test process environment</td>
+                </tr>
+                <tr>
+                  <td>Git inside a container or CI</td>
+                  <td>A deploy token and its Env vars block</td>
+                  <td><code>GITSTALK_TOKEN</code></td>
+                </tr>
+                <tr>
+                  <td>To change Gitstalk's own behaviour for jobs</td>
+                  <td>A <code>GITSTALK_*</code> variable</td>
+                  <td>See <a href="#switches">Gitstalk's switches</a></td>
+                </tr>
+                <tr>
+                  <td>To change how the setup script behaves</td>
+                  <td>A <code>GITSTALK_*</code> variable in your shell</td>
+                  <td>See <a href="#setup">The setup script</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="callout warning">
+            <p class="callout-title">Variables are not secret</p>
+            <p>
+              Anyone with a role sees a variable's value, and job logs print it unmasked. A value in
+              <code>env:</code> or in <code>checks.toml</code> is visible to everyone who can read
+              the repository. Put credentials in secrets.
+            </p>
+          </aside>
+
+          <h2 id="workflow">In a workflow</h2>
+          <div class="cmd" data-copyable>
+            <header><span>.github/workflows/ci.yml</span></header>
+            <pre class="url"><code>env:
+  LOG_LEVEL: info                       # every job
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC                           # this job
+    steps:
+      - run: npm test
+        env:
+          API_URL: ${{ vars.API_URL }}  # this step, from a variable
+          API_KEY: ${{ secrets.API_KEY }}</code></pre>
+          </div>
+          <p>
+            A workflow's own <code>env:</code> wins over the defaults Gitstalk sets, such as
+            <code>NPM_CONFIG_AUDIT</code>.
+          </p>
+
+          <h2 id="checks">In a pre-land check</h2>
+          <p>
+            <a href="/docs/checks">Pre-land checks</a> run your tests on the merged tree. Their
+            environment comes from the <code>[env]</code> table:
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/checks.toml</span></header>
+            <pre class="url"><code>[env]
+TZ = "UTC"
+FEATURE_FLAGS = "billing-v2"</code></pre>
+          </div>
+          <ul>
+            <li>
+              Names are upper case: letters, digits and underscores, starting with a letter or
+              underscore.
+            </li>
+            <li>At most 32 variables. Each value is at most 4000 characters.</li>
+            <li>
+              The runner owns <code>PATH</code>, <code>HOME</code> and <code>CI</code>, and the
+              prefixes <code>GIT_</code>, <code>LD_</code>, <code>NODE_TEST</code> and
+              <code>BWRAP</code>. A file that sets one of them is a red check that says so.
+            </li>
+            <li>The file is plain text in git, so never put a credential in it.</li>
+          </ul>
+
+          <h2 id="git">Git in a container or CI</h2>
+          <p>
+            A deploy token opens one repository, read or read and write, and expires. The
+            repository's start page has a <strong>Connect git</strong> step with an
+            <strong>Env vars</strong> tab, and Settings has <strong>Deploy tokens</strong>. The tab
+            shows the block below, filled in for your repository.
+          </p>
+          <figure class="mock" aria-label="The start page, Env vars tab">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Plugin</span><span>HTTPS</span><span class="on">Env vars</span>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Token name</b><span>Access: read and write. Expires after 90 days.</span>
+                </div>
+                <div class="m-input">CI</div>
+                <span class="m-btn primary">Create deploy token</span>
+              </div>
+              <pre class="m-term"><span class="dim">Credential helper</span>
+export GITSTALK_TOKEN=&lt;deploy token&gt;
+export GIT_TERMINAL_PROMPT=0
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0='credential.https://gitstalk.dev.helper'
+export GIT_CONFIG_VALUE_0='!f() { echo "username=x"; echo "password=$GITSTALK_TOKEN"; }; f'</pre>
+            </div>
+            <figcaption>
+              The token is shown once. Store it as a CI secret, not in the repository. The block
+              also comes as a Bearer header form.
+            </figcaption>
+          </figure>
+          <ul>
+            <li>
+              git reads the token from <code>GITSTALK_TOKEN</code> and never prompts. It needs git
+              2.31 or newer, because the block uses <code>GIT_CONFIG_*</code>.
+            </li>
+            <li>
+              The credential only applies to the Gitstalk host, so other remotes keep their own
+              credentials.
+            </li>
+            <li>
+              The expiry choices are 7 days, 30 days, 90 days and 1 year. Maintainers and the owner
+              can manage deploy tokens in Settings. The start page tab offers creating one to the
+              owner.
+            </li>
+          </ul>
+
+          <h2 id="switches">Gitstalk's switches</h2>
+          <p>
+            These are repository or org <a href="/docs/secrets">variables</a>. Most have a form in
+            Settings under <strong>Actions</strong>.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variable</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GITSTALK_DEPS_CACHE</code></td>
+                  <td>
+                    <code>off</code> turns the
+                    <a href="/docs/dependency-cache">dependency cache</a> off.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_DEPS_SNAPSHOT_MAX</code></td>
+                  <td>Largest snapshot, such as <code>2GiB</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_NPM_AUDIT</code></td>
+                  <td>
+                    <code>on</code> (or <code>true</code>) keeps npm's audit inside installs. It is
+                    off by default.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The old <code>BEANSTALK_*</code> names are still read when the <code>GITSTALK_*</code>
+            one is absent.
+          </p>
+
+          <h2 id="setup">The setup script</h2>
+          <p>
+            The <code>/setup.sh</code> script connects git on your machine to your account. Set
+            these in your shell before running it:
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variable</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GITSTALK_WEB</code></td>
+                  <td>
+                    The Gitstalk web app to talk to. The default is the public deployment. A
+                    self-hoster sets this.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_NO_BROWSER=1</code></td>
+                  <td>Never open a browser. The script shows a code to enter on another device.</td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_CREDENTIAL_HELPER</code></td>
+                  <td>
+                    The git credential helper to use for the Gitstalk host. By default it uses the
+                    one git already uses, else the OS store, else <code>store</code>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="sees">What a run sees</h2>
+          <h3>Actions jobs</h3>
+          <ul>
+            <li>
+              The usual <code>GITHUB_*</code> variables, so scripts written for GitHub keep working.
+              <code>GITHUB_REF</code> for a stalk run is <code>refs/heads/main</code>, and
+              <code>GITHUB_SERVER_URL</code> is the Gitstalk web host.
+            </li>
+            <li><code>CI=true</code>.</li>
+            <li>
+              <code>GITSTALK_LINE=stalk</code> and <code>GITSTALK_REPOSITORY_ID</code>, each also as
+              <code>BEANSTALK_*</code>.
+            </li>
+            <li>
+              <code>NPM_CONFIG_AUDIT=false</code> and <code>NPM_CONFIG_FUND=false</code>, unless
+              <code>GITSTALK_NPM_AUDIT</code> is <code>on</code> or <code>true</code>.
+            </li>
+            <li>
+              <code>ACTIONS_ID_TOKEN_REQUEST_URL</code> and
+              <code>ACTIONS_ID_TOKEN_REQUEST_TOKEN</code> for a job with
+              <code>id-token: write</code>.
+            </li>
+          </ul>
+          <h3>Automation runs</h3>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variable</th>
+                  <th>Holds</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GITSTALK_EVENT</code></td>
+                  <td>
+                    The name of the event, such as <code>bean_red</code>. The payload is a JSON file
+                    at <code>$GITHUB_EVENT_PATH</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_AUTOMATION</code>, <code>GITSTALK_ACTOR</code></td>
+                  <td>
+                    The automation's id and the identity it acts as,
+                    <code>&lt;name&gt;[automation]</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_MEMORY_REF</code>, <code>GITSTALK_MEMORY</code></td>
+                  <td>
+                    The memory ref (empty when memory is off) and the directory the memory is
+                    restored into.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_WORK</code>, <code>GITSTALK_BEANS_FILE</code></td>
+                  <td>The scratch directory and a file listing the beans the run pushed.</td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_MODEL</code>, <code>GITSTALK_MAX_TURNS</code></td>
+                  <td>For the Prompt harness only: the model and the turn limit.</td>
+                </tr>
+                <tr>
+                  <td>Each secret the file names</td>
+                  <td>As an environment variable of that name, in the agent or script step.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <code>GITSTALK_EVENT</code>, <code>GITSTALK_AUTOMATION</code>,
+            <code>GITSTALK_ACTOR</code>, <code>GITSTALK_MEMORY_REF</code> and
+            <code>GITSTALK_MEMORY</code> are also set as <code>BEANSTALK_*</code>, so older scripts
+            keep working. <code>GITSTALK_WORK</code>, <code>GITSTALK_BEANS_FILE</code>,
+            <code>GITSTALK_MODEL</code> and <code>GITSTALK_MAX_TURNS</code> are not. The container
+            never holds a model key.
+          </p>
+
+          <h2 id="self-hosting">Running Gitstalk yourself</h2>
+          <p>
+            The deployment has its own settings, such as <code>ACTIONS_MONTHLY_MINUTES</code>. They
+            are not environment variables of your jobs. See
+            <a href="/docs/limits">Limits and plans</a> and
+            <a href="/docs/self-hosting">Self-hosting</a>.
+          </p>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/24-checks-config.md"
+                  >docs/claude-opus/24-checks-config.md</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/25-actions-and-automations.md"
+                  >docs/claude-opus/25-actions-and-automations.md</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/secrets"><small>Previous</small>Secrets and variables</a>
+            <a class="next" href="/docs/automations"><small>Next</small>Automations</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

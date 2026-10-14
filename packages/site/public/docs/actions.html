@@ -6,14 +6,14 @@
     <title>GitHub Actions: Gitstalk docs</title>
     <meta
       name="description"
-      content="Gitstalk runs your unchanged .github/workflows on Cloudflare: what runs, the compatibility report, secrets, OIDC and the beta limits."
+      content="Gitstalk runs your unchanged .github/workflows on Cloudflare: a quickstart, what runs, the compatibility report, the job token and OIDC."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="GitHub Actions: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Gitstalk runs your unchanged .github/workflows on Cloudflare: what runs, the compatibility report, secrets, OIDC and the beta limits."
+      content="Gitstalk runs your unchanged .github/workflows on Cloudflare: a quickstart, what runs, the compatibility report, the job token and OIDC."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -169,26 +169,175 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs actions</p>
-          <h1>GitHub Actions <span class="pill live">live</span></h1>
+          <h1>GitHub Actions <span class="badge live">live</span></h1>
           <p class="lede">
-            Gitstalk runs the <code>.github/workflows/*.yml</code> you already have, unchanged, on
-            Cloudflare Containers. A repository moved from GitHub keeps its CI and its deploys.
+            Gitstalk runs the <code>.github/workflows/*.yml</code> files you already have,
+            unchanged, on Cloudflare Containers. A repository moved from GitHub keeps its CI and its
+            deploys.
           </p>
-          <div class="note caveat">
-            <p>
-              <strong>Where it stands.</strong> Live on the hosted service: a push that moves the
-              stalk, <em>Run workflow</em> and schedules start runs; each job runs in its own fresh
-              Cloudflare Container that is destroyed when the job ends; logs stream live to the
-              Actions tab; secrets are masked; and jobs with <code>id-token: write</code> get OIDC
-              tokens. A small Node CI job (checkout, setup-node, <code>npm test</code>) took about
-              20 s end to end on the hosted service. The
-              <a href="#deps-cache">dependency cache</a> restores <code>node_modules</code> into
-              memory between runs. Not yet: other caches and artifacts that outlive a job, the
-              GitHub REST API through <code>GITHUB_TOKEN</code>, and runners other than Ubuntu;
-              <code>services:</code> and <code>container:</code> are not yet verified on the hosted
-              service.
-            </p>
+
+          <h2 id="quickstart">Quickstart</h2>
+          <p>
+            You do not configure anything. Add a workflow the way you would on GitHub, and Gitstalk
+            starts it when your work reaches the stalk.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>Add a workflow</h3>
+              <p>Put a normal workflow file in the repository.</p>
+              <div class="cmd" data-copyable>
+                <header><span>.github/workflows/ci.yml</span></header>
+                <pre class="url"><code>name: ci
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm test</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Push it as a bean</h3>
+              <p>
+                Beans are branches named <code>bean/&lt;name&gt;</code>. The workflow file is part
+                of the change like any other file.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>git push -o wait origin HEAD:refs/heads/bean/add-ci</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>The bean lands, then the stalk moves</h3>
+              <p>
+                The pre-land check passes and the bean lands on the sprout. When validation promotes
+                the sprout, the stalk moves. On Gitstalk the stalk is your <code>main</code>.
+              </p>
+            </li>
+            <li>
+              <h3>The run starts</h3>
+              <p>
+                A stalk move is a <code>push</code> to <code>main</code>, so
+                <code>ci.yml</code> starts. Open the repository's <strong>Automations</strong> tab
+                and its <strong>Actions</strong> view to watch it, or press
+                <strong>Run workflow</strong> to start it by hand.
+              </p>
+            </li>
+          </ol>
+
+          <figure
+            class="mock"
+            aria-label="The Actions view of the Automations tab: a workflow list and three runs"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/actions</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <span>acme /</span> <b>api</b> <span class="badge live">private</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>Code</span><span>Changes</span><span>History</span
+                  ><span class="on">Automations</span><span>Ask</span><span>Settings</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span class="on">Actions</span><span>Automations</span>
+                </div>
+              </div>
+              <div class="m-run">
+                <header>
+                  <b>ci.yml</b><span class="ms landed">success</span>
+                  <span class="sub">main, moved by bean/add-ci, 1 min ago</span>
+                </header>
+              </div>
+              <div class="m-run">
+                <header>
+                  <b>deploy.yml</b><span class="ms checking">running</span>
+                  <span class="sub">main, moved by bean/fix-retry, 20 s ago</span>
+                </header>
+              </div>
+              <div class="m-run">
+                <header>
+                  <b>nightly.yml</b><span class="ms red">failed</span>
+                  <span class="sub">schedule, 6 h ago</span>
+                </header>
+              </div>
+            </div>
+            <figcaption>
+              The Automations tab has two views, Actions and Automations. The Actions view lists
+              your workflows, each with the state of its last run. You can filter runs by workflow,
+              status and line (stalk or sprout).
+            </figcaption>
+          </figure>
+
+          <figure class="mock" aria-label="A run page: jobs in order and a streaming log">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/actions/runs/42</span>
+            </div>
+            <div class="mock-body">
+              <ol class="flow" aria-label="Jobs: test, then build, then deploy">
+                <li class="bean"><b>test</b><span>done, 21 s</span></li>
+                <li class="sprout"><b>build</b><span>running</span></li>
+                <li class="stalk"><b>deploy</b><span>waiting</span></li>
+              </ol>
+              <div class="m-run">
+                <header>
+                  <b>build</b><span class="ms checking">running</span>
+                  <span class="sub">ubuntu-24.04</span>
+                </header>
+                <div class="m-step ok"><span>Set up job</span><span class="t">2s</span></div>
+                <div class="m-step ok">
+                  <span>Run actions/checkout</span><span class="t">3s</span>
+                </div>
+                <div class="m-step run">
+                  <span>Run npm run build</span><span class="t">8s</span>
+                </div>
+              </div>
+              <pre class="m-term"><span class="dim">[Run npm run build]</span> &gt; api@1.4.0 build
+<span class="dim">[Run npm run build]</span> compiled 212 modules
+<span class="dim">[Run npm run build]</span> uploading with token <span class="ok">***</span></pre>
+            </div>
+            <figcaption>
+              The job graph follows <code>needs</code>. The log streams while the job runs, folds by
+              step and shows secrets as <code>***</code>.
+            </figcaption>
+          </figure>
+
+          <h2 id="status">What works today</h2>
+          <div class="fgrid">
+            <div class="fcard">
+              <h3>Runs now <span class="badge live">live</span></h3>
+              <p>
+                Runs on a stalk move, <em>Run workflow</em> and schedules. Each job gets its own
+                fresh Cloudflare Container, destroyed when the job ends. Logs stream to the run
+                page. Secrets are masked. Jobs with <code>id-token: write</code> get OIDC tokens on
+                the hosted service.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Not yet <span class="badge planned">planned</span></h3>
+              <p>
+                <code>pull_request</code> and <code>merge_group</code> events, other caches and
+                artifacts that outlive a job, and the GitHub REST API through
+                <code>GITHUB_TOKEN</code>. Runners other than Ubuntu. Concurrency groups are not
+                enforced.
+              </p>
+            </div>
           </div>
+          <p>
+            A small Node job (checkout, setup-node, <code>npm test</code>) took about 20 s end to
+            end on the hosted service with the
+            <a href="/docs/dependency-cache">dependency cache</a>.
+          </p>
 
           <h2 id="events">When workflows run</h2>
           <div class="tbl">
@@ -197,303 +346,291 @@
                 <tr>
                   <th>GitHub event</th>
                   <th>On Gitstalk</th>
-                  <th>First release</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>push</code> to <code>main</code></td>
                   <td>
-                    The stalk moved. <code>main</code> and your base branch name it, so
-                    <code>branches: [main]</code> keeps working.
+                    The stalk moved. <code>main</code>, <code>stalk</code> and your default branch
+                    name it, so <code>branches: [main]</code> keeps working.
                   </td>
-                  <td>yes</td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td><code>workflow_dispatch</code></td>
-                  <td>A button or an MCP call, with typed inputs.</td>
-                  <td>yes</td>
+                  <td>The <em>Run workflow</em> button or an MCP call, with typed inputs.</td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td><code>schedule</code></td>
                   <td>Cron in UTC, at least 5 minutes apart, read from the stalk.</td>
-                  <td>yes</td>
+                  <td><span class="badge live">live</span></td>
                 </tr>
                 <tr>
                   <td><code>pull_request</code></td>
                   <td>
-                    A bean was pushed. It runs on the bean squashed onto the sprout, which is
-                    GitHub's merge ref.
+                    Parsed, reported as "not started yet". Planned: it will run on the bean squashed
+                    onto the sprout.
                   </td>
-                  <td>later</td>
+                  <td><span class="badge planned">planned</span></td>
                 </tr>
                 <tr>
                   <td><code>merge_group</code></td>
-                  <td>The sprout's validation.</td>
-                  <td>later</td>
+                  <td>Parsed, not started. Planned: the sprout's validation.</td>
+                  <td><span class="badge planned">planned</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>push</code> to tags, <code>repository_dispatch</code>,
+                    <code>workflow_run</code>, <code>workflow_call</code>
+                  </td>
+                  <td>Parsed and reported as "not started yet".</td>
+                  <td><span class="badge planned">planned</span></td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p>
-            A new <code>[actions]</code> table in <code>checks.toml</code> will say which jobs are
-            required to land a bean or to move the stalk, the way branch protection does; other jobs
-            are advisory.
-          </p>
 
           <h2 id="compat">Compatibility report</h2>
           <p>
-            Workflows are parsed with GitHub's own parser and expression library. Every file gets a
-            report that marks each feature as <em>runs</em>, <em>runs differently</em> (with the
-            difference) or <em>never runs here</em> (with the reason). It shows on the workflow page
-            and in the push of the bean that changes the file.
+            Gitstalk reads each workflow file with GitHub's own parser and expression library. The
+            workflow's page lists what will not run exactly as written, and the Actions view counts
+            the workflows that have notes. Each note says it <em>runs differently</em> (with the
+            difference) or <em>never runs here</em> (with the reason). Everything else runs.
           </p>
-          <ul>
-            <li>
-              <strong>Runs:</strong> jobs, <code>needs</code>, <code>if</code>, outputs, matrices
-              (up to 16 legs), <code>run</code> steps, JavaScript and composite actions,
-              <code>concurrency</code>, <code>timeout-minutes</code>, <code>permissions</code>,
-              <code>secrets</code> and <code>vars</code>. Unmodified
-              <code>actions/checkout</code> works against Gitstalk.
-            </li>
-            <li>
-              <strong>Runs differently at first:</strong> <code>actions/cache</code> of
-              <code>node_modules</code> or a package-manager store, and
-              <code>actions/setup-node</code> with <code>cache:</code>, become the
-              <a href="#deps-cache">dependency cache</a>; other caches and artifacts last one job,
-              not across jobs; <code>environment:</code> approvals are ignored and the report says
-              so.
-            </li>
-            <li>
-              <strong>Not at first:</strong> Docker actions, <code>container:</code> and
-              <code>services:</code>; reusable workflows; <code>runs-on</code> other than
-              <code>ubuntu-latest</code> or <code>ubuntu-24.04</code>.
-            </li>
-            <li>
-              <strong>Never:</strong> events for objects Gitstalk does not have (issues, releases),
-              and <code>pull_request_target</code>, refused on purpose.
-            </li>
-          </ul>
+          <figure class="mock" aria-label="A compatibility report with three notes">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/actions</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label">
+                  <b>deploy.yml</b
+                  ><span>Compatibility: 3 notes on what runs differently here.</span>
+                </div>
+              </div>
+              <div class="m-step run">
+                <span
+                  >concurrency: groups are not enforced yet; the repository runs at most 4 jobs at
+                  once</span
+                >
+                <span class="t">differs</span>
+              </div>
+              <div class="m-step run">
+                <span>jobs.deploy.environment: environments and their approvals are ignored</span>
+                <span class="t">differs</span>
+              </div>
+              <div class="m-step">
+                <span>on: pull_request is parsed, but Gitstalk does not start runs for it yet</span>
+                <span class="t">later</span>
+              </div>
+            </div>
+            <figcaption>Shape of the report. The exact wording comes from the file.</figcaption>
+          </figure>
 
-          <h2 id="secrets">Secrets and variables</h2>
-          <ul>
-            <li>
-              Repository secrets are encrypted at rest, write-only (Settings lists names, never
-              values), injected only into the steps that name them, and masked in logs.
-            </li>
-            <li>
-              <strong>Org secrets</strong> work the same way and reach all of the org's
-              repositories, only its private ones, or the ones you pick. Org owners and admins
-              manage them in the org's Settings, Secrets and variables. A repository secret with the
-              same name wins over the org's, as on GitHub.
-            </li>
-            <li>
-              <strong>Variables</strong> (<code>${{ vars.NAME }}</code>) are plain configuration at
-              repository and org level, with the same access choices for org variables. Anyone with
-              a role sees their values and logs print them unmasked, so never put a credential in
-              one.
-            </li>
-            <li>
-              Repository Settings shows the repository's own secrets and variables and the org ones
-              it inherits, read-only, with where each comes from. People with a role see secret
-              names, never values; maintainers and the owner change them.
-            </li>
-            <li>
-              Stalk, dispatch and schedule runs get the secrets they name. That is how deploys work.
-            </li>
-            <li>
-              <strong>Pre-land runs</strong> of a bean pushed by an agent session, a deploy token or
-              a collaborator below maintain get <strong>no secrets</strong> and a read-only job
-              token, like a fork's pull request on GitHub. A per-secret toggle,
-              <em>available to pre-land checks</em>
-              (off by default), lets a low-risk test key through. Never use it for a deploy
-              credential.
-            </li>
-            <li>
-              To keep agents from changing the code that holds the secrets, list
-              <code>.github/**</code> in <code>protected_paths</code> of
-              <a href="/docs/checks">checks.toml</a>: then only maintainers and the owner, pushing
-              with their own personal token or SSH key, may change workflows. Protecting workflow
-              files by default comes later.
-            </li>
-            <li>
-              A stalk workflow still runs code that agents wrote (your
-              <code>package.json</code> scripts) with its secrets, as auto-merge does on GitHub.
-              Approval before secrets are released comes later.
-            </li>
-          </ul>
-
-          <h2 id="agents">From an agent</h2>
-          <p>
-            An agent connected over <a href="/docs/agents#mcp">MCP</a> drives the same loop you do
-            on the web, with plain tools and your role on the repository:
-          </p>
-          <ol>
-            <li>
-              It pushes a bean that adds or changes <code>.github/workflows/deploy.yml</code>. When
-              the bean reaches the stalk, that is a push to <code>main</code>, and the workflow
-              runs.
-            </li>
-            <li>
-              <code>actions_wait_for_run</code> with the bean holds until the runs its landing
-              started finish (at most 30 minutes per call), then answers each run's conclusion and,
-              for a failure, the failing step and the last lines of its log.
-            </li>
-            <li>
-              <code>actions_job_log</code> reads more of a job's log (the newest lines, or only the
-              lines matching some text), with secrets already masked.
-            </li>
-            <li>The agent fixes the cause in a new bean, pushes and waits again.</li>
-          </ol>
-          <p>
-            <code>actions_dispatch</code>, <code>actions_rerun</code> (the whole run again, same
-            commit and inputs), <code>actions_cancel</code> and <code>automation_run</code> need the
-            maintain role and the agent's <code>write</code> scope. A deploy token such as
-            <code>CLOUDFLARE_API_TOKEN</code> is best added by you in Settings → Secrets and
-            variables; the agent sees its name with <code>actions_config_list</code>. If you give
-            the agent the value instead, <code>actions_config_set</code> stores it, write-only, when
-            you are a maintainer and ticked the <code>secrets</code> scope; the audit log names you
-            and the agent's client.
-          </p>
+          <h2 id="what-runs">What runs</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    Jobs, <code>needs</code>, <code>if</code>, outputs, <code>run</code> steps,
+                    <code>timeout-minutes</code>, <code>permissions</code>, <code>secrets</code>,
+                    <code>vars</code>
+                  </td>
+                  <td>Runs</td>
+                </tr>
+                <tr>
+                  <td>
+                    JavaScript and composite actions, unmodified <code>actions/checkout</code>
+                  </td>
+                  <td>Runs</td>
+                </tr>
+                <tr>
+                  <td>Matrices</td>
+                  <td>Runs, up to 16 legs per job</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>actions/setup-node</code> with <code>cache:</code>, and
+                    <code>actions/cache</code> of <code>node_modules</code>
+                  </td>
+                  <td>
+                    Runs differently: they become the
+                    <a href="/docs/dependency-cache">dependency cache</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Other caches and artifacts</td>
+                  <td>Runs differently: they last one job, not across jobs</td>
+                </tr>
+                <tr>
+                  <td><code>timeout-minutes</code> over the limit</td>
+                  <td>Runs differently: capped at 60 minutes</td>
+                </tr>
+                <tr>
+                  <td><code>environment:</code> and its approvals</td>
+                  <td>Runs differently: ignored, and the report says so</td>
+                </tr>
+                <tr>
+                  <td><code>concurrency:</code></td>
+                  <td>
+                    Runs differently: groups are not enforced; the repository runs at most 4 jobs at
+                    once
+                  </td>
+                </tr>
+                <tr>
+                  <td>Docker actions, <code>container:</code>, <code>services:</code></td>
+                  <td>
+                    Runs differently: Docker runs inside the job container.
+                    <span class="badge beta">beta</span> Not yet verified on the hosted service.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Reusable workflows (<code>uses:</code> on a job)</td>
+                  <td><span class="badge planned">planned</span> Not run yet</td>
+                </tr>
+                <tr>
+                  <td><code>runs-on</code></td>
+                  <td>
+                    <code>ubuntu-latest</code> and <code>ubuntu-24.04</code> run on the Ubuntu 24.04
+                    image; <code>ubuntu-22.04</code> also runs, on that same 24.04 image. Anything
+                    else never runs.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Events for things Gitstalk does not have (issues, releases)</td>
+                  <td>Never runs</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="oidc">Job token and OIDC</h2>
           <p>
-            Each job gets a short-lived token bound to its repository, revoked when the job ends.
-            With
-            <code>contents: write</code> it may push <code>bean/*</code> branches only, so code a
-            job writes still goes through the pre-land check. With <code>id-token: write</code>,
-            jobs get GitHub-shaped OIDC identity tokens from a Gitstalk issuer, so
-            <code>aws-actions/configure-aws-credentials</code> and Google's and Azure's equivalents
-            work once you register the issuer. Pre-land runs of untrusted beans get no identity
-            token by default, and if a repository opts in, their subject is distinct so no existing
-            trust policy matches it.
-          </p>
-
-          <h2 id="deps-cache">Dependency cache <span class="pill live">live</span></h2>
-          <p>
-            Each run restores <code>node_modules</code> from the repository's last snapshot into
-            memory, so installs start from a full tree instead of the registry. On the hosted
-            service, a fastify job (146 MB of dependencies) with an unchanged lockfile restored in
-            1–3 s and <code>npm ci</code> took under 1 s; the whole job took about 20 s, against
-            about 2 min 45 s for the same job without the cache in the same push, where
-            <code>npm ci</code> from the registry took about 2 min 20 s. On a test stack, with
-            <code>npm ci --no-audit</code>, the restore took 1–3 s against 6–14 s for
-            <code>npm ci</code> from the registry, on fastify and on a Next.js-class app (533 MB).
-            The first run and a lockfile change are slower than without the cache by the time it
-            takes to save the new snapshot at the job's end (about 9 s for fastify on the hosted
-            service). Every run is in
-            <a
-              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/27-ci-dependency-cache.md"
-              >the design write-up</a
-            >.
+            Each job gets a short-lived token bound to its repository. It is revoked when the job
+            ends and expires on its own shortly after the job's timeout. It can always read the
+            repository.
           </p>
           <ul>
             <li>
-              <strong>Automatic</strong> for workflows that already ask for a cache:
-              <code>actions/setup-node</code> with <code>cache: npm</code>, <code>pnpm</code> or
-              <code>yarn</code> (its <code>cache-dependency-path</code> names the directory), and
-              <code>actions/cache</code> whose every <code>path</code> is
-              <code>node_modules</code> or a package-manager store (it keeps its <code>id</code>,
-              and <code>cache-hit</code> is <code>true</code> on an exact hit). Nothing to change in
-              the file.
+              <code>permissions: contents: write</code> lets the token push
+              <code>bean/*</code> branches only. Pushes to the sprout, the stalk and
+              <code>main</code> are refused for every credential, so code a job writes still goes
+              through the pre-land check.
             </li>
             <li>
-              <strong>Opt-in</strong> for other workflows: a step
-              <code>uses: gitstalk/deps-cache@v1</code> after checkout, with
-              <code>working-directory</code> if the lockfile is not at the root. The name from
-              before the rename, <code>beanstalk/deps-cache@v1</code>, works too.
-            </li>
-            <li>
-              <code>node_modules</code> lives in memory (a tmpfs), never on the container disk. The
-              snapshot key is the lockfile plus the install directory, platform, Node and
-              package-manager versions and the install flags; another lockfile restores the closest
-              snapshot and the install brings it up to date.
-            </li>
-            <li>
-              With <code>npm ci</code>: after an exact hit the tree is exactly what
-              <code>npm ci</code> would build, so <code>npm ci</code> keeps it and only runs your
-              package's own install scripts. After a lockfile change <code>npm ci</code> runs as
-              usual (it deletes <code>node_modules</code> first), and the save uploads only the
-              chunks that changed. <code>pnpm install</code>, <code>yarn install</code> and
-              <code>npm install</code> update a restored tree in place.
-            </li>
-            <li>
-              Only runs of the stalk save snapshots. Pre-land, dispatch and schedule runs read them
-              and never write, so a bean that has not landed cannot change what a later stalk run
-              installs. Snapshots belong to one repository and are never shared.
-            </li>
-            <li>
-              Turn it off with the repository or org variable
-              <code>GITSTALK_DEPS_CACHE=off</code>; change the snapshot cap with
-              <code>GITSTALK_DEPS_SNAPSHOT_MAX</code> (for example <code>2GiB</code>). A variable
-              set under its name from before the rename (<code>BEANSTALK_*</code>) is read when the
-              <code>GITSTALK_*</code> one is absent; saving the Actions settings moves it over.
-            </li>
-            <li>
-              <span class="pill rolling">rolling out</span> Deleting a repository deletes its
-              snapshots, its Actions logs, secrets and variables, and stops its schedules.
+              <code>permissions: id-token: write</code> gives the job a GitHub-shaped OIDC identity
+              token from a Gitstalk issuer. Once you register the issuer, actions such as
+              <code>aws-actions/configure-aws-credentials</code> and Google's and Azure's
+              equivalents work. Only stalk, dispatch and schedule runs get one; automation runs
+              never do. A self-hosted deployment gives jobs a token only once its owner has set the
+              OIDC keys.
             </li>
           </ul>
+          <aside class="callout note">
+            <p class="callout-title">Report wording</p>
+            <p>
+              The compatibility report still prints "OIDC comes later" next to
+              <code>id-token: write</code>. That text is out of date: the hosted service does mint
+              the token.
+            </p>
+          </aside>
 
-          <h2 id="npm-audit">
-            npm audit in installs <span class="pill rolling">rolling out</span>
-          </h2>
+          <h2 id="agents">From an agent</h2>
           <p>
-            Jobs run npm with <code>NPM_CONFIG_AUDIT=false</code> and
-            <code>NPM_CONFIG_FUND=false</code>, so <code>npm ci</code> and
-            <code>npm install</code> skip the audit npm otherwise runs inside every install. It
-            never changes what is installed, but it is slow: for fastify's lockfile it took about 90
-            s of a 97 s <code>npm ci</code>, against about 10 s without it. To keep it, set the
-            repository or org variable <code>GITSTALK_NPM_AUDIT=on</code>, set
-            <code>NPM_CONFIG_AUDIT</code> in the workflow's <code>env:</code>, or run
-            <code>npm audit</code> as its own step. The measurements are in
-            <a
-              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/27-ci-dependency-cache.md"
-              >the design write-up</a
-            >, section 12.
+            An agent connected over <a href="/docs/mcp">MCP</a> runs the same loop you do. The tools
+            are in the beta tool surface, so check the names against your connected server.
           </p>
-
-          <h2 id="limits">Limits on the managed beta</h2>
+          <ol class="steps">
+            <li>
+              <h3>Push a bean</h3>
+              <p>
+                It adds or changes <code>.github/workflows/deploy.yml</code>. When the bean reaches
+                the stalk, the workflow runs.
+              </p>
+            </li>
+            <li>
+              <h3>Wait for the run</h3>
+              <p>
+                <code>actions_wait_for_run</code> with the bean holds until the runs the landing
+                started finish. The default wait is 600 seconds and the most is 1,800. It answers
+                each run's conclusion and, for a failure, the failing step and the last lines of its
+                log.
+              </p>
+            </li>
+            <li>
+              <h3>Read the log</h3>
+              <p>
+                <code>actions_job_log</code> reads more: the newest lines, or only lines matching
+                some text, with secrets already masked.
+              </p>
+            </li>
+            <li>
+              <h3>Fix and repeat</h3>
+              <p>The agent fixes the cause in a new bean, pushes, and waits again.</p>
+            </li>
+          </ol>
           <div class="tbl">
             <table>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>Needs</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
-                  <td>Actions minutes</td>
-                  <td class="num">100 per repository per month</td>
+                  <td>
+                    <code>actions_workflow_list</code>, <code>actions_run_list</code>,
+                    <code>actions_run_get</code>, <code>actions_job_log</code>,
+                    <code>actions_wait_for_run</code>, <code>actions_config_list</code>,
+                    <code>automation_get</code>
+                  </td>
+                  <td>Any agent session, with any role that reads the repository</td>
                 </tr>
                 <tr>
-                  <td>Job timeout</td>
-                  <td class="num">60 minutes</td>
-                </tr>
-                <tr>
-                  <td>Concurrent jobs</td>
-                  <td class="num">4 per repository</td>
-                </tr>
-                <tr>
-                  <td>Log retention</td>
-                  <td class="num">30 days</td>
-                </tr>
-                <tr>
-                  <td>Dependency snapshot (compressed)</td>
-                  <td class="num">4 GiB, a repository or org setting</td>
-                </tr>
-                <tr>
-                  <td>Dependency snapshots per repository</td>
-                  <td class="num">10 GB, unused for 7 days are deleted</td>
-                </tr>
-                <tr>
-                  <td>Memory for <code>node_modules</code></td>
-                  <td class="num">6 GiB of the job's 12 GiB</td>
+                  <td>
+                    <code>actions_dispatch</code>, <code>actions_rerun</code> (the whole run, same
+                    commit and inputs), <code>actions_cancel</code>, <code>automation_run</code>
+                  </td>
+                  <td>The <code>write</code> scope and the maintain role</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p>
-            Minutes count only while a job runs. A container kept warm for the next job of the same
-            repository (coming soon) is not counted. A repository that has used its minutes gets a
-            clear "monthly minutes used" refusal, never a red run. When you
-            <a href="/docs/self-hosting">self-host</a>, you set every one of these.
+            Setting secrets from an agent is covered in
+            <a href="/docs/secrets#agents">Secrets and variables</a>.
           </p>
+
+          <h2 id="more">Related pages</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/secrets">
+              <h3>Secrets and variables</h3>
+              <p>Credentials, plain configuration and who gets which.</p>
+            </a>
+            <a class="fcard" href="/docs/dependency-cache">
+              <h3>Dependency cache</h3>
+              <p>Start installs from a full <code>node_modules</code>.</p>
+            </a>
+            <a class="fcard" href="/docs/environment-variables">
+              <h3>Environment variables</h3>
+              <p>Where to set one, and what a run sees.</p>
+            </a>
+            <a class="fcard" href="/docs/limits">
+              <h3>Limits and plans</h3>
+              <p>Minutes, timeouts and every other number.</p>
+            </a>
+          </div>
 
           <section class="sources">
             <h2>Sources</h2>
@@ -506,28 +643,21 @@
               </li>
               <li>
                 <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/26-actions-job-executor.md"
+                  >docs/claude-opus/26-actions-job-executor.md</a
+                >
+              </li>
+              <li>
+                <a
                   href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/exp/actions-spike/README.md"
                   >The Actions spike on Cloudflare Containers</a
                 >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-05-github-actions-on-cloudflare.md"
-                  >docs/claude-05-github-actions-on-cloudflare.md</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/27-ci-dependency-cache.md"
-                  >docs/claude-opus/27-ci-dependency-cache.md</a
-                >
-                (the dependency cache: design, spike and measured runs)
               </li>
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
             <a class="prev" href="/docs/streaming-diffs"><small>Previous</small>Streaming diffs</a>
-            <a class="next" href="/docs/automations"><small>Next</small>Automations</a>
+            <a class="next" href="/docs/dependency-cache"><small>Next</small>Dependency cache</a>
           </nav>
         </article>
       </div>

@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Limits and plans: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Every number on the Gitstalk managed beta in one place: Actions, dependency cache, checks, automations, pushes, MCP and uploads. There is no paid plan today."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Limits and plans: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Every number on the Gitstalk managed beta in one place: Actions, dependency cache, checks, automations, pushes, MCP and uploads. There is no paid plan today."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Limits and plans</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs limits</p>
+          <h1>Limits and plans <span class="badge live">live</span></h1>
+          <p class="lede">
+            There is no billing and no paid plan in Gitstalk today. These are the limits of the
+            managed beta, and a <a href="/docs/self-hosting">self-hoster</a> sets every one of them.
+          </p>
+          <aside class="callout note">
+            <p class="callout-title">How to read this page</p>
+            <p>
+              Each row says where its number comes from. A number that is not set in code is marked
+              <strong>unverified</strong>. Limits are configuration, so they can change with a
+              release.
+            </p>
+          </aside>
+          <h2 id="actions">GitHub Actions</h2>
+          <p>Details are on <a href="/docs/actions">GitHub Actions</a>.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Minutes per repository per month</td>
+                  <td>100</td>
+                  <td>
+                    <code>ACTIONS_MONTHLY_MINUTES</code> in the gateway config. A repository that
+                    has used them gets a "minutes for the month are used" refusal, not a red run.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Job timeout</td>
+                  <td>60 minutes</td>
+                  <td>
+                    <code>ACTIONS_JOB_TIMEOUT_MINUTES</code>. A larger
+                    <code>timeout-minutes</code> is capped, and the report says so.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Concurrent jobs per repository</td>
+                  <td>4</td>
+                  <td><code>ACTIONS_CONCURRENT_JOBS</code></td>
+                </tr>
+                <tr>
+                  <td>Matrix legs per job</td>
+                  <td>16</td>
+                  <td>Fixed in the gateway code</td>
+                </tr>
+                <tr>
+                  <td><code>runs-on</code></td>
+                  <td>
+                    <code>ubuntu-latest</code>, <code>ubuntu-24.04</code>, <code>ubuntu-22.04</code>
+                  </td>
+                  <td>Fixed in the gateway code. All three run the Ubuntu 24.04 image.</td>
+                </tr>
+                <tr>
+                  <td>Schedule interval</td>
+                  <td>At least 5 minutes</td>
+                  <td>Fixed in the gateway code</td>
+                </tr>
+                <tr>
+                  <td>Job container</td>
+                  <td>Cloudflare <code>standard-4</code></td>
+                  <td>Executor Worker config</td>
+                </tr>
+                <tr>
+                  <td>Log retention</td>
+                  <td>30 days</td>
+                  <td>
+                    Set by an R2 lifecycle rule on the log bucket.
+                    <strong>Unverified in code</strong>: stated in the design doc.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Workflows listed per repository</td>
+                  <td>50</td>
+                  <td>Fixed in the gateway code</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="cache">Dependency cache</h2>
+          <p>Details are on <a href="/docs/dependency-cache">Dependency cache</a>.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>One snapshot, compressed</td>
+                  <td>4 GiB</td>
+                  <td>
+                    Default of <code>DEPS_SNAPSHOT_MAX_BYTES</code>; a repository or org sets
+                    <code>GITSTALK_DEPS_SNAPSHOT_MAX</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Snapshots per repository</td>
+                  <td>10 GB</td>
+                  <td>
+                    <code>DEPS_REPO_MAX_BYTES</code> in the executor config; least recently restored
+                    are evicted
+                  </td>
+                </tr>
+                <tr>
+                  <td>Unused snapshot</td>
+                  <td>Deleted after 7 days</td>
+                  <td><code>DEPS_IDLE_DAYS</code> in the executor config</td>
+                </tr>
+                <tr>
+                  <td>Memory for <code>node_modules</code></td>
+                  <td>6 GiB</td>
+                  <td><code>DEPS_TMPFS_MAX_BYTES</code> in the executor config</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="checks">Pre-land checks</h2>
+          <p>Details are on <a href="/docs/checks">Checks</a>.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Image</td>
+                  <td><code>node</code> only (Node 25.8.1)</td>
+                  <td>The runner image</td>
+                </tr>
+                <tr>
+                  <td>Suite time limit</td>
+                  <td>300 s by default, 1 to 1,800</td>
+                  <td><code>timeout_seconds</code> in <code>checks.toml</code></td>
+                </tr>
+                <tr>
+                  <td>Command</td>
+                  <td>
+                    Starts with <code>node</code> and includes <code>--test</code>; at most 64
+                    arguments of 500 characters
+                  </td>
+                  <td><code>command</code> in <code>checks.toml</code></td>
+                </tr>
+                <tr>
+                  <td>Environment variables</td>
+                  <td>32 names, values up to 4,000 characters</td>
+                  <td><code>[env]</code> in <code>checks.toml</code></td>
+                </tr>
+                <tr>
+                  <td>Protected path patterns</td>
+                  <td>100, each up to 200 characters</td>
+                  <td><code>protected_paths</code></td>
+                </tr>
+                <tr>
+                  <td>File size</td>
+                  <td>16,000 characters</td>
+                  <td>The parser</td>
+                </tr>
+                <tr>
+                  <td>Pre-land checks at once per repository</td>
+                  <td>32 (1 to 64)</td>
+                  <td>Repository engine setting <code>preland_sandboxes</code></td>
+                </tr>
+                <tr>
+                  <td>Validations at once</td>
+                  <td>2 (1 to 16)</td>
+                  <td><code>ci_slots</code></td>
+                </tr>
+                <tr>
+                  <td>Runner containers in the shared pool</td>
+                  <td>48</td>
+                  <td>
+                    <code>RUNNER_MAX_INSTANCES</code> and <code>max_instances</code> in the gateway
+                    config
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="automations">Automations</h2>
+          <p>Details are on <a href="/docs/automations">Automations</a>.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Run timeout</td>
+                  <td>30 minutes by default, at most 60</td>
+                  <td><code>timeout-minutes</code>, capped at the job timeout</td>
+                </tr>
+                <tr>
+                  <td>Model turns</td>
+                  <td>40 by default, 1 to 500</td>
+                  <td><code>max-turns</code></td>
+                </tr>
+                <tr>
+                  <td>Spend per run</td>
+                  <td>$0.50 by default, at most $5</td>
+                  <td><code>max-cost-usd</code></td>
+                </tr>
+                <tr>
+                  <td>Spend per repository</td>
+                  <td>$10 per month</td>
+                  <td><code>AUTOMATIONS_MONTHLY_USD</code> in the gateway config</td>
+                </tr>
+                <tr>
+                  <td>Container minutes</td>
+                  <td>Shared with Actions: 100 per month</td>
+                  <td>The same meter as Actions</td>
+                </tr>
+                <tr>
+                  <td>Memory</td>
+                  <td>50 MiB</td>
+                  <td>Fixed in the gateway code; a larger memory is not saved</td>
+                </tr>
+                <tr>
+                  <td>Prompt or script</td>
+                  <td>32,000 characters</td>
+                  <td>The file parser</td>
+                </tr>
+                <tr>
+                  <td>Secrets named</td>
+                  <td>20</td>
+                  <td>The file parser</td>
+                </tr>
+                <tr>
+                  <td>Filter globs</td>
+                  <td>
+                    50 per filter, 200 characters each; up to 200 changed files read for
+                    <code>paths:</code>
+                  </td>
+                  <td>The file parser and the gateway</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="pushes">Pushes and waiting</h2>
+          <p>Details are on <a href="/docs/git#wait">Git compatibility</a>.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>git push -o wait</code></td>
+                  <td>600 s by default, up to 1,800 s</td>
+                  <td>Gateway push options</td>
+                </tr>
+                <tr>
+                  <td>A push to a wait ref</td>
+                  <td>540 s by default</td>
+                  <td>Gateway push options; kept under a 10-minute tool call</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="mcp">MCP and agents</h2>
+          <p>
+            Details are on <a href="/docs/mcp">MCP tools and scopes</a>. The tool surface is
+            <span class="badge beta">beta</span>, so counts can change.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Tools per caller</td>
+                  <td>
+                    Run view token 7, run contributor 12, session with <code>read</code> 19, with
+                    <code>write</code> 27, with <code>write</code> and <code>secrets</code> 29
+                  </td>
+                  <td>MCP server README, asserted by its tests</td>
+                </tr>
+                <tr>
+                  <td><code>bean_commit</code></td>
+                  <td>64 paths and 192 KiB per commit</td>
+                  <td>Shared contract in the code</td>
+                </tr>
+                <tr>
+                  <td><code>repo_read</code></td>
+                  <td>
+                    20 paths per call; about 25k tokens of a file; about 8k tokens of a grep page
+                  </td>
+                  <td>MCP server</td>
+                </tr>
+                <tr>
+                  <td><code>bean_wait</code>, <code>actions_wait_for_run</code></td>
+                  <td>Up to 1,800 s; the Actions wait defaults to 600 s</td>
+                  <td>MCP server</td>
+                </tr>
+                <tr>
+                  <td><code>actions_job_log</code></td>
+                  <td>Newest 80 lines by default; at most 2,000 lines or 48,000 bytes</td>
+                  <td>MCP server</td>
+                </tr>
+                <tr>
+                  <td>OAuth access token</td>
+                  <td>15 minutes</td>
+                  <td>MCP server README</td>
+                </tr>
+                <tr>
+                  <td>Agent session</td>
+                  <td>Refresh keeps it for 30 idle days</td>
+                  <td>MCP server README</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h2 id="account">Accounts, uploads and invitations</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                  <th>Where it comes from</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Pictures (avatar, org icon, social image)</td>
+                  <td>PNG, JPEG, WebP or GIF; 2 MB; 4,096 px on a side; SVG refused</td>
+                  <td>Shared media code</td>
+                </tr>
+                <tr>
+                  <td>Invitations</td>
+                  <td>Wait 14 days</td>
+                  <td>Collaborator and org code</td>
+                </tr>
+                <tr>
+                  <td>Handle change</td>
+                  <td>Once a day</td>
+                  <td>Profile code</td>
+                </tr>
+                <tr>
+                  <td>Personal access token and deploy token expiry</td>
+                  <td>7, 30, 90 days or 1 year, picked when you make it</td>
+                  <td>Token forms</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="plans">Plans</h2>
+          <p>
+            Gitstalk has no pricing page, no checkout and no usage billing. The Actions minutes and
+            the model spend above are caps, not charges. If that changes, this page will say so
+            before it happens.
+          </p>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/25-actions-and-automations.md"
+                  >docs/claude-opus/25-actions-and-automations.md</a
+                >
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/packages/mcp/README.md"
+                  >packages/mcp/README.md</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/automation-builder"
+              ><small>Previous</small>Automation builder and templates</a
+            >
+            <a class="next" href="/docs/self-hosting"><small>Next</small>Self-hosting</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

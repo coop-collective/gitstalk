@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dependency cache: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Gitstalk restores node_modules into memory before an install, so Actions jobs start from a full tree: how it turns on, the rules and the measured results."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Dependency cache: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Gitstalk restores node_modules into memory before an install, so Actions jobs start from a full tree: how it turns on, the rules and the measured results."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Dependency cache</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs dependency-cache</p>
+          <h1>Dependency cache <span class="badge live">live</span></h1>
+          <p class="lede">
+            Each Actions job restores <code>node_modules</code> from the repository's last snapshot
+            into memory, so installs start from a full tree instead of the registry.
+          </p>
+          <aside class="callout note">
+            <p class="callout-title">Scope</p>
+            <p>
+              The cache is for Node projects in <a href="/docs/actions">GitHub Actions</a> jobs. It
+              is separate from <a href="/docs/checks">pre-land checks</a>.
+            </p>
+          </aside>
+
+          <h2 id="get-it">How you get it</h2>
+          <p>Most workflows get it with no change to the file.</p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Your workflow has</th>
+                  <th>What Gitstalk does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code>actions/setup-node</code> with <code>cache: npm</code>,
+                    <code>pnpm</code> or
+                    <code>yarn</code>
+                  </td>
+                  <td>
+                    Automatic. <code>cache-dependency-path</code> names the directory if the
+                    lockfile is not at the root.
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>actions/cache</code> where every <code>path</code> is
+                    <code>node_modules</code> or a package-manager store
+                  </td>
+                  <td>
+                    Automatic. The step keeps its <code>id</code>, and <code>cache-hit</code> is
+                    <code>true</code> on an exact hit.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Neither</td>
+                  <td>Add the opt-in step below.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cmd" data-copyable>
+            <header><span>Opt in, after checkout</span></header>
+            <pre class="url"><code>- uses: actions/checkout@v4
+- uses: gitstalk/deps-cache@v1
+  with:
+    working-directory: ./web   # only if the lockfile is not at the root
+- run: npm ci</code></pre>
+          </div>
+          <p>
+            <code>gitstalk/deps-cache@v1</code> was <code>beanstalk/deps-cache@v1</code> before the
+            rename. The old name still works.
+          </p>
+
+          <h2 id="settings">Turn it off or resize it</h2>
+          <p>
+            Maintainers and the owner change these in the repository's
+            <strong>Settings</strong>, under <strong>Actions</strong>, <strong>Jobs</strong>.
+          </p>
+          <figure class="mock" aria-label="Repository Settings, Actions: the dependency cache form">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/settings/actions</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label">
+                  <b>Cache node_modules between jobs</b>
+                  <span>
+                    Jobs that use setup-node with cache:, actions/cache on node_modules, or
+                    gitstalk/deps-cache@v1 restore from Gitstalk's cache.
+                  </span>
+                </div>
+                <div class="m-input">On</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Largest snapshot</b>
+                  <span>A dependency tree larger than this is not cached.</span>
+                </div>
+                <div class="m-input">4GiB (the default)</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Run npm's audit during installs</b>
+                  <span>Off by default: it adds about 90 seconds of CPU to a large npm ci.</span>
+                </div>
+                <div class="m-input">Off</div>
+              </div>
+              <span class="m-btn primary">Save</span>
+            </div>
+            <figcaption>
+              Each switch is stored as a repository variable. A default stores no variable.
+            </figcaption>
+          </figure>
+
+          <h2 id="rules">Rules</h2>
+          <ul>
+            <li>
+              <strong>Only stalk runs save snapshots.</strong> Dispatch and schedule runs read them
+              and never write, so a change that has not landed cannot alter what a later stalk run
+              installs. (Pre-land workflow runs do not start yet; they will read only.)
+            </li>
+            <li>
+              <strong>A snapshot belongs to one repository</strong> and is never shared. Deleting
+              the repository deletes its snapshots.
+            </li>
+            <li>
+              <code>node_modules</code> lives in memory (a tmpfs), never on the container disk.
+            </li>
+            <li>
+              The snapshot key is the lockfile plus the install directory, platform, Node and
+              package-manager versions and the install flags. Another lockfile restores the closest
+              snapshot, and the install brings it up to date.
+            </li>
+            <li>
+              With <code>npm ci</code>, an exact hit is exactly the tree <code>npm ci</code> would
+              build, so it is kept and only your package's own install scripts run. After a lockfile
+              change <code>npm ci</code> runs as usual and the save uploads only the chunks that
+              changed. <code>pnpm install</code>, <code>yarn install</code> and
+              <code>npm install</code> update a restored tree in place.
+            </li>
+          </ul>
+
+          <h2 id="results">Measured results</h2>
+          <p>
+            A fastify job with 146 MB of dependencies and an unchanged lockfile, on the hosted
+            service, in the same push:
+          </p>
+          <figure class="mock" aria-label="Whole-job time with and without the cache">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">whole job, fastify</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">With the cache</span>
+                <span class="by">restore about 3 s, npm ci under 1 s</span>
+                <span class="ms green">about 21 s</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">Without the cache</span>
+                <span class="by">npm ci from the registry took about 2 min 20 s</span>
+                <span class="ms red">about 2 min 40 s</span>
+              </div>
+            </div>
+            <figcaption>
+              Rows show the whole job, not just the install step. The slow row ran with npm's audit
+              on, which jobs now skip by default (see below), so the gap today is smaller.
+            </figcaption>
+          </figure>
+          <ul>
+            <li>
+              <strong>The first run and a lockfile change are slower</strong> than without the
+              cache, by the time it takes to save the new snapshot at the end of the job. That was
+              about 9 s for fastify.
+            </li>
+            <li>
+              On a test stack with <code>npm ci --no-audit</code>, the restore took 1 to 3 s against
+              6 to 14 s from the registry, on fastify and on a Next.js-class app (533 MB).
+            </li>
+            <li>
+              These are our own measurements on one repository shape. Yours will differ. The runs
+              are in
+              <a
+                href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/27-ci-dependency-cache.md"
+                >the design write-up</a
+              >.
+            </li>
+          </ul>
+
+          <h2 id="npm-audit">npm audit in installs</h2>
+          <p>
+            Jobs run npm with <code>NPM_CONFIG_AUDIT=false</code> and
+            <code>NPM_CONFIG_FUND=false</code>, so <code>npm ci</code> and
+            <code>npm install</code> skip the audit npm runs inside every install. It never changes
+            what is installed, but it is slow: for fastify's lockfile it took about 90 s of a 97 s
+            <code>npm ci</code>, against about 10 s without it.
+          </p>
+          <p>To keep the audit, do one of these:</p>
+          <ul>
+            <li>
+              Tick <em>Run npm's audit during installs</em> above, which sets
+              <code>GITSTALK_NPM_AUDIT=on</code>.
+            </li>
+            <li>
+              Set <code>NPM_CONFIG_AUDIT</code> in the workflow's <code>env:</code>. Your own
+              <code>env:</code> wins.
+            </li>
+            <li>Run <code>npm audit</code> as its own step. An explicit audit always runs.</li>
+          </ul>
+
+          <h2 id="variables">Variables</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variable</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GITSTALK_DEPS_CACHE</code></td>
+                  <td>
+                    <code>off</code> (also <code>false</code>, <code>0</code>, <code>no</code>,
+                    <code>disabled</code>) turns the cache off. Anything else leaves it on.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_DEPS_SNAPSHOT_MAX</code></td>
+                  <td>
+                    Largest snapshot, such as <code>2GiB</code> or <code>500MB</code>. Empty keeps
+                    the default.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>GITSTALK_NPM_AUDIT</code></td>
+                  <td><code>on</code> (or <code>true</code>) keeps npm's audit.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Set them as repository or org <a href="/docs/secrets">variables</a>, or use the form
+            above. A variable still named <code>BEANSTALK_*</code>, from before the rename, is read
+            when the <code>GITSTALK_*</code> one is absent. Saving the form moves it over.
+          </p>
+
+          <h2 id="limits">Limits</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>One snapshot, compressed</td>
+                  <td>4 GiB, a repository or org setting</td>
+                </tr>
+                <tr>
+                  <td>All snapshots of a repository</td>
+                  <td>10 GB; the least recently restored are evicted</td>
+                </tr>
+                <tr>
+                  <td>Snapshot unused for</td>
+                  <td>7 days, then deleted</td>
+                </tr>
+                <tr>
+                  <td>Memory for <code>node_modules</code></td>
+                  <td>6 GiB per job</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            A self-hoster changes all of these. See <a href="/docs/limits">Limits and plans</a> and
+            <a href="/docs/self-hosting">Self-hosting</a>.
+          </p>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/27-ci-dependency-cache.md"
+                  >docs/claude-opus/27-ci-dependency-cache.md</a
+                >
+                (design, spike and measured runs)
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/actions"><small>Previous</small>GitHub Actions</a>
+            <a class="next" href="/docs/secrets"><small>Next</small>Secrets and variables</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
