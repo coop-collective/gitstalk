@@ -10,10 +10,11 @@ import type { McpServer, ToolAnnotations } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { MAX_BEAN_WAIT_SECONDS } from '@gitstalk/shared-race/agent-repos';
-import { BeanCommitInput } from '@gitstalk/shared-race/bean-commit';
+import { BeanCommitInput, IdempotencyKey } from '@gitstalk/shared-race/bean-commit';
 
 import { sessionMayWrite } from '../mcp/scope-gate';
 import { answer } from '../mcp/tool-result';
+import { beanApprove } from '../tools/bean-approve';
 import type { ToolScope } from '../tools/tool-context';
 import { gitCredentials } from './git-credentials';
 import {
@@ -37,6 +38,7 @@ export const REPO_READ_TOOL_NAMES = [
 export const REPO_WRITE_TOOL_NAMES = [
   'bean_open',
   'bean_commit',
+  'bean_approve',
   'task_claim',
   'task_release',
 ] as const;
@@ -72,7 +74,42 @@ export function registerRepoTools(server: McpServer, scope: ToolScope): void {
   if (!sessionMayWrite(scope)) return;
   registerBeanOpen(server, scope);
   registerCommit(server, scope);
+  registerBeanApprove(server, scope);
   registerTaskClaims(server, scope);
+}
+
+/**
+ * `bean_approve` (doc 32 §5): registered for sessions with the write scope; the person's
+ * maintain or owner role is checked at call time by the gateway, as for every write.
+ */
+function registerBeanApprove(server: McpServer, scope: ToolScope): void {
+  server.registerTool(
+    'bean_approve',
+    {
+      title: 'Approve a held bean',
+      description:
+        "Approve, for your person, a bean the repository's approval rules hold for a person (bean_status shows held: true and approve_url), at its current revision; its pre-land check then runs again. Approving is your person's decision, not yours: call this only when your person explicitly told you to approve this bean. Never approve on your own initiative, never to unblock your own work, and never a bean you wrote unless your person confirmed it: when the bean was pushed for your person in a way that may have been this session (your git push, bean_commit, their SSH key or token), the call is refused unless confirm_owner_intent is true, which you set only after your person confirmed it. Otherwise give them approve_url. revision defaults to the bean's pushed head; a stale one is refused (a new push needs a new approval). Needs the write scope and the person's maintain or owner role. Reuse idempotency_key only for an exact retry. Answers with the receipt (who, when, client, revision, note) and the next step.",
+      inputSchema: z.object({
+        repo: Repo,
+        bean: BeanName,
+        revision: z
+          .string()
+          .regex(/^[0-9a-f]{40}$/u)
+          .optional()
+          .describe('The full commit sha you reviewed; default the pushed head'),
+        note: z.string().trim().max(500).optional().describe('Why, in a line, for the audit log'),
+        idempotency_key: IdempotencyKey.describe('One key per approval; reuse only to retry'),
+        confirm_owner_intent: z
+          .boolean()
+          .optional()
+          .describe(
+            'true only when your person explicitly confirmed approving a bean you may have pushed',
+          ),
+      }),
+      annotations: { ...RESERVES, title: 'Approve a held bean' },
+    },
+    async (input) => answer(() => beanApprove(scope, input)),
+  );
 }
 
 function registerRepositoryList(server: McpServer, scope: ToolScope): void {

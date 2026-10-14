@@ -87,16 +87,19 @@ function agentSession(
   },
 ): AgentSessionContext {
   const { props, scopes, clientId } = input;
+  const agentKey = props.via === 'oauth' && clientId !== null ? `oauth:${clientId}` : 'token';
   return {
     userId: props.userId,
     handle: props.handle,
     clientName: props.clientName,
+    agentKey,
     via: props.via,
     scopes,
     principal: {
       user: { id: props.userId, handle: props.handle },
       scopes,
       label: props.clientName,
+      session: agentKey,
     },
     async mintGitToken(repository) {
       const gitScopes = scopes.filter(

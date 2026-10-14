@@ -11,6 +11,7 @@ import type { PushedBeanStatus } from '@gitstalk/shared-race/rpc';
 
 import { ToolError } from '../mcp/tool-result';
 import { withInbox } from '../tools/collaboration';
+import { heldLines } from '../tools/bean-approve';
 import { runStatus } from '../tools/run-status';
 import type { ToolScope } from '../tools/tool-context';
 import { RepositoryAnswer, parsed, valueOf } from './agent-gateway';
@@ -199,7 +200,7 @@ export async function beanWait(
       seconds: input.timeout_s ?? DEFAULT_WAIT_SECONDS,
     }),
   );
-  return withNext(waited, input.bean);
+  return { ...withNext(waited, input.bean), ...heldLines(waited, scope.webUrl) };
 }
 
 export async function taskList(scope: ToolScope, repo: string): Promise<object> {

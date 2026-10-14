@@ -78,7 +78,7 @@ role there) is checked when the tool is called.
 | Read and status | `ask_repo`, `work_overlaps`, `why_lines`, `bean_status`, `repo_status`, `repo_read` | Everyone; sessions pass `repo: "owner/name"`, run tokens read their run |
 | Session | `whoami` (with `repo`: the person's role there and what this session may do) | Agent sessions |
 | Repositories and beans | `repo_list`, `bean_wait`, `task_list`, `git_credentials` | Agent sessions |
-| Bean and backlog writes | `bean_open`, `bean_commit`, `task_claim`, `task_release` | Sessions with `write` (the write role is checked per call) |
+| Bean and backlog writes | `bean_open`, `bean_commit`, `bean_approve`, `task_claim`, `task_release` | Sessions with `write` (the write role per call; `bean_approve`: the maintain role or owner per call) |
 | Bean collaboration | `bean_context`, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | `bean_context` for any caller with a run to read; the writes and inbox for contributor run tokens only |
 | Actions | `actions_workflow_list`, `actions_run_list`, `actions_run_get`, `actions_job_log`, `actions_wait_for_run`, `actions_config_list`, `automation_get` | Agent sessions, any role that reads the repository |
 | Actions changes | `actions_dispatch`, `actions_rerun`, `actions_cancel`, `automation_run` | Sessions with `write`; the maintain role per call |
@@ -92,8 +92,11 @@ session also gets `bean_context` when the deployment has a demo run):
 | Run view token | the six read and status tools, `bean_context` | 7 |
 | Run contributor token | the above, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | 12 |
 | Session, `read` | the seven above for a view token, `whoami`, `repo_list`, `bean_wait`, `task_list`, `git_credentials`, the seven Actions reads | 19 |
-| Session, `write` | the above, the four bean and backlog writes, the four Actions changes | 27 |
-| Session, `write` and `secrets` | the above, `actions_config_set`, `actions_config_delete` | 29 |
+| Session, `write` | the above, the five bean and backlog writes, the four Actions changes | 28 |
+| Session, `write` and `secrets` | the above, `actions_config_set`, `actions_config_delete` | 30 |
+
+No caller is offered more than 30 tools (the same test asserts it); a new tool for sessions
+replaces or merges one, or goes behind a scope.
 
 `bean_status` takes a bean id, name or branch. A run token gets the run's view (status, phase,
 checks counts, recent steps, route receipt, next step); a session naming `repo` also gets the
@@ -119,6 +122,22 @@ docs); a harness with a checkout keeps using git. `expected_head` is compare-and
 elsewhere answers `kind: "conflict"` with `current_head`, never an overwrite. At most 64 paths
 and 192 KiB per commit; see
 [33-server-side-commits.md](../../docs/claude-opus/33-server-side-commits.md).
+
+`bean_approve` approves, for the session's person, a bean the repository's approval rules hold
+for a person ([32-approval-rules.md](../../docs/claude-opus/32-approval-rules.md) §5). When a bean
+is held, `bean_status` and `bean_wait` answer `held: true`, `approve_url` (its page in the web,
+with the Held panel) and a next step that says nothing needs fixing. The tool calls the gateway's
+`approveBean`, the same RPC as the web's Approve button: the person must be an owner or
+maintainer, `revision` defaults to the pushed head and a stale one is refused, the approval is
+audited with the client ("MCP (Claude Code)") and the note, and the bean's check runs again. It
+refuses a session that does not act for a person (never an automation). Its description tells
+agents to ask their person first and never to approve on their own initiative. **Safety rule:**
+when the bean's latest push was made for the same person and the gateway cannot show that a
+different agent session made it (the same OAuth client, the person's SSH key or personal token,
+or an unrecorded credential), the call is refused unless `confirm_owner_intent: true`, which an
+agent sets only after its person confirmed. Each session carries an `agentKey` for this
+(`oauth:<client id>`, or `token` for a personal token used as the bearer), passed to the gateway
+as `AgentPrincipal.session` too, so its `bean_commit` pushes are recognised.
 
 `bean_wait` blocks until the bean's check ends (or it reaches the stalk), up to 1,800 seconds,
 so agents never sleep-poll. `why_lines` answers, for a file or a line range, which bean last

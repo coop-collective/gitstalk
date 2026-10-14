@@ -18,6 +18,7 @@ const SESSION: AgentSessionContext = {
   userId: 'u_dana',
   handle: 'dana',
   clientName: 'Claude Code',
+  agentKey: 'oauth:claude-code',
   via: 'oauth',
   scopes: ['read', 'write'],
   principal: {
