@@ -312,7 +312,10 @@
                 <tr>
                   <td>Suite time limit</td>
                   <td>300 s by default, 1 to 1,800</td>
-                  <td><code>timeout_seconds</code> in <code>checks.toml</code></td>
+                  <td>
+                    <code>timeout-minutes</code> (up to 30) or <code>timeout-seconds</code> in
+                    <code>checks.yml</code>
+                  </td>
                 </tr>
                 <tr>
                   <td>Command</td>
@@ -320,17 +323,17 @@
                     Starts with <code>node</code> and includes <code>--test</code>; at most 64
                     arguments of 500 characters
                   </td>
-                  <td><code>command</code> in <code>checks.toml</code></td>
+                  <td><code>run</code> in <code>checks.yml</code></td>
                 </tr>
                 <tr>
                   <td>Environment variables</td>
                   <td>32 names, values up to 4,000 characters</td>
-                  <td><code>[env]</code> in <code>checks.toml</code></td>
+                  <td><code>env</code> in <code>checks.yml</code></td>
                 </tr>
                 <tr>
                   <td>Protected path patterns</td>
                   <td>100, each up to 200 characters</td>
-                  <td><code>protected_paths</code></td>
+                  <td><code>protected-paths</code></td>
                 </tr>
                 <tr>
                   <td>File size</td>

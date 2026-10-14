@@ -118,7 +118,7 @@ MCP src/actions/actions-tools.ts ── RPC ──▶ AgentActionsRpc (gateway s
 
 - No re-run of failed jobs only, and no workflow enable/disable (the product has neither).
 - Runs have no completion watch, so `actions_wait_for_run` reads run rows every few seconds inside the gateway (one RPC for the agent).
-- Doc 25 §4.4's always-protected workflow paths are still a design (§7.13): today an agent session can land a workflow change on a repository whose `checks.toml` does not protect `.github/**`.
+- Doc 25 §4.4's always-protected workflow paths are still a design (§7.13): today an agent session can land a workflow change on a repository whose checks file (`.gitstalk/checks.yml`) does not protect `.github/**`.
 
 ## 6. One tool surface per caller (2026-10-14)
 

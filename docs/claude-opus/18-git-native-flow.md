@@ -271,14 +271,14 @@ openRepoEngine(input: {
   artifactsRepo: string;                           // existing Artifacts repo in the repositories' namespace (REPOS)
   owner: { id: string; handle: string };
   settings?: {
-    suite?: RunSuite;                              // an operator's suite for every check (default: the repo's .gitstalk/checks.toml, doc 24)
+    suite?: RunSuite;                              // an operator's suite for every check (default: the repo's .gitstalk/checks.yml, doc 24)
     base_branch?: string;                          // where the lines start if the repo has neither
     bean_url?: string;                             // a bean's web page, "{bean}" replaced; shown in verdicts
     engine?: {                                     // over the continuous defaults (§7.1); unknown keys are refused
       preland_sandboxes?: number;                  // pre-land checks at once, one sandbox per bean (1..64, default 32)
       ci_slots?: number;                           // validations at once (1..16, default 2)
       read_maps?, evidence_promotion?, evidence_read_sets?, affected_validation?, audit_every?;  // evidence track
-      checks_source?: 'suite' | 'repository';      // pin to the suite and ignore checks.toml (doc 24)
+      checks_source?: 'suite' | 'repository';      // pin to the suite and ignore the checks file (doc 24)
     };
   };
 }): Promise<RpcResult<{ engineId: string; created: boolean; base_sha: string; git_path: string }>>;
