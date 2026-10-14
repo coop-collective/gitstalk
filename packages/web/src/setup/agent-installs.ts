@@ -28,6 +28,8 @@ export type AgentInstall = {
   readonly after: string;
   /** Whether this exact text was run end to end against Gitstalk. */
   readonly verified: boolean;
+  /** What to ask the agent once it is connected (the repository's Code button sets one). */
+  readonly prompt?: string;
 };
 
 /** One harness's install text, as /signup/agent prints it (the repository start page reuses it). */

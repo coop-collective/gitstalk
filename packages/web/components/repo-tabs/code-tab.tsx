@@ -1,4 +1,4 @@
-/** The Code tab, laid out: the bar, the folder or file, and the side column. */
+/** The Code tab, laid out: the bar (with the Code button), the folder or file, the side column. */
 import { groupCounts } from '../../src/changes/changes';
 import type { CodeView, RefChoice } from '../../src/code/tree';
 import type { CodePage } from '../../src/server/code-page';
@@ -29,7 +29,13 @@ export function CodeTab(props: {
     <RepositoryShell page={tab} tab="code" openChanges={counts.open}>
       <div className={props.view === 'blob' ? styles.single : styles.split}>
         <div>
-          <CodeBar at={at} view={props.view} repoName={tab.record.name} beans={beans} />
+          <CodeBar
+            at={at}
+            view={props.view}
+            repoName={tab.record.name}
+            beans={beans}
+            menu={props.view === 'tree' ? { menu: data.menu, slug: slugOf(tab) } : null}
+          />
           <CodeBody at={at} data={data} plain={props.plain} nowMs={props.nowMs} />
         </div>
         {props.view === 'blob' ? null : (
@@ -38,8 +44,6 @@ export function CodeTab(props: {
             description={tab.record.description}
             changes={data.changes}
             onStalk={data.changes.filter((change) => change.state === 'validated').length}
-            guide={data.guide}
-            deploy={data.deploy}
           />
         )}
       </div>
@@ -70,4 +74,8 @@ function CodeBody(props: {
       readme={body.readme}
     />
   );
+}
+
+function slugOf(tab: RepositoryTab): string {
+  return `${tab.record.owner.handle}/${tab.record.name}`;
 }

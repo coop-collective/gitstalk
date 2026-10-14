@@ -348,7 +348,8 @@
                     For CI and scripts: make a deploy token on the spot and copy a block that sets
                     <code>GITSTALK_TOKEN</code> so git never prompts. The block needs git 2.31 or
                     newer. Deploy tokens are made by an owner or a maintainer, and never on an
-                    archived repository.
+                    archived repository. <strong>Settings, Deploy tokens</strong> shows the same
+                    block after the start page is gone.
                   </td>
                 </tr>
               </tbody>
@@ -362,6 +363,96 @@
               <a href="/docs/git#ssh">Git compatibility</a>.
             </p>
           </aside>
+
+          <h2 id="code-button">The Code button</h2>
+          <p>
+            Once something has grown, the repository page opens on the Code tab, and the start page
+            gives way to a <strong>Code</strong> button at the right of the bar above the files,
+            where GitHub puts it. It opens a panel with three tabs; the last one you used opens next
+            time. On a phone the panel is a sheet from the bottom of the screen. Escape or a click
+            outside closes it.
+          </p>
+          <figure class="mock" aria-label="The Code button's panel on the Clone tab">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-secret">
+                <span class="key">stalk ▾</span><span class="val"></span><span class="when"></span
+                ><span class="m-btn primary">Code ▾</span>
+              </div>
+              <div class="m-tabs" aria-hidden="true">
+                <span class="on">Clone</span><span>Agent</span
+                ><span>Submit intent<small>soon</small></span>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>HTTPS</b><span>Copy the clone URL.</span></div>
+                <div class="m-input">https://gitstalk.dev/acme/api.git</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>SSH</b><span>Shown once SSH is public.</span></div>
+                <div class="m-input">SSH: coming soon</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Clone</b><span>One line.</span></div>
+                <div class="m-input">git clone https://gitstalk.dev/acme/api.git</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Push a change</b><span>To a bean branch.</span></div>
+                <div class="m-input">git push origin HEAD:bean/&lt;name&gt;</div>
+              </div>
+            </div>
+            <figcaption>
+              Clone: the HTTPS URL, SSH (marked coming soon until it is public), the clone command
+              and how to push a change back. Every address is the deployment's own.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tab</th>
+                  <th>What it holds</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Clone</td>
+                  <td>
+                    The HTTPS clone URL, SSH (live once the deployment serves it), a
+                    <code>git clone</code> line and
+                    <code>git push origin HEAD:bean/&lt;name&gt;</code>, each with a copy button.
+                    Below them: where git's password comes from (a personal token from
+                    <strong>Settings, Tokens</strong>) and, for owners and maintainers, a link to
+                    <strong>Settings, Deploy tokens</strong> for CI. Without JavaScript the button
+                    still opens this tab.
+                  </td>
+                  <td><span class="badge live">live</span></td>
+                </tr>
+                <tr>
+                  <td>Agent</td>
+                  <td>
+                    Claude Code, Codex, Cursor, Gemini CLI and any other MCP client, one tab each,
+                    with the lines that connect that agent to this repository and what to ask it
+                    next. For Claude Code that is the plugin plus
+                    <code>/gitstalk:setup acme/api</code>. The harness you pick is shared with the
+                    install page. Links to the plugin and to
+                    <a href="/docs/agents">Connecting agents</a>.
+                  </td>
+                  <td><span class="badge live">live</span></td>
+                </tr>
+                <tr>
+                  <td>Submit intent</td>
+                  <td>
+                    Describe what you want, and Gitstalk opens a bean with your intent for an agent
+                    to pick up. Shown, but not working yet.
+                  </td>
+                  <td><span class="badge planned">planned</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2 id="tabs">A tour of the tabs</h2>
           <p>
@@ -429,8 +520,9 @@
                   <td>
                     The front page. Folders and files at the stalk, the sprout, any pushed bean or
                     any commit, with syntax highlighting and a rendered README. A side column shows
-                    the description, how many beans are on the stalk, and the clone URL. Before the
-                    first bean it is the start page above.
+                    the description and how many beans are on the stalk; the
+                    <a href="/docs/repositories#code-button">Code button</a> clones it or connects
+                    an agent. Before the first bean it is the start page above.
                   </td>
                   <td><span class="badge live">live</span></td>
                 </tr>

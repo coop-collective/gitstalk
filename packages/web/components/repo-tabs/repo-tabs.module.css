@@ -419,21 +419,6 @@
   gap: 8px;
   align-items: center;
 }
-.cloneUrl {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.cloneUrl input {
-  flex: 1;
-  min-width: 0;
-  font: 12.5px var(--font-mono);
-  padding: 6px 8px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  color: var(--ink);
-}
 
 /* ---------- Changes ---------- */
 .filters {
