@@ -6,6 +6,7 @@
  * client-safe: it imports types only from the zod-validated modules, so the Changes tab's
  * client components derive their rows with it without carrying a schema library.
  */
+import type { BeanHold } from '@gitstalk/shared-race/bean-approval';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { Bean, BeanPhase } from '@gitstalk/shared-ask/race/race-state';
 import { reduceRace } from '@gitstalk/shared-ask/race/reduce-race';
@@ -19,6 +20,7 @@ export type Author =
 
 export type ChangeState =
   | 'checking'
+  | 'held'
   | 'red'
   | 'conflict'
   | 'waiting'
@@ -29,6 +31,9 @@ export type ChangeState =
 
 /** The three lists of the tab. */
 export type ChangeGroup = 'open' | 'landed' | 'parked';
+
+/** What the tab shows: a list, or the open beans held for a person's approval. */
+export type ChangeFilter = ChangeGroup | 'held';
 
 export type JourneyTone = 'push' | 'good' | 'bad' | 'rework' | 'land' | 'stalk' | 'decide' | 'wait';
 
@@ -61,10 +66,13 @@ export type Change = {
   readonly startedAt: number | null;
   readonly updatedAt: number | null;
   readonly journey: readonly JourneyEntry[];
+  /** The approval rules' hold: held for a person, or approved for its head; null otherwise. */
+  readonly hold: BeanHold | null;
 };
 
 export const GROUP_OF: Readonly<Record<ChangeState, ChangeGroup>> = {
   checking: 'open',
+  held: 'open',
   red: 'open',
   conflict: 'open',
   waiting: 'open',
@@ -101,9 +109,10 @@ export function changesOf(
   return changes.toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 
-/** `?show=` as a group; without one, open when anything is, else landed. */
-export function shownGroup(value: unknown, changes: readonly Change[]): ChangeGroup {
-  if (value === 'open' || value === 'landed' || value === 'parked') return value;
+/** `?show=` as a filter; without one, open when anything is, else landed. */
+export function shownGroup(value: unknown, changes: readonly Change[]): ChangeFilter {
+  if (value === 'open' || value === 'landed' || value === 'parked' || value === 'held')
+    return value;
   return inGroup(changes, 'open').length > 0 ? 'open' : 'landed';
 }
 
@@ -117,6 +126,8 @@ export function stateText(state: ChangeState): string {
   switch (state) {
     case 'checking':
       return 'in check';
+    case 'held':
+      return 'held for approval';
     case 'waiting':
       return 'waiting';
     case 'red':
@@ -144,15 +155,18 @@ export function latestActivityMs(changes: readonly Change[], renderedAtMs: numbe
   return changes.reduce((latest, change) => Math.max(latest, change.updatedAt ?? 0), renderedAtMs);
 }
 
-/** The changes of one group, in the tab's order. */
-export function inGroup(changes: readonly Change[], group: ChangeGroup): readonly Change[] {
-  return changes.filter((change) => change.group === group);
+/** The changes a filter shows, in the tab's order. */
+export function inGroup(changes: readonly Change[], filter: ChangeFilter): readonly Change[] {
+  return filter === 'held'
+    ? changes.filter((change) => change.state === 'held')
+    : changes.filter((change) => change.group === filter);
 }
 
-/** How many beans each group holds. */
-export function groupCounts(changes: readonly Change[]): Readonly<Record<ChangeGroup, number>> {
+/** How many beans each filter shows. */
+export function groupCounts(changes: readonly Change[]): Readonly<Record<ChangeFilter, number>> {
   return {
     open: inGroup(changes, 'open').length,
+    held: inGroup(changes, 'held').length,
     landed: inGroup(changes, 'landed').length,
     parked: inGroup(changes, 'parked').length,
   };
@@ -184,8 +198,8 @@ type ChangeInput = {
 
 function changeOf({ id, bean, push, title, events, clock }: ChangeInput): Change {
   const journey = journeyOf(id, events, clock, push?.actor ?? null);
-  const state =
-    push === undefined ? stateOfPhase(bean?.phase ?? 'pending') : PUSHED_STATE[push.phase];
+  const hold = push?.hold ?? null;
+  const state = push === undefined ? stateOfPhase(bean?.phase ?? 'pending') : pushedStateOf(push);
   const red = latestRed(id, events);
   const isRed =
     state === 'red' || state === 'conflict' || state === 'parked' || state === 'fell-off';
@@ -204,7 +218,14 @@ function changeOf({ id, bean, push, title, events, clock }: ChangeInput): Change
     startedAt: bean?.startedAt === null || bean === undefined ? null : clock(bean.startedAt),
     updatedAt: journey.at(-1)?.at ?? null,
     journey,
+    hold,
   };
+}
+
+/** A pushed bean's state: `held` while it is open and waits for a person's approval. */
+function pushedStateOf(push: PushedBean): ChangeState {
+  const state = PUSHED_STATE[push.phase];
+  return push.hold?.state === 'held' && GROUP_OF[state] === 'open' ? 'held' : state;
 }
 
 function authorOf(push: PushedBean | undefined, bean: Bean | undefined): Author | null {

@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Runners: where jobs run: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Where Gitstalk runs Actions jobs and automations: a fresh Linux container per job (its image, size and limits), and the planned Dynamic Worker isolate runner."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Runners: where jobs run: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Where Gitstalk runs Actions jobs and automations: a fresh Linux container per job (its image, size and limits), and the planned Dynamic Worker isolate runner."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Runners: where jobs run</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs runners</p>
+          <h1>Runners: where jobs run <span class="badge live">live</span></h1>
+          <p class="lede">
+            Every GitHub Actions job and every automation run gets a fresh Linux machine of its own:
+            a Cloudflare Container that starts for the job and is destroyed when it ends. A lighter
+            runner, a Dynamic Worker isolate for jobs that need no Linux, is designed but not built.
+          </p>
+          <p class="status-line">
+            <span class="badge live">live</span> Container (Linux), <code>runs-on: ubuntu-*</code>
+            <span class="badge planned">planned</span> Dynamic Worker (isolate),
+            <code>runs-on: gitstalk-isolate</code>
+          </p>
+
+          <h2 id="compare">Container or isolate</h2>
+          <p>
+            Today there is one runner. The second column is the design, so you can see where it is
+            going; nothing in it runs yet.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Container (Linux)</th>
+                  <th>Dynamic Worker (isolate)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Status</td>
+                  <td><span class="badge live">live</span></td>
+                  <td>
+                    <span class="badge planned">planned</span> Designed, not built. A job that asks
+                    for it does not run today.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Selected by</td>
+                  <td>
+                    <code>runs-on: ubuntu-latest</code>, <code>ubuntu-24.04</code> or
+                    <code>ubuntu-22.04</code>
+                  </td>
+                  <td><code>runs-on: gitstalk-isolate</code>, opt-in by label only</td>
+                </tr>
+                <tr>
+                  <td>Start-up</td>
+                  <td>
+                    About 2 s to start the container, about 6 s to the first step (measured); about
+                    30 s more when a job pulls Docker images
+                  </td>
+                  <td>Milliseconds (design estimate)</td>
+                </tr>
+                <tr>
+                  <td>Languages</td>
+                  <td>Anything that runs on Ubuntu 24.04 x86-64: shell, Node, Python, compilers</td>
+                  <td>JavaScript only</td>
+                </tr>
+                <tr>
+                  <td>What it runs</td>
+                  <td>
+                    <code>run:</code> steps, JavaScript, composite and Docker actions,
+                    <code>services:</code>, <code>container:</code>
+                  </td>
+                  <td>
+                    Gitstalk's own steps and HTTP calls; no <code>run:</code>, no Docker actions, no
+                    marketplace JavaScript actions
+                  </td>
+                </tr>
+                <tr>
+                  <td>Size and limits</td>
+                  <td>4 vCPU, 12 GiB memory, 20 GB disk; 60 minutes per job</td>
+                  <td>5 s CPU per step (at most 30 s), 200 subrequests, 5 minutes wall clock</td>
+                </tr>
+                <tr>
+                  <td>Network</td>
+                  <td>Open internet egress</td>
+                  <td>None by default; hosts allowed per file, secrets only in headers</td>
+                </tr>
+                <tr>
+                  <td>Cost to you</td>
+                  <td>Job minutes, rounded up per job: 100 per repository per month in the beta</td>
+                  <td>Not decided</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="which">Which should I use?</h2>
+          <ul>
+            <li>
+              <strong>Almost always: the container.</strong> It is the only runner that exists.
+              Write <code>runs-on: ubuntu-latest</code>, as on GitHub.
+            </li>
+            <li>
+              <strong>Builds, tests, installs, deploys</strong> (<code>npm ci</code>,
+              <code>cargo</code>, <code>wrangler deploy</code>, any shell): the container, now and
+              later. They need Linux processes and a disk.
+            </li>
+            <li>
+              <strong
+                >Jobs with <code>services:</code>, <code>container:</code> or a
+                <code>docker://</code> step</strong
+              >: the container. Gitstalk starts Docker inside it for you (see
+              <a href="#docker">Docker inside a job</a>).
+            </li>
+            <li>
+              <strong>Automations</strong>, Prompt and Shell alike: you do not choose. Each run is
+              one container job (see <a href="#automations">Automations</a>).
+            </li>
+            <li>
+              <strong>Small glue jobs</strong> that only call HTTP APIs and Gitstalk: the isolate,
+              once it ships. Until then, use the container.
+            </li>
+            <li>
+              <strong>macOS, Windows, ARM or self-hosted</strong>: not available. Such a job never
+              runs.
+            </li>
+          </ul>
+
+          <h2 id="flow">From push to logs</h2>
+          <ol
+            class="flow"
+            aria-label="A push starts a run, its jobs wait in the queue, each runs in a container or (planned) an isolate, and logs stream back"
+          >
+            <li class="bean"><b>Push</b><span>the stalk moves; a run starts</span></li>
+            <li class="sprout"><b>Job queue</b><span>4 per repository, 16 in all</span></li>
+            <li class="sprout"><b>Container</b><span>or an isolate (planned)</span></li>
+            <li class="stalk"><b>Logs</b><span>streamed to the run page</span></li>
+          </ol>
+          <p>
+            There is no queue service: a job that finds no free container waits, trying again every
+            10 seconds, for up to 5 minutes. After that it fails as an infrastructure error, not as
+            a red test.
+          </p>
+
+          <h2 id="container">Container jobs <span class="badge live">live</span></h2>
+          <p>
+            Each job gets its own container, named after the job, so two jobs never share a
+            filesystem. It runs the job with <a href="https://github.com/nektos/act">act</a> and a
+            small runner of ours, streams the log back while it runs, and is destroyed at the end.
+            Nothing carries over to the next job except the
+            <a href="/docs/dependency-cache">dependency cache</a>.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.github/workflows/ci.yml</span></header>
+            <pre class="url"><code>name: ci
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test</code></pre>
+          </div>
+
+          <h3 id="runs-on">Which runs-on labels run</h3>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th><code>runs-on</code></th>
+                  <th>Runs on</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>ubuntu-latest</code></td>
+                  <td>The Ubuntu 24.04 image</td>
+                </tr>
+                <tr>
+                  <td><code>ubuntu-24.04</code></td>
+                  <td>The Ubuntu 24.04 image</td>
+                </tr>
+                <tr>
+                  <td><code>ubuntu-22.04</code></td>
+                  <td>The same Ubuntu 24.04 image (there is no 22.04 image)</td>
+                </tr>
+                <tr>
+                  <td>
+                    Anything else: a list such as <code>[self-hosted, linux]</code>, a
+                    <code>group:</code>, an expression such as <code>${{ matrix.os }}</code>,
+                    <code>macos-*</code>, <code>windows-*</code>, <code>gitstalk-isolate</code>
+                  </td>
+                  <td>
+                    Never runs. The compatibility report says "only ubuntu-latest, ubuntu-24.04 and
+                    ubuntu-22.04 run here", and a run that reaches the job ends it as
+                    <code>startup_failure</code>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="sizes">Instance type</h3>
+          <p>
+            Every job runs on a Cloudflare <code>standard-4</code> container: 4 vCPU, 12 GiB of
+            memory and 20 GB of disk. GitHub's <code>ubuntu-latest</code> has 4 vCPU and 16 GB, and
+            a real test suite ran at GitHub's speed on it. A workflow cannot choose another size: no
+            <code>runs-on</code> label and no Gitstalk key selects one.
+            <span class="badge planned">planned</span> Larger sizes by label (the design names
+            <code>gitstalk-4cpu</code>), with no date.
+          </p>
+
+          <h3 id="docker">Docker inside a job</h3>
+          <p>
+            A job with <code>services:</code>, <code>container:</code> or a step that
+            <code>uses: docker://…</code> runs in Docker mode: Gitstalk starts
+            <code>dockerd</code> inside the job's own container, and the steps run in the
+            <code>catthehacker/ubuntu:act-24.04</code> image rather than the image below. Pulling
+            images costs about 30 seconds a job. A Redis service container has run on staging; it is
+            <span class="badge beta">beta</span> and not yet verified on the hosted service. A
+            marketplace action that is itself a Docker action (<code>runs.using: docker</code> in
+            its <code>action.yml</code>) does not switch Docker mode on, so it is not supported yet.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.github/workflows/integration.yml</span></header>
+            <pre class="url"><code>on: [push]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci &amp;&amp; npm run test:integration</code></pre>
+          </div>
+
+          <h3 id="network">Network</h3>
+          <p>
+            Containers have open internet egress, as on GitHub: <code>actions/checkout</code>,
+            action downloads and package installs all need it. Secrets are masked in the log; see
+            <a href="/docs/secrets">Secrets and variables</a> for which jobs get them.
+          </p>
+
+          <h2 id="isolate">Dynamic Worker jobs <span class="badge planned">planned</span></h2>
+          <p>
+            The design runs a job labelled <code>gitstalk-isolate</code> in a Cloudflare Dynamic
+            Worker: a V8 isolate loaded on demand, with no Linux, no processes and no filesystem. It
+            is meant for small jobs that only call HTTP APIs and Gitstalk, and would start in
+            milliseconds instead of seconds. <strong>None of it is built.</strong> There is no
+            Worker Loader binding in any Worker, and the label is refused like any other unknown
+            label.
+          </p>
+          <p>What the design says, so you can plan for it:</p>
+          <ul>
+            <li>
+              <strong>Opt-in by label only.</strong> Gitstalk never moves a job to an isolate by
+              guessing from its steps; <code>ubuntu-*</code> always means a container.
+            </li>
+            <li>
+              <strong>JavaScript only.</strong> Validation would refuse <code>run:</code> steps,
+              Docker actions and marketplace JavaScript actions in such a job, so it never fails
+              halfway because a step needed Linux. Steps would be Gitstalk's own actions, such as a
+              planned <code>gitstalk/script@v1</code> shaped like
+              <code>actions/github-script</code>.
+            </li>
+            <li>
+              <strong>No network by default.</strong> Only hosts the file allows, and a secret is
+              put into request headers for its paired hosts only; it never enters the isolate.
+            </li>
+            <li>
+              <strong>Limits per step:</strong> 5 seconds of CPU by default (at most 30), 200
+              subrequests, 5 minutes wall clock.
+            </li>
+          </ul>
+          <p>
+            This is what such a job would look like. Today it is parsed, reported as never running,
+            and ends as <code>startup_failure</code>.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.github/workflows/notify.yml (planned)</span></header>
+            <pre class="url"><code>on:
+  push:
+    branches: [main]
+jobs:
+  notify:
+    runs-on: gitstalk-isolate   # planned: refused today
+    steps:
+      - uses: gitstalk/script@v1   # planned: does not exist yet
+        with:
+          script: |
+            await fetch('https://hooks.example.com/deploys', { method: 'POST' })</code></pre>
+          </div>
+
+          <h2 id="automations">Automations</h2>
+          <p>
+            An <a href="/docs/automations">automation</a> has no <code>runs-on</code>. Gitstalk
+            compiles each run into one Actions job with <code>runs-on: ubuntu-latest</code>, so both
+            harnesses run in the same <code>standard-4</code> container as any job, and count
+            against the same minutes.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Harness</th>
+                  <th>What runs in the container</th>
+                  <th>Runner</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Prompt (<code>harness: agent</code>, the default)</td>
+                  <td>
+                    Gitstalk's agent loop under Node, with shell, file and git tools. Its model
+                    calls go to a Workers AI model through Gitstalk's model proxy, so the container
+                    never holds a model key. See <a href="/docs/automations#models">Models</a>.
+                  </td>
+                  <td>Container</td>
+                </tr>
+                <tr>
+                  <td>Shell (<code>harness: shell</code>)</td>
+                  <td>Your <code>run:</code> script in bash, with no model</td>
+                  <td>Container</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/automations/fix-red.yml (Prompt)</span></header>
+            <pre class="url"><code>on: bean_red
+prompt: Read why the bean went red and fix it in a new bean.</code></pre>
+          </div>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/automations/heartbeat.yml (Shell)</span></header>
+            <pre class="url"><code>harness: shell
+on:
+  schedule: [{ cron: "*/15 * * * *" }]
+run: git log -1 --format=%H</code></pre>
+          </div>
+          <p>
+            The design once put automations on isolates; it moved them to containers because a
+            coding agent needs processes and a filesystem.
+          </p>
+
+          <h2 id="image">Images and preinstalled tools</h2>
+          <p>
+            The job image is built from <code>packages/actions-executor/container/Dockerfile</code>
+            and is the same for every job.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>What</th>
+                  <th>In the image</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Operating system</td>
+                  <td>Ubuntu 24.04, x86-64 (<code>linux/amd64</code>), pinned by digest</td>
+                </tr>
+                <tr>
+                  <td>User</td>
+                  <td>
+                    <code>runner</code> (uid 1001) with passwordless <code>sudo</code>; home
+                    <code>/home/runner</code>, work under <code>/home/runner/work</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Node</td>
+                  <td>
+                    24.21.0 on the path; 20.20.2 and 24.21.0 in the tool cache
+                    (<code>/opt/hostedtoolcache</code>), so <code>actions/setup-node</code> for 20
+                    or 24 downloads nothing
+                  </td>
+                </tr>
+                <tr>
+                  <td>Python</td>
+                  <td>Ubuntu's <code>python3</code> with <code>pip</code> and <code>venv</code></td>
+                </tr>
+                <tr>
+                  <td>Build tools</td>
+                  <td><code>build-essential</code> (gcc, make), <code>pkg-config</code></td>
+                </tr>
+                <tr>
+                  <td>Command-line tools</td>
+                  <td>
+                    <code>git</code>, <code>git-lfs</code>, <code>openssh-client</code>,
+                    <code>curl</code>, <code>wget</code>, <code>jq</code>, <code>gnupg</code>,
+                    <code>zip</code>, <code>unzip</code>, <code>xz-utils</code>, <code>zstd</code>,
+                    <code>iptables</code>, <code>tzdata</code>, <code>locales</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Docker</td>
+                  <td>Docker 29.8.2 (static binaries), started only for Docker-mode jobs</td>
+                </tr>
+                <tr>
+                  <td>Actions baked in (no download)</td>
+                  <td>
+                    <code>actions/checkout@v4</code> and <code>@v5</code>,
+                    <code>actions/setup-node@v4</code> and <code>@v5</code>,
+                    <code>actions/cache@v4</code>, <code>actions/upload-artifact@v4</code>,
+                    <code>actions/download-artifact@v4</code>, <code>actions/setup-python@v5</code>,
+                    <code>actions/github-script@v7</code>,
+                    <code>cloudflare/wrangler-action@v3</code>. Other actions are fetched from
+                    github.com once per job.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Not in the image</td>
+                  <td>
+                    Go, Rust, Java, .NET, browsers and cloud CLIs. Install them in a step, or use a
+                    <code>setup-*</code> action.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            You cannot bring your own job image yet, other than through
+            <code>container:</code> in Docker mode.
+          </p>
+
+          <h2 id="limits">Limits</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Limit</th>
+                  <th>Container (hosted beta)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Job timeout</td>
+                  <td>
+                    60 minutes. A job without <code>timeout-minutes</code> gets 60 (GitHub gives
+                    360); a larger value is capped.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Minutes</td>
+                  <td>100 per repository per month, each job rounded up to a whole minute</td>
+                </tr>
+                <tr>
+                  <td>Jobs at once</td>
+                  <td>4 per repository; 16 containers across the service</td>
+                </tr>
+                <tr>
+                  <td>Wait for a free container</td>
+                  <td>Up to 5 minutes, then an infrastructure failure</td>
+                </tr>
+                <tr>
+                  <td>Matrix</td>
+                  <td>16 legs per job</td>
+                </tr>
+                <tr>
+                  <td>CPU, memory, disk</td>
+                  <td>4 vCPU, 12 GiB, 20 GB (<code>standard-4</code>)</td>
+                </tr>
+                <tr>
+                  <td><code>node_modules</code></td>
+                  <td>A 6 GiB in-memory filesystem, restored by the dependency cache</td>
+                </tr>
+                <tr>
+                  <td>Network egress</td>
+                  <td>Open</td>
+                </tr>
+                <tr>
+                  <td>Log lines</td>
+                  <td>64 KiB per line</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Every other number, including the dependency cache's and automations' own, is in
+            <a href="/docs/limits">Limits and plans</a>.
+          </p>
+
+          <h2 id="more">Related pages</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/actions">
+              <h3>GitHub Actions</h3>
+              <p>What runs, events, the compatibility report and OIDC.</p>
+            </a>
+            <a class="fcard" href="/docs/automations">
+              <h3>Automations</h3>
+              <p>Agents and scripts started by Gitstalk events.</p>
+            </a>
+            <a class="fcard" href="/docs/dependency-cache">
+              <h3>Dependency cache</h3>
+              <p>Start installs from a full <code>node_modules</code>.</p>
+            </a>
+            <a class="fcard" href="/docs/limits">
+              <h3>Limits and plans</h3>
+              <p>Minutes, timeouts and every other number.</p>
+            </a>
+          </div>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/26-actions-job-executor.md"
+                  >docs/claude-opus/26-actions-job-executor.md</a
+                >
+                (the executor, its image and the measured start-up)
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/25-actions-and-automations.md"
+                  >docs/claude-opus/25-actions-and-automations.md</a
+                >
+                (§3.9, the isolate design; §7.3, where automations run)
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/actions"><small>Previous</small>GitHub Actions</a>
+            <a class="next" href="/docs/dependency-cache"><small>Next</small>Dependency cache</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

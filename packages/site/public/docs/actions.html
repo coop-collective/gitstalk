@@ -328,8 +328,8 @@ jobs:
               <p>
                 <code>pull_request</code> and <code>merge_group</code> events, other caches and
                 artifacts that outlive a job, and the GitHub REST API through
-                <code>GITHUB_TOKEN</code>. Runners other than Ubuntu. Concurrency groups are not
-                enforced.
+                <code>GITHUB_TOKEN</code>. Runners other than one Ubuntu container size (see
+                <a href="/docs/runners">Runners</a>). Concurrency groups are not enforced.
               </p>
             </div>
           </div>
@@ -490,7 +490,8 @@ jobs:
                 <tr>
                   <td>Docker actions, <code>container:</code>, <code>services:</code></td>
                   <td>
-                    Runs differently: Docker runs inside the job container.
+                    Runs differently: Docker runs inside the job container; see
+                    <a href="/docs/runners#docker">Docker inside a job</a>.
                     <span class="badge beta">beta</span> Not yet verified on the hosted service.
                   </td>
                 </tr>
@@ -501,9 +502,9 @@ jobs:
                 <tr>
                   <td><code>runs-on</code></td>
                   <td>
-                    <code>ubuntu-latest</code> and <code>ubuntu-24.04</code> run on the Ubuntu 24.04
-                    image; <code>ubuntu-22.04</code> also runs, on that same 24.04 image. Anything
-                    else never runs.
+                    <code>ubuntu-latest</code>, <code>ubuntu-24.04</code> and
+                    <code>ubuntu-22.04</code> run, all on one Ubuntu 24.04 image. Anything else
+                    never runs. See <a href="/docs/runners#runs-on">Runners</a>.
                   </td>
                 </tr>
                 <tr>
@@ -614,6 +615,10 @@ jobs:
 
           <h2 id="more">Related pages</h2>
           <div class="fgrid">
+            <a class="fcard" href="/docs/runners">
+              <h3>Runners: where jobs run</h3>
+              <p>The container each job gets: its image, size, network and limits.</p>
+            </a>
             <a class="fcard" href="/docs/secrets">
               <h3>Secrets and variables</h3>
               <p>Credentials, plain configuration and who gets which.</p>
@@ -657,7 +662,7 @@ jobs:
           </section>
           <nav class="pager" aria-label="Previous and next page">
             <a class="prev" href="/docs/streaming-diffs"><small>Previous</small>Streaming diffs</a>
-            <a class="next" href="/docs/dependency-cache"><small>Next</small>Dependency cache</a>
+            <a class="next" href="/docs/runners"><small>Next</small>Runners: where jobs run</a>
           </nav>
         </article>
       </div>

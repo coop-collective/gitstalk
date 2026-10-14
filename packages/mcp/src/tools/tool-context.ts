@@ -29,6 +29,11 @@ export type AgentSessionContext = {
   readonly userId: string;
   readonly handle: string;
   readonly clientName: string;
+  /**
+   * The agent session as the approval rules' self-approval check compares it with a bean's
+   * pusher: `oauth:<client id>` for an OAuth grant, `token` for a personal token as the bearer.
+   */
+  readonly agentKey: string;
   readonly via: 'oauth' | 'token';
   readonly scopes: readonly Scope[];
   /** The person and scopes, as the gateway's repository RPC takes them. */

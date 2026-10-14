@@ -91,6 +91,8 @@ export function glyphOfState(state: Change['state']): GlyphKind {
       return 'red';
     case 'parked':
       return 'parked';
+    case 'held':
+      return 'held';
     case 'checking':
     case 'waiting':
       return 'bean';

@@ -181,7 +181,10 @@
             </p>
           </aside>
           <h2 id="actions">GitHub Actions</h2>
-          <p>Details are on <a href="/docs/actions">GitHub Actions</a>.</p>
+          <p>
+            Details are on <a href="/docs/actions">GitHub Actions</a>; what each job runs on is in
+            <a href="/docs/runners">Runners</a>.
+          </p>
           <div class="tbl">
             <table>
               <thead>
@@ -196,22 +199,33 @@
                   <td>Minutes per repository per month</td>
                   <td>100</td>
                   <td>
-                    <code>ACTIONS_MONTHLY_MINUTES</code> in the gateway config. A repository that
-                    has used them gets a "minutes for the month are used" refusal, not a red run.
+                    <code>ACTIONS_MONTHLY_MINUTES</code> in the gateway config. Each job is rounded
+                    up to a whole minute. Once they are used, <em>Run workflow</em> and re-runs are
+                    refused, and jobs started by a push or a schedule end as
+                    <code>startup_failure</code>.
                   </td>
                 </tr>
                 <tr>
                   <td>Job timeout</td>
                   <td>60 minutes</td>
                   <td>
-                    <code>ACTIONS_JOB_TIMEOUT_MINUTES</code>. A larger
-                    <code>timeout-minutes</code> is capped, and the report says so.
+                    <code>ACTIONS_JOB_TIMEOUT_MINUTES</code>. A job without
+                    <code>timeout-minutes</code> gets 60; a larger one is capped, and the report
+                    says so.
                   </td>
                 </tr>
                 <tr>
                   <td>Concurrent jobs per repository</td>
                   <td>4</td>
                   <td><code>ACTIONS_CONCURRENT_JOBS</code></td>
+                </tr>
+                <tr>
+                  <td>Job containers across the service</td>
+                  <td>16</td>
+                  <td>
+                    <code>max_instances</code> in the executor Worker config. A job that finds none
+                    free waits up to 5 minutes.
+                  </td>
                 </tr>
                 <tr>
                   <td>Matrix legs per job</td>
@@ -232,8 +246,11 @@
                 </tr>
                 <tr>
                   <td>Job container</td>
-                  <td>Cloudflare <code>standard-4</code></td>
-                  <td>Executor Worker config</td>
+                  <td>Cloudflare <code>standard-4</code>: 4 vCPU, 12 GiB, 20 GB</td>
+                  <td>
+                    Executor Worker config. No workflow can pick another size; see
+                    <a href="/docs/runners#sizes">Runners</a>.
+                  </td>
                 </tr>
                 <tr>
                   <td>Log retention</td>

@@ -46,6 +46,7 @@ import type {
   ViewTokenClaims,
 } from '@gitstalk/shared-race/rpc';
 import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
+import type { ApproveBeanRequest, ApprovedBean } from '@gitstalk/shared-race/bean-approval';
 import type {
   RulesEditorRpc,
   RulesSource,
@@ -366,9 +367,9 @@ export default class Gateway
   approveBean(
     run: string,
     bean: string,
-    actor: string,
-  ): Promise<RpcResult<{ readonly approved: true; readonly resubmitted: boolean }>> {
-    return this.#rpc().approveBean(run, bean, actor);
+    request: ApproveBeanRequest,
+  ): Promise<RpcResult<ApprovedBean>> {
+    return this.#rpc().approveBean(run, bean, request);
   }
 
   decisions(run: string, paths?: readonly string[]): Promise<RpcResult<readonly DecisionRecord[]>> {

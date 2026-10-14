@@ -38,7 +38,13 @@ describe('personal access tokens', () => {
     expect(await verifyUserToken(env, token, () => T0 + 1)).toEqual({
       user,
       scopes: ['read', 'write'],
-      token: { id: summary.id, kind: 'personal', expiresAt: T0 + 30 * DAY, repository: null },
+      token: {
+        id: summary.id,
+        kind: 'personal',
+        expiresAt: T0 + 30 * DAY,
+        repository: null,
+        clientId: null,
+      },
     });
     const stored = await env.IDENTITY_DB.prepare('SELECT * FROM user_tokens WHERE id = ?')
       .bind(summary.id)

@@ -178,8 +178,11 @@
             <p class="callout-title">Beta</p>
             <p>
               Merged on 14 October 2026. The code is in the repository; whether the hosted service
-              already runs it was not confirmed when this page was written. A few pieces are not
-              built yet, listed <a href="#not-done">at the bottom</a>.
+              already runs it was not confirmed when this page was written. Approving a held bean
+              (the Held panel and <code>bean_approve</code>, <a href="#approve">below</a>) came
+              after it and is <span class="badge beta">beta</span>: tested, not yet confirmed on the
+              hosted service. A few pieces are not built yet, listed
+              <a href="#not-done">at the bottom</a>.
             </p>
           </aside>
 
@@ -431,7 +434,8 @@ classes:
                 <tr>
                   <td><code>card</code></td>
                   <td>
-                    Held before landing until a person approves. The check answers a red,
+                    Held before landing until an owner or maintainer approves it (the
+                    <a href="#approve">Held panel</a> on the bean's page). The check answers a red,
                     <em>awaits approval by a person</em>, that says nothing needs fixing. The
                     approval is for that exact revision; a new push needs a new approval.
                   </td>
@@ -482,8 +486,9 @@ classes:
             Every judged bean leaves a receipt: its classes, the route, which class decided, who
             decided (<code>policy</code>, <code>clef</code> or <code>rules</code>), Clef's
             probability, the approval state, and the policy file and stalk commit it was judged by.
-            The push prints it on its remote lines, and the MCP <code>bean_status</code> tool
-            reports the route and a next step when a bean is held.
+            The push prints it on its remote lines, the bean's page shows it in the Held panel, and
+            the MCP <code>bean_status</code> tool reports it with <code>held: true</code>, the
+            page's address (<code>approve_url</code>) and a next step when a bean is held.
           </p>
           <figure class="mock" aria-label="A terminal: a push routed to a person by approval rules">
             <div class="mock-bar" aria-hidden="true">
@@ -504,6 +509,118 @@ remote: gitstalk: awaiting a person's approval
             </figcaption>
           </figure>
 
+          <h2 id="approve">Approving a held bean</h2>
+          <p>
+            A held bean shows a <strong>Held</strong> badge in its repository's Changes list, and a
+            Held filter lists only those beans. Its page opens with the Held panel: the classes, the
+            rule and who decided (the policy, Clef with its probability, or the triage rule), the
+            revision waiting with a link to its diff, and the reviewers the policy names.
+          </p>
+          <figure
+            class="mock"
+            aria-label="A bean page: the Held for approval panel with why it was held, the revision, the reviewers, a note and an Approve button"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/changes/token-refresh</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-decision">
+                <span class="ms held">held for approval</span>
+                <p class="q">
+                  Revision <code>4e1c9a2</code> waits for a person. Nothing in it needs fixing.
+                </p>
+                <div class="opts">
+                  <div class="opt pick"><b>Classes</b><span>protected, tests-only</span></div>
+                  <div class="opt">
+                    <b>Rule</b><span>class protected in .gitstalk/policy.yml, by the policy</span>
+                  </div>
+                  <div class="opt">
+                    <b>Reviewers</b><span>@security (named, not required)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Note for the record</b><span>Optional; kept with the approval.</span>
+                </div>
+                <div class="m-input">Checked the token expiry change.</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Approve 4e1c9a2</b
+                  ><span>Asks once more, then the pre-land check runs again.</span>
+                </div>
+                <span class="m-btn primary">Approve</span>
+              </div>
+            </div>
+            <figcaption>
+              Owners and maintainers see Approve. Everyone else reads who can approve.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Who approves</td>
+                  <td>
+                    The repository's owner and maintainers (for an organization's repository, its
+                    owners too). Named <code>reviewers</code> are shown, not required.
+                  </td>
+                </tr>
+                <tr>
+                  <td>What is approved</td>
+                  <td>
+                    One revision, the bean's pushed head. The page sends the revision it showed; if
+                    a new push arrived meanwhile, the approval is refused as stale. A new push needs
+                    a new approval.
+                  </td>
+                </tr>
+                <tr>
+                  <td>What happens next</td>
+                  <td>
+                    The bean is checked again at once and lands on the sprout if it passes. The page
+                    shows who approved and when, without a reload.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Where it is recorded</td>
+                  <td>
+                    The repository's access log (Settings, Collaborators, for the owner): who
+                    approved, the client (web or MCP and its name), the revision and the note.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="agents">From an agent: <code>bean_approve</code></h3>
+          <p>
+            An agent session with the <code>write</code> scope, acting for an owner or maintainer,
+            can approve for its person with <code>bean_approve</code> (see
+            <a href="/docs/mcp#approve">MCP tools</a>). Approving is the person's decision, so the
+            tool tells agents to ask first and never to approve on their own initiative. The web
+            button and the tool make the same call, with the same checks.
+          </p>
+          <aside class="callout warning">
+            <p class="callout-title">An agent never approves its own bean by itself</p>
+            <p>
+              <code>bean_approve</code> is refused when the bean's latest push was made for the same
+              person and Gitstalk cannot show it came from a different agent session: a push by this
+              same agent client, by the person's SSH key or personal token (agents on your machine
+              push with those), or by a credential that was not recorded. The agent may retry with
+              <code>confirm_owner_intent: true</code> only after you told it to. A bean pushed by
+              someone else, saved in the web editor, or pushed by another agent client's session is
+              approved without it. Automations never approve.
+            </p>
+          </aside>
+
           <h2 id="where">Where the rules are read from</h2>
           <p>
             Always from the <strong>stalk</strong>, never from the bean being judged. A bean cannot
@@ -514,17 +631,11 @@ remote: gitstalk: awaiting a person's approval
           <h2 id="not-done">Not done yet</h2>
           <ul>
             <li>
-              <strong>No approve button in the web.</strong> Approvals go through a gateway call
-              (<code>approveBean</code>); there is no button on the bean page and no MCP tool yet.
-              Until one ships, a <code>card</code> route is best read as a stop sign, not a
-              workflow.
+              <code>reviewers</code> are shown, not enforced: any owner or maintainer approves.
             </li>
             <li>
-              <code>reviewers</code> are shown, not enforced: any person who may decide approves.
-            </li>
-            <li>
-              The bean view in the web has no approval-rules label yet; the receipt is on the push
-              lines and in <code>bean_status</code>.
+              Approvals are for repositories. A benchmark race has no approve path, which is why
+              races keep the rules off.
             </li>
             <li>Clef's answers are not yet compared with later human decisions.</li>
           </ul>

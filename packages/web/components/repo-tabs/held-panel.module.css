@@ -1,0 +1,195 @@
+/* A bean held for a person's approval (held-panel.tsx). Violet is the colour of people's
+   decisions in Nightshift (--human), kept apart from the red of a failure: nothing here is
+   broken. An approved bean turns to the stalk's green. Glyph colours come from
+   repo-tabs.module.css, which the page already loads. */
+
+.panel {
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--human-fill);
+  border-radius: 8px;
+  background: var(--sheet);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.panel[data-state='approved'] {
+  border-top-color: var(--good-fill);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 12px 16px 6px;
+}
+.head svg {
+  color: var(--human-fill);
+}
+.panel[data-state='approved'] .head svg {
+  color: var(--good-fill);
+}
+.head h2 {
+  font-size: var(--step-1);
+  color: var(--ink);
+}
+.revision {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: var(--step--1);
+}
+.revision a {
+  color: var(--ink-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.lede {
+  padding: 0 16px 10px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+  max-width: 68ch;
+}
+
+.why {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--rule);
+  font-size: var(--step--1);
+}
+.why dt {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.why dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  font: 500 12px/20px var(--font-mono);
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-2);
+}
+.chip[data-deciding] {
+  color: var(--human);
+  border-color: var(--human-fill);
+  background: var(--human-wash);
+}
+
+.action {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--rule);
+  background: var(--sheet-2);
+}
+.note {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.note textarea {
+  resize: vertical;
+  min-height: 2.6em;
+  padding: 6px 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: var(--step--1);
+}
+.confirm {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--human-fill);
+  border-radius: var(--radius);
+  background: var(--human-wash);
+  color: var(--ink);
+  font-size: var(--step--1);
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.primary,
+.button {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font: 600 13px var(--font-sans);
+  cursor: pointer;
+  min-height: 32px;
+}
+.primary {
+  border: 1px solid var(--human-fill);
+  background: var(--human-fill);
+  color: var(--human-ink);
+}
+.primary:hover {
+  filter: brightness(1.08);
+}
+.button {
+  border: 1px solid var(--rule-strong);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.primary:disabled,
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.refusal {
+  color: var(--bad);
+  font-size: var(--step--1);
+}
+.readOnly {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--rule);
+  background: var(--sheet-2);
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.approved {
+  display: grid;
+  gap: 6px;
+  padding: 0 16px 12px;
+  font-size: var(--step--1);
+  color: var(--ink);
+}
+.approved blockquote {
+  margin: 0;
+  padding: 4px 10px;
+  border-left: 3px solid var(--good-fill);
+  color: var(--ink-2);
+}
+
+@media (max-width: 560px) {
+  .why {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .revision {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

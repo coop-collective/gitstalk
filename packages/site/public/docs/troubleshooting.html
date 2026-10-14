@@ -265,8 +265,9 @@ remote: gitstalk: decision card D-3: the bean's spec contradicts add-discount; a
 remote: gitstalk: awaiting a person's approval
 
 This bean is routed to a person: class api, decided by policy.
-Nothing in it needs fixing for this. A maintainer approves it from its page (or the approveBean RPC);
-the approval re-submits this revision and its check runs again. A new push needs a new approval.</code></pre>
+Nothing in it needs fixing for this. An owner or maintainer approves this revision with Approve on the
+bean's page (Changes, Held), or has their agent call bean_approve. The approval re-submits it and its
+check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.</code></pre>
           <p>
             The push prints the first two lines. The paragraph below them is the bean's check
             output: the bean is marked red as <code>awaits approval by a person</code> until it is
@@ -277,14 +278,18 @@ the approval re-submits this revision and its check runs again. A new push needs
             person before it lands. Your code is fine.
           </p>
           <p>
-            <strong>Fix.</strong> The approval is for this revision only; a new push needs a new
-            approval. <span class="badge beta">beta</span> Approval rules are new, and the message
-            points at a button that does not exist yet: the web app has no approve button and no MCP
-            tool approves a bean. Approval is the gateway's internal <code>approveBean</code>
-            call, so on the hosted beta it is not something you can do yourself. To stop a rule
-            holding your changes, an owner or maintainer can change the rules in the repository's
-            Settings, Approval rules. See
-            <a href="/docs/approval-rules">Approval rules</a> for the rules and their limits.
+            <strong>Fix.</strong> Do not change the code for this. An owner or maintainer opens the
+            bean from the repository's Changes list (it carries a <strong>Held</strong> badge, and
+            the Held filter lists every held bean) and presses Approve in the Held panel, or asks
+            their agent to call <code>bean_approve</code>. Its check then runs again and it lands if
+            it passes. The approval is for this revision only; a new push needs a new approval. If
+            you only have the write role, ask a maintainer: the panel says who can approve. An agent
+            is refused when it tries to approve a bean it may have pushed itself, unless its person
+            confirmed it (<code>confirm_owner_intent</code>).
+            <span class="badge beta">beta</span> The approve controls are tested but not yet
+            confirmed on the hosted service. To stop a rule holding your changes, an owner or
+            maintainer can change the rules in the repository's Settings, Approval rules. See
+            <a href="/docs/approval-rules#approve">Approving a held bean</a>.
           </p>
 
           <h3 id="protected">changes protected paths ... refused</h3>

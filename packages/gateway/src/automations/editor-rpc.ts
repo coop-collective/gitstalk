@@ -210,6 +210,7 @@ export function protectedAccessOf(handle: string, role: ViewerRole | null): Prot
   return {
     allowed: role !== null && DECIDING.has(role),
     who: `@${handle} (${role ?? 'no role'}, with the web editor)`,
+    pusher: 'web',
   };
 }
 

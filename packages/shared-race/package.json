@@ -29,6 +29,7 @@
     "./checks-yaml": "./src/checks-yaml.ts",
     "./checks-editor": "./src/checks-editor.ts",
     "./approval-policy": "./src/approval-policy.ts",
+    "./bean-approval": "./src/bean-approval.ts",
     "./policy-file": "./src/policy-file.ts",
     "./rules-editor": "./src/rules-editor.ts",
     "./code-tokens": "./src/code-tokens.ts",

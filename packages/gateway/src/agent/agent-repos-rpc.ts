@@ -333,7 +333,11 @@ async function commitBean(
   return opened.engine.repoBeanCommit({
     actor: handle,
     client: principal.label || 'MCP',
-    protectedAccess: { allowed: false, who: `@${handle} (${role}, with an MCP session)` },
+    protectedAccess: {
+      allowed: false,
+      who: `@${handle} (${role}, with an MCP session)`,
+      pusher: principal.session ?? 'mcp',
+    },
     input: input.data,
   });
 }

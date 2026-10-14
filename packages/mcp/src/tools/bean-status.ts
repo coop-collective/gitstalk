@@ -10,6 +10,7 @@ import type { TaskId } from '@gitstalk/shared-race/ids';
 import { ForgeError } from '@gitstalk/shared-ask/forge/forge-errors';
 
 import { ToolError } from '../mcp/tool-result';
+import { heldLines } from './bean-approve';
 import { withNext } from '../repos/repo-answers';
 import type { ChangeStatus } from './change-status';
 import { changeStatus } from './change-status';
@@ -81,7 +82,7 @@ function sessionAnswer(input: {
   readonly detail: object;
 }): object {
   const { ctx, id, engine } = input;
-  const bean = withNext(input.pushed.bean, id);
+  const bean = { ...withNext(input.pushed.bean, id), ...heldLines(input.pushed.bean, ctx.webUrl) };
   return {
     bean: id,
     ...bean,

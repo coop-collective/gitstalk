@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { RepositoryParams } from '../../../../src/server/repository-page';
+import { repositoryLayoutAnswers } from '../../../../src/server/repository-page';
 import { engineTab } from '../../../../src/server/repository-tab';
 
 /**
@@ -15,6 +16,8 @@ export default async function ChangesLayout({
   readonly children: ReactNode;
   readonly params: RepositoryParams;
 }) {
+  // A missing or unreadable repository is the repository layout's 404 (see the helper).
+  if (await repositoryLayoutAnswers(params)) return null;
   await engineTab(params);
   return children;
 }

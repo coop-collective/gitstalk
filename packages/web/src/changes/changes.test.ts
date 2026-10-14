@@ -17,7 +17,7 @@ describe('the Changes tab of a real repository', () => {
   const changes = changesOf(GREETER_EVENTS, GREETER_PUSHED);
 
   it('sorts beans into open, landed and parked, newest activity first', () => {
-    expect(groupCounts(changes)).toEqual({ open: 1, landed: 2, parked: 0 });
+    expect(groupCounts(changes)).toEqual({ open: 1, held: 0, landed: 2, parked: 0 });
     expect(inGroup(changes, 'landed').map((change) => change.bean)).toEqual([
       'slugify',
       'add-truncate',

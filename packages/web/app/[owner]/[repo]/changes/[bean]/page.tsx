@@ -3,10 +3,12 @@ import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { ChangeDetail } from '../../../../../components/repo-tabs/change-detail';
 import { repoScopeOf, seedChangeQueries } from '../../../../../components/repo-tabs/changes-tab';
 import { StreamedBeanDiff } from '../../../../../components/repo-tabs/streamed-bean-diff';
+import { approveAccessOf } from '../../../../../src/changes/approval-client';
 import { groupCounts } from '../../../../../src/changes/changes';
 import { getServerQueryClient } from '../../../../../src/query/server';
 import type { BeanParams } from '../../../../../src/server/bean-page';
 import { beanPage } from '../../../../../src/server/bean-page';
+import { requestSession } from '../../../../../src/server/repository-page';
 
 type PageProps = { readonly params: BeanParams };
 
@@ -18,12 +20,15 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 /**
- * One bean's page: its journey, its verdict and its diff. The bean (read by its layout, which
+ * One bean's page: its approval when held, its journey, its verdict and its diff. The bean (read by its layout, which
  * answers 404 for an unknown one) renders at once and the browser starts from it (dehydrated),
  * then follows the engine's feed; the diff streams in after.
  */
 export default async function ChangePage({ params }: PageProps) {
-  const { tab, name, change, changes, events, pushed } = await beanPage(params);
+  const [{ tab, name, change, changes, events, pushed }, session] = await Promise.all([
+    beanPage(params),
+    requestSession(),
+  ]);
   const scope = repoScopeOf(tab);
   const queryClient = getServerQueryClient();
   seedChangeQueries(queryClient, scope, { events, pushed });
@@ -35,6 +40,11 @@ export default async function ChangePage({ params }: PageProps) {
         change={change}
         openChanges={groupCounts(changes).open}
         diff={<StreamedBeanDiff reads={tab.reads} scope={scope} bean={name} />}
+        approveAccess={approveAccessOf({
+          record: tab.record,
+          role: tab.role,
+          csrf: session?.csrfToken ?? null,
+        })}
         nowMs={Date.now()}
       />
     </HydrationBoundary>

@@ -75,7 +75,9 @@ function fakeHost(options: {
     origin: () => 'agent',
     revision: () => null,
     approval: () =>
-      options.approvedBy === undefined ? null : { actor: options.approvedBy, atMs: 1 },
+      options.approvedBy === undefined
+        ? null
+        : { actor: options.approvedBy, atMs: 1, note: null, client: 'web', idempotencyKey: null },
     previous: (task) => store.get(task) ?? null,
     save: (entry) => store.set(entry.receipt.bean, entry),
     model: decisionModelFrom({ name: 'clef', ai, gateway: '', budgetMs: 50 }),
