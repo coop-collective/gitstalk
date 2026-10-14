@@ -224,6 +224,11 @@ export type CheckResult = {
    * or `mapsFrom` of a `ReadMapIndex` query about this tree.
    */
   readonly mappedTree?: string;
+  /**
+   * The approval rules held the bean for a person (`approval/approval-gate.ts`): a red that says
+   * nothing failed. A continuous engine spends no rework round on it (`v2-landing.ts`).
+   */
+  readonly awaitsApproval?: true;
 };
 
 export type CiPurpose = 'batch' | 'bisect' | 'validate' | 'final';

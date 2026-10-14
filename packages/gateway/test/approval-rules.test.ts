@@ -128,6 +128,32 @@ describe('approval rules', () => {
     expect(refusal).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 
+  it('spends no rework round on a hold: the bean waits for a person, not a fix', async () => {
+    const { opened, token } = await withPolicy('rules-rounds');
+    for (const version of [1, 2]) {
+      // oxlint-disable-next-line no-await-in-loop -- the author pushes again after each hold
+      const remote = await pushFiles(opened, token, {
+        name: 'session',
+        files: { 'src/auth/session.ts': `export const session = ${version};\n` },
+      });
+      expect(remote).toContain("awaiting a person's approval");
+      // oxlint-disable-next-line no-await-in-loop -- each hold settles before the next push
+      await until(opened.engineId, 'session', ['red']);
+    }
+    const page = await gateway.runEvents(opened.engineId, 0, 1000);
+    expect(page.ok).toBe(true);
+    const reworks = (page.ok ? page.value.events : [])
+      .map((line): unknown => JSON.parse(line))
+      .filter(
+        (event) =>
+          typeof event === 'object' &&
+          event !== null &&
+          Reflect.get(event, 'type') === 'rework.start' &&
+          Reflect.get(event, 'task') === 'session',
+      );
+    expect(reworks.map((event) => Reflect.get(Object(event), 'attempt'))).toEqual([0, 0]);
+  });
+
   it('refuses a bean from outside the writers of a class', async () => {
     const { opened, token } = await withPolicy('rules-writers');
     const remote = await pushFiles(opened, token, {
