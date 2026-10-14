@@ -6,14 +6,14 @@
     <title>Decision cards and reconcile: Gitstalk docs</title>
     <meta
       name="description"
-      content="How Gitstalk handles clashes between beans: informed repair, reconcile, and a decision card for a person only when two specs truly disagree."
+      content="When two changes disagree, Gitstalk raises a decision card so a person decides once. Where cards work today, and the measured order of repair."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Decision cards and reconcile: Gitstalk docs" />
     <meta
       property="og:description"
-      content="How Gitstalk handles clashes between beans: informed repair, reconcile, and a decision card for a person only when two specs truly disagree."
+      content="When two changes disagree, Gitstalk raises a decision card so a person decides once. Where cards work today, and the measured order of repair."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -130,7 +130,7 @@
                 ></a>
               </li>
               <li>
-                <a href="/docs/decisions" aria-current="page"
+                <a href="/docs/decisions"
                   >Decision cards and reconcile<span class="st live" title="live"></span
                 ></a>
               </li>
@@ -167,48 +167,115 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs decisions</p>
-          <h1>Decision cards and reconcile <span class="pill live">live</span></h1>
+          <h1>Decision cards and reconcile <span class="badge beta">beta</span></h1>
           <p class="lede">
-            Most clashes between agents are small, and Gitstalk handles them. A person is asked only
-            when two changes genuinely want different behaviour, with both sides laid out.
+            Two agents want different behaviour. The engine tries to repair and reconcile first, and
+            only a real contradiction becomes a card for a person.
           </p>
 
+          <p class="status-line">
+            <span class="badge live">live</span> The engine raises and records cards, and answers
+            them itself after 30 seconds. <span class="badge planned">planned</span> Answering a
+            card yourself on a repository's web pages: not built yet.
+          </p>
+
+          <h2 id="story">The story</h2>
+          <p>
+            Two agents want different behaviour from the same code. Most clashes are small and the
+            engine settles them. Only when two changes truly contradict does the engine raise a card
+            with both sides laid out. The design is that a person answers once. Today on
+            repositories the engine answers for you after 30 seconds, keeping the landed bean's
+            behaviour.
+          </p>
+          <figure
+            class="mock"
+            aria-label="A decision card with two intents, two tests and a choice"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.io/ada/notes-api/changes/add-truncate</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-decision">
+                <span class="ms held">card D001: asked</span>
+                <p class="q">
+                  Two beans disagree about <code>truncate("")</code>. Which behaviour stays?
+                </p>
+                <div class="opts">
+                  <div class="opt pick">
+                    <b>Keep fix-trim (landed)</b
+                    ><span
+                      >Intent: trim input first. Test: <code>truncate("") === ""</code>. Kept as
+                      is.</span
+                    >
+                  </div>
+                  <div class="opt">
+                    <b>Keep add-truncate</b
+                    ><span
+                      >Intent: always add an ellipsis. Test: <code>truncate("") === "..."</code>.
+                      Its test would be amended.</span
+                    >
+                  </div>
+                </div>
+                <div class="m-secret">
+                  <span class="key">Decide</span><span class="val"></span><span class="when"></span
+                  ><span class="m-btn primary">Keep fix-trim</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              Mock of the card as a person would see it. On pushed beans the engine raises the card
+              and the push prints its id, but the Decide buttons exist only in the admin race view;
+              see the status table below.
+            </figcaption>
+          </figure>
+
           <h2 id="ladder">From a red to a person, in order</h2>
+          <ol
+            class="flow"
+            aria-label="Informed repair, then reconcile, then a decision card, then what happens after the decision"
+          >
+            <li class="bean"><b>1 Informed repair</b><span>red goes back to its author</span></li>
+            <li class="bean"><b>2 Reconcile</b><span>update a stale test</span></li>
+            <li class="sprout">
+              <b>3 Decision card</b><span>both sides named, then decided</span>
+            </li>
+            <li class="stalk"><b>4 After</b><span>winner kept, loser redone</span></li>
+          </ol>
           <ol>
             <li>
               <strong>Informed repair.</strong> A red pre-land check goes back to the bean's author
               with the failing tests and the landed beans it collided with: their titles, intents
-              and what they changed. The author usually fixes it in one round.
+              and changes. The author fixes it and pushes again.
             </li>
             <li>
-              <strong>Reconcile.</strong> If the same test fails again, a test author looks at every
-              landed task behind the failing tests. When a test only pins an old value that the
-              other task legitimately changed (an order total before shipping was added), it updates
-              the test and the bean lands.
+              <strong>Reconcile.</strong> If the same test fails again, a test author looks at the
+              landed tasks behind the failing tests. When a test only pins an old value another task
+              changed on purpose, it updates the test and the bean lands.
             </li>
             <li>
-              <strong>Decision card.</strong> When the two specs contradict each other, the bean
-              stops and a card opens: both intents, both tests, and what each side would keep. The
-              bean is <em>parked</em> with the reason (<code
-                >needs a person: two specs disagree</code
-              >) and costs nothing while it waits.
+              <strong>Decision card.</strong> When the two specs contradict, a card opens naming
+              both beans. The engine's default answer comes after 30 seconds: the landed bean wins.
             </li>
             <li>
-              <strong>After the decision.</strong> By default the landed winner is kept, the loser's
-              tests are amended to the decided spec, and the loser is re-executed under it.
+              <strong>After the decision.</strong> The loser goes back to its author with the
+              decision (in a race the loser's tests are amended and it is re-executed under the
+              decided spec). If it is still red against the winner, it is parked with the reason
+              <em>needs a person: two specs disagree</em>.
             </li>
           </ol>
           <p>
-            Pairs declared as coupled get their card before either starts, rather than after a red.
-            A bean that keeps failing without progress is parked too, so one hopeless bean never
-            holds a run open.
+            In races with a task list, pairs declared as coupled get their card before either
+            starts, and a bean that keeps failing without progress is parked, so one hopeless bean
+            never holds a race open. Pushed beans have neither rule: a bean pushed to a repository
+            is fixed by its author for as long as it takes, and the engine drops it after 20 rounds.
           </p>
 
           <h2 id="why">Why this order</h2>
           <ul>
             <li>
               Re-executing the loser under the decided spec shipped all 40 tasks in three clean
-              runs, against 35 without it, at no extra cost.
+              runs, against 35 when the loser was dropped, at about the same cost.
             </li>
             <li>
               Reverting the winner instead never worked (0 of 3): other beans had already built on
@@ -216,70 +283,98 @@
             </li>
             <li>
               Reconciling before raising a card stopped cards for clashes that were only stale test
-              values; the one reconcile in that race that ended in a contradiction was a real one.
+              values.
             </li>
           </ul>
+          <aside class="callout note">
+            <p class="callout-title">These are race results</p>
+            <p>
+              They come from synthetic races with real agents on a laptop, one run per seed, not
+              from customer repositories. Treat them as evidence for the order, not as a promise for
+              your repository.
+            </p>
+          </aside>
 
-          <h2 id="where">Where it runs today</h2>
+          <h2 id="status">Where it runs today</h2>
           <div class="tbl">
             <table>
               <thead>
                 <tr>
                   <th>What</th>
                   <th>Status</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
+                  <td>Informed repair, reconcile, cards and parking in the engine</td>
+                  <td><span class="badge live">live</span></td>
+                  <td>Every race on the hosted service.</td>
+                </tr>
+                <tr>
+                  <td>Cards on pushed beans</td>
+                  <td><span class="badge live">live</span></td>
                   <td>
-                    Informed repair, reconcile, cards and parking in the engine (every race on the
-                    hosted service)
+                    The push prints <code>decision card D001: ...</code>. Pushed beans carry no
+                    separate acceptance tests yet, so reconcile has nothing to amend and a
+                    contradiction goes straight to a card. Nobody is asked: the engine answers after
+                    30 seconds and the landed bean wins. The bean page shows
+                    <em>Decision D001 asked</em> and later <em>Parked</em> in its journey.
                   </td>
-                  <td><span class="pill live">live</span></td>
                 </tr>
                 <tr>
+                  <td>Answering a repository's cards on the web</td>
+                  <td><span class="badge planned">planned</span></td>
                   <td>
-                    Cards on pushed beans: the push prints <code>decision card D001: …</code>.
-                    Pushed beans carry no separate acceptance tests yet, so reconcile has nothing to
-                    amend and a contradiction goes straight to a card or a park.
+                    The permission exists (the maintain role and above may decide) and so does the
+                    server action, but the only page with Decide buttons is the admin race view. The
+                    repository bean page shows the card only as a journey line, with no answer
+                    control. Keeping a card open for a person on repositories is not built either.
                   </td>
-                  <td><span class="pill live">live</span></td>
                 </tr>
                 <tr>
-                  <td>Answering a repository's cards on the web, by the owner or a maintainer</td>
-                  <td><span class="pill live">live</span></td>
+                  <td>Card tools over MCP</td>
+                  <td><span class="badge planned">planned</span></td>
+                  <td>
+                    An agent can read that a bean is held for a person (<code>bean_status</code>)
+                    but cannot answer.
+                  </td>
                 </tr>
                 <tr>
-                  <td>Card tools over MCP; routing a card to the spec's owner</td>
-                  <td><span class="pill soon">coming soon</span></td>
+                  <td>Approval-rule cards</td>
+                  <td><span class="badge beta">beta</span></td>
+                  <td>
+                    A rule can hold a change for a person's approval, with its own receipt. There is
+                    no approve button in the web yet. See
+                    <a href="/docs/approval-rules">Approval rules</a>.
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <section class="sources">
-            <h2>Sources</h2>
-            <ul>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/exp/e6-decision-cards.md"
-                  >E6: decision cards that re-execute the loser</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/11-experiments-summary.md"
-                  >docs/claude-opus/11-experiments-summary.md</a
-                >
-                (v2.4 reconcile, v2.5 escalation and parking)
-              </li>
-            </ul>
-          </section>
+          <h2 id="sources">Sources</h2>
+          <ul>
+            <li>
+              E6: decision cards that re-execute the loser,
+              <a
+                href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/exp/e6-decision-cards.md"
+                >docs/claude-opus/exp/e6-decision-cards.md</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/11-experiments-summary.md"
+                >docs/claude-opus/11-experiments-summary.md</a
+              >
+              (v2.4 reconcile, v2.5 escalation and parking)
+            </li>
+          </ul>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/collaborators"
-              ><small>Previous</small>Collaborators and visibility</a
+            <a class="prev" href="/docs/approval-rules"><small>Previous</small>Approval rules</a
+            ><a class="next" href="/docs/collaborators"
+              ><small>Next</small>Collaborators and visibility</a
             >
-            <a class="next" href="/docs/streaming-diffs"><small>Next</small>Streaming diffs</a>
           </nav>
         </article>
       </div>

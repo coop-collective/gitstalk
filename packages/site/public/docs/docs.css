@@ -1,9 +1,36 @@
 /*
  * Gitstalk docs: the site's Nightshift skin (../site.css) plus a left nav, long-form prose,
  * tables, code blocks, status pills and the architecture diagram.
- * Status vocabulary, used everywhere: live (leaf, the only one that glows), rolling out
- * (bean violet: built and verified on staging, not yet on the hosted service) and coming soon
- * (amber, as the landing page's .chip.soon).
+ *
+ * ======================= DOCS UI KIT (writers: copy from _kit.html) =======================
+ * Rules: never edit nav in a page (the list is DOCS_NAV in docs.js); never write CSS in a page;
+ * links are root-absolute clean URLs (/docs/git); every claim is checked against code.
+ * Status words everywhere: live, beta, planned (the old .pill.rolling/.soon still work).
+ *
+ * BADGE         <span class="badge live">live</span>  <span class="badge beta">beta</span>
+ *               <span class="badge planned">planned</span>
+ * CALLOUT       <aside class="callout tip"><p class="callout-title">Tip</p><p>Text.</p></aside>
+ *               (also .note and .warning)
+ * STEPS         <ol class="steps"><li><h3>Do it</h3><p>Words.</p> [a .cmd block] </li></ol>
+ * CODE + COPY   <div class="cmd" data-copyable><header><span>Terminal</span></header>
+ *                 <pre><code>git push</code></pre></div>   (pre.url drops the "$ " prefix)
+ * TABBED CODE   <div class="install" data-agent-tabs id="x">
+ *                 <section class="cmd" data-agent="claude-code" data-name="Claude Code">
+ *                   <header><span>Claude Code</span></header><pre><code>...</code></pre>
+ *                 </section> ... one section per tab (ids: claude-code, codex, git ...) </div>
+ * UI MOCK       <figure class="mock" aria-label="What it shows">
+ *                 <div class="mock-bar" aria-hidden="true"><i></i><i></i><i></i>
+ *                   <span class="mock-url">gitstalk.dev/acme/api</span></div>
+ *                 <div class="mock-body"> ...components... </div>
+ *                 <figcaption>One line saying what to look at.</figcaption></figure>
+ *               Components: .m-repo (+.m-tabs), .m-bean (+.ms.checking|landed|green|red|held),
+ *               .m-field and .m-secret (key, .val, .when, .m-btn in that order), .m-run (+.m-step.ok|run|fail|wait), .m-decision,
+ *               .m-term (+.ok .dim .bad spans). Mocks are decoration: no real links or inputs.
+ * FLOW          <ol class="flow" aria-label="Push to stalk"><li class="bean"><b>Push</b>
+ *                 <span>a bean branch</span></li> ... (.bean .sprout .stalk tint a node)</ol>
+ * FEATURE CARDS <div class="fgrid"><a class="fcard" href="/docs/git"><h3>Git <span
+ *                 class="badge live">live</span></h3><p>One sentence.</p></a></div>
+ * ==========================================================================================
  */
 
 .docs {
@@ -687,4 +714,710 @@
 /* Short code in a table cell stays on one line; the table scrolls in its own box instead. */
 .tbl code {
   white-space: nowrap;
+}
+
+/* =====================================================================================
+ * UI KIT (see the comment block at the top for snippets)
+ * ===================================================================================== */
+
+/* ---------- Badges: live / beta / planned ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font: 500 11.5px/18px var(--mono);
+  white-space: nowrap;
+  vertical-align: 0.1em;
+}
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.badge.live {
+  color: var(--leaf-ink);
+  border-color: color-mix(in srgb, var(--leaf) 45%, var(--border));
+  background: var(--leaf-bg);
+}
+.badge.live::before {
+  background: var(--leaf);
+  box-shadow: 0 0 6px var(--glowc);
+}
+.badge.beta {
+  color: var(--bean);
+  border-color: color-mix(in srgb, var(--bean) 45%, var(--border));
+  background: var(--bean-bg);
+}
+.badge.beta::before {
+  background: var(--bean);
+}
+.badge.planned {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 50%, var(--border));
+  background: color-mix(in srgb, var(--amber) 9%, transparent);
+}
+.badge.planned::before {
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+}
+.doc h1 .badge,
+.doc h2 .badge,
+.doc h3 .badge {
+  margin-left: 10px;
+  vertical-align: 0.25em;
+}
+
+/* ---------- Callouts: note, tip, warning ---------- */
+.callout {
+  margin: 20px 0 0;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--fg-subtle);
+  border-radius: 0 8px 8px 0;
+  background: var(--subtle);
+}
+.callout > :first-child {
+  margin-top: 0;
+}
+.callout p {
+  margin: 8px 0 0;
+}
+.callout .callout-title {
+  margin: 0;
+  font: 600 12.5px var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+.callout.note {
+  border-left-color: var(--bean);
+}
+.callout.tip {
+  border-left-color: var(--leaf);
+}
+.callout.tip .callout-title {
+  color: var(--leaf-ink);
+}
+.callout.warning {
+  border-left-color: var(--amber);
+}
+.callout.warning .callout-title {
+  color: var(--amber);
+}
+
+/* ---------- Code blocks inside steps and docs ---------- */
+.steps .cmd,
+.doc .cmd[data-copyable],
+.doc .tabbed .cmd {
+  margin: 12px 0 0;
+}
+.steps p + .cmd,
+.steps .cmd + p {
+  margin-top: 12px;
+}
+.doc .cmd header {
+  min-height: 44px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.doc .cmd .copyhint {
+  padding-bottom: 10px;
+}
+.doc .tabbed > .picker + .cmd {
+  margin-top: 12px;
+}
+.doc .picker [role='tab'] {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.doc .cmd pre.url::before {
+  content: '';
+}
+
+/* ---------- Mock frames: the product in miniature ---------- */
+.mock {
+  margin: 22px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  background: var(--subtle);
+  border-bottom: 1px solid var(--border-muted);
+}
+.mock-bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.mock-url {
+  margin-left: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--inset);
+  font: 12px/20px var(--mono);
+  color: var(--fg-subtle);
+}
+.mock-body {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.mock figcaption {
+  padding: 9px 14px;
+  border-top: 1px solid var(--border-muted);
+  background: var(--subtle);
+  font: 12.5px/1.5 var(--mono);
+  color: var(--fg-subtle);
+}
+.mock .mono {
+  font-family: var(--mono);
+}
+.mock b,
+.mock strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* Bean status row */
+.m-bean {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+.m-bean .name {
+  font: 600 13.5px var(--mono);
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.m-bean .by {
+  grid-column: 2;
+  font-size: 12.5px;
+  color: var(--fg-subtle);
+}
+.m-bean .ms {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+}
+.m-bean .dot {
+  grid-row: 1 / span 2;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--fg-subtle);
+}
+.ms {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font: 500 12px/20px var(--mono);
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.ms::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ms.checking {
+  color: var(--bean);
+  background: var(--bean-bg);
+  border-color: color-mix(in srgb, var(--bean) 45%, var(--border));
+}
+.ms.checking::before {
+  animation: m-pulse 1.4s ease-in-out infinite;
+}
+.ms.landed {
+  color: var(--sprout);
+  background: var(--sprout-bg);
+  border-color: color-mix(in srgb, var(--sprout) 45%, var(--border));
+}
+:root[data-theme='light'] .ms.landed {
+  color: #2f6b05;
+}
+.ms.green {
+  color: var(--leaf-ink);
+  background: var(--leaf-bg);
+  border-color: color-mix(in srgb, var(--leaf) 45%, var(--border));
+}
+.ms.red {
+  color: var(--red);
+  background: var(--red-bg);
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+}
+.ms.held {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 9%, transparent);
+  border-color: color-mix(in srgb, var(--amber) 50%, var(--border));
+}
+.m-bean:has(.ms.checking) .dot {
+  background: var(--bean);
+}
+.m-bean:has(.ms.landed) .dot {
+  background: var(--sprout);
+}
+.m-bean:has(.ms.green) .dot {
+  background: var(--leaf);
+}
+.m-bean:has(.ms.red) .dot {
+  background: var(--red);
+}
+.m-bean:has(.ms.held) .dot {
+  background: var(--amber);
+}
+@keyframes m-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ms.checking::before {
+    animation: none;
+  }
+}
+
+/* Repository header with tabs */
+.m-repo .title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font: 15px var(--mono);
+  color: var(--fg-subtle);
+}
+.m-repo .title b {
+  font-size: 17px;
+}
+.m-repo .meta {
+  margin: 4px 0 0;
+  color: var(--fg-subtle);
+  font-size: 13px;
+}
+.m-tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.m-tabs span {
+  padding: 7px 12px;
+  font-size: 13.5px;
+  white-space: nowrap;
+  color: var(--fg-subtle);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.m-tabs span.on {
+  color: var(--fg);
+  border-bottom-color: var(--leaf);
+}
+.m-tabs small {
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--inset);
+  font: 11.5px var(--mono);
+}
+
+/* Settings form rows */
+.m-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 4px 20px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-muted);
+}
+.m-field:last-child {
+  border-bottom: 0;
+}
+.m-field .label b {
+  display: block;
+  font-size: 14px;
+}
+.m-field .label span {
+  font-size: 12.5px;
+  color: var(--fg-subtle);
+}
+.m-input {
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--page);
+  font: 13px/20px var(--mono);
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-secret {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+.m-secret .key {
+  font: 600 13px var(--mono);
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.m-secret .val {
+  font: 13px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--fg-subtle);
+}
+.m-secret .when {
+  font-size: 12px;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.m-btn {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  background: var(--bg);
+}
+.m-btn.primary {
+  background: var(--leaf);
+  border-color: transparent;
+  color: var(--on-leaf);
+  font-weight: 600;
+}
+
+/* Actions run with steps */
+.m-run {
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.m-run > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--subtle);
+  border-bottom: 1px solid var(--border-muted);
+}
+.m-run > header b {
+  font-size: 14px;
+}
+.m-run > header span.sub {
+  margin-left: auto;
+  font: 12px var(--mono);
+  color: var(--fg-subtle);
+}
+.m-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-muted);
+  font: 13px var(--mono);
+}
+.m-step:last-child {
+  border-bottom: 0;
+}
+.m-step::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--fg-subtle);
+  justify-self: center;
+}
+.m-step.ok::before {
+  background: var(--leaf);
+  border-color: var(--leaf);
+}
+.m-step.run::before {
+  border-color: var(--bean);
+  border-top-color: transparent;
+  animation: m-spin 1s linear infinite;
+}
+.m-step.fail::before {
+  background: var(--red);
+  border-color: var(--red);
+}
+.m-step.fail {
+  color: var(--red);
+}
+.m-step .t {
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+@keyframes m-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-step.run::before {
+    animation: none;
+  }
+}
+
+/* Decision card */
+.m-decision {
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--amber) 6%, var(--subtle));
+}
+.m-decision .q {
+  margin: 6px 0 0;
+  color: var(--fg);
+  font-size: 15px;
+}
+.m-decision .opts {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.m-decision .opt {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.m-decision .opt b {
+  display: block;
+  font-size: 13.5px;
+}
+.m-decision .opt span {
+  font-size: 12.5px;
+  color: var(--fg-subtle);
+}
+.m-decision .opt.pick {
+  border-color: var(--leaf);
+  background: var(--leaf-bg);
+}
+
+/* Terminal with git push output */
+.m-term {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  font: 12.5px/1.65 var(--mono);
+  color: var(--fg);
+  overflow-x: auto;
+  white-space: pre;
+}
+.m-term .dim {
+  color: var(--fg-subtle);
+}
+.m-term .ok {
+  color: var(--leaf-ink);
+}
+.m-term .bad {
+  color: var(--red);
+}
+.m-term .p {
+  color: var(--leaf);
+  font-weight: 600;
+}
+
+/* ---------- Flow diagram: boxes and arrows ---------- */
+.flow {
+  list-style: none;
+  margin: 22px 0 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px 0;
+}
+.flow > li {
+  position: relative;
+  flex: 1 1 120px;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--stage, var(--fg-subtle));
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.flow > li + li {
+  margin-left: 26px !important;
+}
+.flow > li + li::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  background: var(--fg-subtle);
+}
+.flow > li + li::after {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: calc(50% - 4px);
+  border: 5px solid transparent;
+  border-left: 7px solid var(--fg-subtle);
+  border-right: 0;
+}
+.flow b {
+  display: block;
+  color: var(--fg);
+  font-size: 14px;
+}
+.flow span {
+  color: var(--fg-subtle);
+  font-size: 12.5px;
+}
+.flow > li.bean {
+  --stage: var(--bean);
+}
+.flow > li.sprout {
+  --stage: var(--sprout);
+}
+.flow > li.stalk {
+  --stage: var(--leaf);
+}
+@media (max-width: 640px) {
+  .flow {
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow > li {
+    flex: none;
+  }
+  .flow > li + li {
+    margin: 22px 0 0 !important;
+  }
+  .flow > li + li::before {
+    left: 50%;
+    top: -20px;
+    width: 2px;
+    height: 16px;
+  }
+  .flow > li + li::after {
+    left: calc(50% - 4px);
+    top: -6px;
+    border: 5px solid transparent;
+    border-top: 7px solid var(--fg-subtle);
+    border-bottom: 0;
+  }
+}
+
+/* ---------- Feature cards ---------- */
+.fgrid {
+  margin: 22px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.fcard {
+  display: block;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  text-decoration: none;
+  color: var(--fg-muted);
+}
+.fcard:hover {
+  border-color: var(--leaf);
+}
+.doc .fcard h3 {
+  margin: 0;
+  font-size: 16.5px;
+  color: var(--fg);
+}
+.doc .fcard p {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+@media (max-width: 640px) {
+  .mock-body {
+    padding: 12px;
+  }
+  .m-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .m-secret {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .m-secret .val,
+  .m-secret .when {
+    grid-column: 1;
+  }
+  .m-secret .m-btn {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}
+
+/* ---------- Fold: a collapsed block of reference detail (architecture engine rules) ---------- */
+details.fold {
+  margin: 10px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+details.fold > summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--fg);
+  list-style-position: inside;
+}
+details.fold[open] > summary {
+  border-bottom: 1px solid var(--border-muted);
+}
+details.fold > :not(summary) {
+  margin-left: 14px;
+  margin-right: 14px;
+}
+details.fold > :last-child {
+  margin-bottom: 14px;
 }

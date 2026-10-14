@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Organizations: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="A shared home for repositories, secrets and members: roles, base permission, settings, audit log and moving repositories in and out."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Organizations: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="A shared home for repositories, secrets and members: roles, base permission, settings, audit log and moving repositories in and out."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Organizations</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs organizations</p>
+          <h1>Organizations <span class="badge live">live</span></h1>
+          <p class="lede">
+            An organization is a shared home for repositories, secrets and members. Its owners
+            decide what members may do with every repository, so you do not invite people one
+            repository at a time.
+          </p>
+
+          <h2 id="create">Create one</h2>
+          <p>
+            Choose <strong>New organization</strong> from the <strong>+ New</strong> menu in the
+            header. Give it a handle, a name and an optional description. You become its owner.
+          </p>
+          <figure class="mock" aria-label="The New organization form">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/orgs/new</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label"><b>Handle</b><span>gitstalk.dev / acme</span></div>
+                <div class="m-input">acme</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Name</b><span>Shown on its page and menus.</span></div>
+                <div class="m-input">Acme Payments</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Description</b><span>Optional.</span></div>
+                <div class="m-input">Payments and billing services</div>
+              </div>
+            </div>
+            <figcaption>
+              The handle shares one namespace with people's handles, so
+              <code>gitstalk.dev/acme</code> is a person or an organization, never both. It stays
+              for the life of the organization: it is in every clone URL.
+            </figcaption>
+          </figure>
+
+          <h2 id="roles">Roles and base permission</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>May</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>owner</td>
+                  <td>
+                    Everything, including other owners and deleting the organization. The last owner
+                    cannot leave.
+                  </td>
+                </tr>
+                <tr>
+                  <td>admin</td>
+                  <td>
+                    Settings, secrets, members and every repository, as its owner. Cannot grant
+                    owner.
+                  </td>
+                </tr>
+                <tr>
+                  <td>member</td>
+                  <td>
+                    The base permission on every repository. Creates repositories unless only admins
+                    may.
+                  </td>
+                </tr>
+                <tr>
+                  <td>viewer</td>
+                  <td>The base permission, at most read.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The <strong>base permission</strong> is what members get on every repository without
+            being invited to it: <strong>none</strong> (the default), <strong>read</strong> or
+            <strong>write</strong>. With none, members and viewers reach only the repositories they
+            are invited to, plus the organization's internal and public ones. Owners and admins
+            reach every repository.
+          </p>
+          <h3>Who can do what</h3>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Who</th>
+                  <th>Private</th>
+                  <th>Internal</th>
+                  <th>Public</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Owner, admin</td>
+                  <td>Owner</td>
+                  <td>Owner</td>
+                  <td>Owner</td>
+                </tr>
+                <tr>
+                  <td>Member or viewer, base none (default)</td>
+                  <td>Not found</td>
+                  <td>Read</td>
+                  <td>Read</td>
+                </tr>
+                <tr>
+                  <td>Member, base read or write</td>
+                  <td>Read or write</td>
+                  <td>Read or write</td>
+                  <td>Read or write</td>
+                </tr>
+                <tr>
+                  <td>Viewer, base read or write</td>
+                  <td>Read</td>
+                  <td>Read</td>
+                  <td>Read</td>
+                </tr>
+                <tr>
+                  <td>Outside the organization</td>
+                  <td>Not found</td>
+                  <td>Not found</td>
+                  <td>Read</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <em>Not found</em> is a real 404: the repository looks as if it does not exist. A
+            <a href="/docs/collaborators">collaborator role</a> on one repository adds to this, and
+            the stronger one counts. The same rule decides access over HTTPS, SSH, MCP and the web.
+          </p>
+
+          <h2 id="settings">Organization settings</h2>
+          <p>
+            Open an organization from the menu under your avatar, then <strong>Settings</strong>.
+            Each section is its own page with its own Save. Owners and admins see all six; other
+            members see Secrets and variables, and Danger zone to leave.
+          </p>
+          <figure
+            class="mock"
+            aria-label="Organization settings: the six sections and the Repository defaults form"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/orgs/acme/settings/repository-defaults</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <b>Acme Payments</b> <span class="badge live">organization</span>
+                </div>
+                <div class="m-tabs" aria-hidden="true">
+                  <span>General</span><span>Members<small>4</small></span
+                  ><span class="on">Repository defaults</span><span>Secrets and variables</span
+                  ><span>Audit log</span><span>Danger zone</span>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Base permission for members</b><span>None (default), Read or Write.</span>
+                </div>
+                <div class="m-input">None</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Who creates repositories</b
+                  ><span>Members, admins and owners, or admins and owners only.</span>
+                </div>
+                <div class="m-input">Members, admins and owners</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>New repositories start</b><span>Private or Public.</span>
+                </div>
+                <div class="m-input">Private</div>
+              </div>
+            </div>
+            <figcaption>
+              A change applies on each member's next request. The six sections are General, Members
+              and invitations, Repository defaults, Secrets and variables, Audit log and Danger
+              zone.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  <th>What it does</th>
+                  <th>Who sees it</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>General</td>
+                  <td>
+                    Name, description and the icon (PNG, JPEG, WebP or GIF up to 2 MB, cropped
+                    square; without one you get the handle's first letters). See the
+                    <a href="/docs/settings#uploads">upload rules</a>.
+                  </td>
+                  <td>owner, admin</td>
+                </tr>
+                <tr>
+                  <td>Members and invitations</td>
+                  <td>
+                    Invite by handle with a role (member by default; only owners grant owner),
+                    change roles, remove people, cancel invitations. Invitees accept on their Home.
+                  </td>
+                  <td>owner, admin</td>
+                </tr>
+                <tr>
+                  <td>Repository defaults</td>
+                  <td>
+                    The base permission, who may create repositories, and whether new ones start
+                    private or public.
+                  </td>
+                  <td>owner, admin</td>
+                </tr>
+                <tr>
+                  <td>Secrets and variables</td>
+                  <td>
+                    Actions secrets and variables shared across the organization's repositories. See
+                    <a href="/docs/secrets">Secrets and variables</a>.
+                  </td>
+                  <td>everyone in the organization; owners and admins manage</td>
+                </tr>
+                <tr>
+                  <td>Audit log</td>
+                  <td>The last 100 events, newest first, times in UTC.</td>
+                  <td>owner, admin</td>
+                </tr>
+                <tr>
+                  <td>Danger zone</td>
+                  <td>
+                    Leave the organization (everyone; the last owner must name another owner first).
+                    Owners can delete it once it owns no repositories, by typing its handle.
+                  </td>
+                  <td>everyone; delete for owners</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="audit">What the audit log records</h3>
+          <figure class="mock" aria-label="An organization audit log with five events">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/orgs/acme/settings/audit-log</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-secret">
+                <span class="key">@coop</span>
+                <span class="val">invited @ada</span>
+                <span class="when">admin</span>
+                <span class="m-btn">Oct 12</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@ada</span>
+                <span class="val">joined</span>
+                <span class="when"></span>
+                <span class="m-btn">Oct 12</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@coop</span>
+                <span class="val">changed settings</span>
+                <span class="when"></span>
+                <span class="m-btn">Oct 13</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@ada</span>
+                <span class="val">created the repository</span>
+                <span class="when">acme/api</span>
+                <span class="m-btn">Oct 13</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@coop</span>
+                <span class="val">moved in</span>
+                <span class="when">acme/legacy</span>
+                <span class="m-btn">Oct 14</span>
+              </div>
+            </div>
+            <figcaption>
+              One line per event, written together with the change it records. It never carries a
+              secret.
+            </figcaption>
+          </figure>
+          <p>
+            The log records: the organization created and its settings changed; members invited,
+            invitations cancelled, accepted or declined; roles changed; members removed or who left;
+            repositories created in it; and repositories moved in or out.
+          </p>
+
+          <h2 id="repositories">Repositories in an organization</h2>
+          <ul>
+            <li>
+              Create one from <strong>New repository</strong> by choosing the organization as the
+              owner. Where you may create depends on the organization's rule above.
+            </li>
+            <li>
+              Move one in or out from the repository's <strong>Settings, Danger zone</strong>
+              (transfer). You can move your own repository to an organization where you are an owner
+              or admin, or an organization's repository to yourself or another organization you
+              administer. History, beans, collaborators and deploy tokens move with it, and the old
+              address keeps working. See
+              <a href="/docs/repositories#moved">Renamed and moved</a>.
+            </li>
+            <li>
+              An internal repository moved to a person becomes private, because only organizations
+              have internal repositories. Moved to another organization it stays internal to that
+              one.
+            </li>
+          </ul>
+
+          <h2 id="secrets">Organization secrets</h2>
+          <p>
+            Each organization secret or variable reaches one of three sets of repositories:
+            <strong>all</strong>, <strong>private only</strong> (which means not public, so internal
+            ones too, as on GitHub), or <strong>selected</strong> repositories you pick. A
+            repository's own entry of the same name wins over the organization's. Values are typed
+            once and never shown again. Details, including the pre-land switch, are on
+            <a href="/docs/secrets">Secrets and variables</a>.
+          </p>
+
+          <h2 id="not-yet">Not yet</h2>
+          <ul>
+            <li>Teams <span class="badge planned">planned</span></li>
+            <li>
+              Email invitations <span class="badge planned">planned</span>: Gitstalk sends no mail
+              yet, so invite by handle.
+            </li>
+            <li>Changing an organization's handle <span class="badge planned">planned</span></li>
+          </ul>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/28-organizations.md"
+                  >docs/claude-opus/28-organizations.md</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/collaborators"
+              ><small>Previous</small>Collaborators and visibility</a
+            >
+            <a class="next" href="/docs/settings"><small>Next</small>Settings map</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

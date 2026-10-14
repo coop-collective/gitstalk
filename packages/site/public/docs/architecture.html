@@ -6,14 +6,14 @@
     <title>Architecture: Gitstalk docs</title>
     <meta
       name="description"
-      content="How Gitstalk works: the engine's rules, the Cloudflare pieces, the git proxy and identity, and the measured results behind each choice."
+      content="How Gitstalk is built on Cloudflare Workers, containers and Artifacts, the path of a change, the security model, and measured results against a merge queue."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Architecture: Gitstalk docs" />
     <meta
       property="og:description"
-      content="How Gitstalk works: the engine's rules, the Cloudflare pieces, the git proxy and identity, and the measured results behind each choice."
+      content="How Gitstalk is built on Cloudflare Workers, containers and Artifacts, the path of a change, the security model, and measured results against a merge queue."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -155,7 +155,7 @@
             </ul>
             <h2>How it works</h2>
             <ul>
-              <li><a href="/docs/architecture" aria-current="page">Architecture</a></li>
+              <li><a href="/docs/architecture">Architecture</a></li>
               <li><a href="/docs/research">What did not work</a></li>
             </ul>
             <p class="legend">
@@ -170,9 +170,46 @@
           <h1>Architecture</h1>
           <p class="lede">
             A merge queue makes every change wait for the ones in front of it. Gitstalk checks each
-            change on the exact tree it would land on, lands it at once, and validates the stable
-            line behind it. This page explains the rules that make that safe, the Cloudflare pieces
-            it runs on, and what we measured.
+            change on the exact code it would land on, lands it at once, and validates the stable
+            line behind it. This page shows the pieces, how a change moves through them, and what we
+            measured.
+          </p>
+
+          <p class="status-line">
+            <span class="badge live">live</span> This is how the hosted service runs today.
+          </p>
+
+          <h2 id="picture">The picture</h2>
+          <p>
+            Everything is a Cloudflare Worker. Workers call each other through service bindings, not
+            HTTP. Three kinds of container do the work that needs a real Linux filesystem.
+          </p>
+          <figure class="mock" aria-label="Diagram: clients, the gateway, containers and storage">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk architecture</span>
+            </div>
+            <div class="mock-body">
+              <pre class="m-term">                browsers          agents (MCP)         git clients
+                   |                   |              HTTPS |     | SSH (not public yet)
+                   v                   v                    |     v
+              <span class="ok">web app</span> ----------- <span class="ok">mcp server</span>            |   <span class="ok">ssh server</span>
+                   \                   |                    |     /
+                    +------------------+--------------------+----+
+                                       v   service-binding RPC / git smart HTTP
+                                 <span class="ok">GATEWAY</span>  repositories, engines, git proxy, Actions
+                                  |            |                |
+                                  v            v                v
+                       runner containers   job containers    storage
+                       (check, merge,      (Actions jobs,    Artifacts (git) · D1 · Durable Objects
+                        revert)             one per job)     R2 · Queues · KV · Workers AI</pre>
+            </div>
+            <figcaption>
+              Who talks to what. Containers and storage sit behind the gateway.
+            </figcaption>
+          </figure>
+          <p>
+            Browsers, agents and git clients all end up at one place, the <strong>gateway</strong>.
+            It owns every repository and the engine that decides what lands.
           </p>
 
           <h2 id="path">The path of a bean</h2>
@@ -181,19 +218,16 @@
               <h3>Pushed</h3>
               <p>
                 An agent pushes <code>bean/&lt;name&gt;</code>. The gateway checks the credential,
-                refuses anything that is not a bean inside the git protocol, forwards the pack to
-                storage with a token the agent never sees, and hands the bean to the repository's
-                engine. A plain push returns in seconds and the agent takes its next task.
+                refuses anything that is not a bean, and passes the pack to storage with a token the
+                agent never sees.
               </p>
               <div class="on"><span class="cf">Workers</span><span class="cf">Artifacts</span></div>
             </li>
             <li class="bean">
-              <h3>Pre-land check, in the author's own sandbox</h3>
+              <h3>Pre-land check</h3>
               <p>
-                The runner squashes the bean onto the current sprout and runs the whole suite on
-                that exact merged tree, in a sandbox leased for this bean alone. If it is red, the
-                bean goes back to its author with the failing tests and the landed beans it collided
-                with.
+                A runner merges the bean onto the sprout and runs the whole suite on that exact
+                tree, in a container leased for this bean. A red goes back to its author.
               </p>
               <div class="on">
                 <span class="cf">Containers</span><span class="cf">Durable Objects</span>
@@ -201,28 +235,21 @@
             </li>
             <li class="sprout">
               <h3>Landed on the sprout</h3>
-              <p>
-                A green bean lands at once, and every other bean builds on it from then on. If the
-                sprout moved during the check, the engine re-checks only when the risk calls for it
-                (below).
-              </p>
+              <p>A green bean lands at once, and later beans build on it.</p>
               <div class="on">
                 <span class="cf">Durable Objects</span><span class="cf">Artifacts</span>
               </div>
             </li>
             <li class="sprout">
               <h3>Validated</h3>
-              <p>
-                Asynchronously, CI validates the sprout's newest commit. At most a window of
-                landings may run ahead of validation.
-              </p>
+              <p>CI validates the sprout's newest commit, a few landings behind.</p>
               <div class="on"><span class="cf">Containers</span></div>
             </li>
             <li class="stalk">
               <h3>On the stalk</h3>
               <p>
-                A green validation moves the stalk to that commit, together with every bean below
-                it. The stalk never moves to anything that has not passed.
+                A green validation moves the stalk to that commit. It never moves to anything
+                unvalidated.
               </p>
               <div class="on">
                 <span class="cf">Artifacts</span><span class="cf">Queues</span
@@ -231,354 +258,291 @@
             </li>
           </ol>
 
-          <h2 id="engine">The engine's rules, and why each one is there</h2>
-          <p>
-            Every rule below was added because a measured run needed it; most were measured on and
-            off. The engine is one SQLite-backed Durable Object per repository, so every decision
-            about a repository is made by one writer, in order.
-          </p>
-
-          <h3 id="preland">Check the exact tree, before landing</h3>
-          <p>
-            The original idea was to land first and fix forward. With real agents it collapsed:
-            repairs cost about 7 times a task, and with 12 Sonnet agents only 2 of 40 tasks went
-            green in 40 minutes. Checking the merged tree before landing, and handing a red back to
-            its author, took the red trunk away entirely. Releasing the author while its check runs
-            is what keeps agents busy.
-          </p>
-
-          <h3 id="window">The sprout window</h3>
-          <p>
-            When agents were released during their checks, landings came in bursts (19 in one
-            minute) and validation fell 27 commits behind. Now at most W landings may run ahead of
-            validation: W starts at 8, grows by 2 with each green validation, halves on a red one,
-            and stays between 2 and 16. It held landings to about 6 a minute and took that race from
-            24 to 34 green tasks. It also bounds how much work any red can touch.
-          </p>
-
-          <h3 id="reuse">Check reuse</h3>
-          <p>
-            A bean that lands on the very commit its pre-land check passed needs no second run of
-            the same suite on the same tree: that commit is green without CI. On staging this
-            replaced 7–8 of about 22 validations per race.
-          </p>
-
-          <h3 id="revert">Revert first, then reset the red window</h3>
-          <p>
-            A red validation is confirmed by the same test failing twice, so a flake never reverts a
-            good bean. When one bean is the only suspect, it is reverted at once. Otherwise the
-            engine resets the sprout: one new commit takes the stalk's tree (it never conflicts and
-            nothing moves backwards), and every bean in the window re-runs its pre-land check and
-            lands again, suspects one at a time. At 30 agents an unrevertable break once held the
-            sprout red for about 20 minutes; with the reset the sprout is green again about 1.3
-            minutes after a red, and in simulation the 35th green came 10 minutes sooner.
-          </p>
-
-          <h3 id="repair">Informed repair, then reconcile, then decide</h3>
-          <p>
-            A red resumes the author's own session with the failing tests and the intent and diff of
-            the bean it collided with. A repeated red goes to a reconcile step, and only a genuine
-            contradiction becomes a <a href="/docs/decisions">decision card</a>, with the bean
-            parked so it never holds a run open.
-          </p>
-
-          <h3 id="structural">Structural merge, re-checked</h3>
-          <p>
-            When git's line merge conflicts on code files, the runner retries with a structural
-            merge (Mergiraf, run as a separate binary) on just those paths. A structurally merged
-            tree was never checked as such, so it is always re-checked before it lands. The 30-agent
-            results below use this rule.
-          </p>
-
-          <h3 id="starts">Dependency-aware starts</h3>
-          <p>
-            With a task list, a free agent takes a task that clashes with nothing in flight, longest
-            dependency chain first. On 12 agents, the full rule set with first-in, first-out starts
-            shipped more but was slow; dependency-aware starts are what turned it into a win. In
-            simulation with 200 tasks in dependency chains, 200 shipped against 173. This applies
-            where Gitstalk schedules the work (races, backlogs); pushed beans are taken in arrival
-            order.
-          </p>
-
-          <h3 id="capacity">On-demand pre-land capacity</h3>
-          <p>
-            Each bean in check gets its own sandbox from a shared pool, up to 32 per repository.
-            Waiting for a sandbox never counts against the suite's time limit, and a timeout is
-            never reported as a red. Before this, pre-land checks shared two sandboxes, and 16
-            parallel workers collapsed (<a href="/docs/research#sandboxes">what happened</a>).
-          </p>
-
-          <h2 id="cloudflare">The Cloudflare pieces, and why</h2>
+          <h2 id="where">Where each thing runs</h2>
           <div class="tbl">
             <table>
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>What runs there</th>
-                  <th>Why it fits</th>
+                  <th>What it does for you</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td>Workers</td>
                   <td>
-                    The gateway (git proxy, engine host, RPC), the web app, the MCP server, the SSH
-                    front.
-                  </td>
-                  <td>
-                    Stateless, close to every agent, talking to each other by service-binding RPC
-                    rather than HTTP.
+                    The website, the MCP server for agents, the SSH front, and the gateway. They sit
+                    close to every client.
                   </td>
                 </tr>
                 <tr>
                   <td>Durable Objects</td>
                   <td>
-                    One engine per repository; the runner pool; per-run stream objects; SSH
-                    connections; Actions runs.
-                  </td>
-                  <td>
-                    A single writer per repository makes landing decisions serial without locks,
-                    with SQLite storage beside them and alarms for timers.
+                    One engine per repository, so landing decisions are made by one writer, in
+                    order. Also Actions runs and live streams.
                   </td>
                 </tr>
                 <tr>
                   <td>Containers</td>
                   <td>
-                    The Rust runner (squash, merge, revert, run the suite in a network-isolated
-                    sandbox), the SSH server, and Actions jobs.
-                  </td>
-                  <td>
-                    Real git and real test suites need Linux. A container per check gives each bean
-                    a clean, exact tree.
+                    The runner that merges and tests your bean, and one fresh container per Actions
+                    job.
                   </td>
                 </tr>
                 <tr>
                   <td>Artifacts</td>
-                  <td>Every repository's git storage.</td>
                   <td>
-                    Git hosting without servers. It has no server-side merge, which is why merges
+                    Your git data, with no servers to run. It has no server-side merge, so merges
                     happen in the runner.
                   </td>
                 </tr>
                 <tr>
                   <td>D1</td>
-                  <td>Accounts, the repository registry, access, the activity index.</td>
                   <td>
-                    These are cross-repository reads (an owner's list, a name lookup). A single
-                    registry object would serialise every page load.
+                    Accounts, the repository list, access, and the activity index behind lists and
+                    Home.
                   </td>
                 </tr>
                 <tr>
                   <td>Queues</td>
-                  <td>Engine events to the D1 index.</td>
                   <td>
-                    The engine sends from a cursor over its own log and the consumer is idempotent,
-                    so nothing is lost; the index runs about 3 s behind.
+                    Engine events to the activity index. The index runs a few seconds behind (mostly
+                    under 5).
                   </td>
                 </tr>
                 <tr>
                   <td>KV</td>
-                  <td>OAuth grants and tokens for MCP.</td>
-                  <td>What the OAuth provider library uses.</td>
+                  <td>OAuth grants and tokens for agent sign-in.</td>
                 </tr>
                 <tr>
                   <td>R2</td>
-                  <td>Actions logs.</td>
-                  <td>Logs never sit in a container or a Durable Object.</td>
+                  <td>Actions logs, the dependency cache and uploaded pictures.</td>
                 </tr>
                 <tr>
                   <td>Workers AI</td>
                   <td>
-                    Ask: a small decision model picks which view answers a question.
-                    <a href="/docs/automations">Automations</a>: the agent loop of a run, through AI
-                    Gateway.
+                    Small decision models (Clef, Jev) that pick a view or a route, and the model
+                    calls of automations.
                   </td>
-                  <td>Picking a view takes about half a second; generating a page would not.</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <aside class="callout note">
+            <p class="callout-title">About "sandboxes"</p>
+            <p>
+              The sandboxes on this page are internal containers that check your beans and run your
+              Actions jobs. They are not agent sandboxes you can use. Agents that run for you in the
+              cloud are planned: see <a href="/docs/cloud-agents">Cloud agents and sandboxes</a>.
+            </p>
+          </aside>
 
-          <h2 id="identity">The git proxy and identity</h2>
+          <h2 id="security">Security model</h2>
           <ul>
             <li>
-              <strong>Agents never hold storage tokens.</strong> The gateway mints a short-lived
-              Artifacts token per request inside the engine and streams the request through; the
-              client's own credential never goes upstream.
+              <strong>The gateway is the only holder of storage tokens.</strong> It mints
+              short-lived Artifacts tokens itself. Your own credential never goes upstream, and
+              agents never hold storage tokens.
             </li>
             <li>
-              <strong>Landing is never a permission.</strong> No token, key or role can push to the
-              sprout or the stalk. Only the engine moves them.
+              <strong>Agents never merge to the stalk.</strong> No token, key or role can push to
+              the sprout or the stalk. Only the engine moves them.
             </li>
             <li>
-              <strong>One access rule</strong> decides HTTPS git, SSH git, MCP and the web: a
-              person's role, capped by the credential's scopes. A repository you may not see is a
-              404 everywhere.
+              <strong>Untrusted code runs in per-job containers.</strong> Each pre-land check and
+              each Actions job gets its own container, and Actions workflows run for a bean pushed
+              by an agent session, a deploy token or a non-maintainer get only the secrets marked as
+              available to pre-land checks.
             </li>
             <li>
-              <strong>People sign in with passkeys or a six-digit email code</strong> (sent through
-              Cloudflare Email Service, stored only as a keyed hash). Agents connect with OAuth 2.1
-              (dynamic client registration, PKCE). Tokens and sessions are stored hashed. No
-              third-party service sits in any request path.
+              <strong>Secrets are write-only and masked.</strong> They are encrypted at rest and
+              masked in logs. See <a href="/docs/secrets">Secrets and variables</a>.
             </li>
           </ul>
+          <p>
+            One access rule decides git over HTTPS, MCP and the web: a person's role, capped by the
+            credential's scopes. A repository you may not see answers 404 everywhere.
+          </p>
 
-          <h2 id="results">What we measured</h2>
-
+          <h2 id="measured">What we measured</h2>
           <h3 id="fastify">Against GitHub's merge queue, on real changes</h3>
           <p>
             The same 38 merged pull requests from fastify's history, each with its own tests, pushed
             in parallel to a GitHub repository with GitHub's merge queue and Actions, and to a
-            Gitstalk repository. CI capacity was matched: 20 pre-land checks at once (the GitHub
-            organisation's concurrent Actions jobs) and 2 validations at once (the queue's build
-            concurrency). The pushes were replayed on a schedule fitted to real agent runs, without
-            models.
-          </p>
-          <div
-            class="bars"
-            role="img"
-            aria-label="Median time from ready to merged with 16 workers: GitHub merge queue about 7 minutes, Gitstalk about 1 minute"
-          >
-            <div class="bar">
-              <span>GitHub merge queue</span>
-              <div class="track"><div class="fill" style="width: 100%">~7 min</div></div>
-            </div>
-            <div class="bar us">
-              <span>Gitstalk</span>
-              <div class="track"><div class="fill" style="width: 14%">~1 min</div></div>
-            </div>
-          </div>
-          <p class="bars-cap">
-            Median ready → merged per change, 16 parallel workers, three seeds.
+            Gitstalk repository. CI capacity was matched: 20 pre-land checks at once and 2
+            validations at once. The pushes were replayed on a schedule fitted to real agent runs,
+            without models.
           </p>
           <div class="tbl">
             <table>
               <thead>
                 <tr>
                   <th>Workers</th>
-                  <th class="num">Per change, median (GitHub / Gitstalk)</th>
-                  <th class="num">Faster</th>
-                  <th class="num">All 38 landed</th>
-                  <th class="num">Sooner</th>
+                  <th>Per change, median (GitHub / Gitstalk)</th>
+                  <th>Faster</th>
+                  <th>All 38 landed (GitHub / Gitstalk)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td>4 (one seed)</td>
-                  <td class="num">2.9 / 0.7 min</td>
-                  <td class="num">4×</td>
-                  <td class="num">46 / 24 min</td>
-                  <td class="num">1.9×</td>
+                  <td>2.9 / 0.7 min</td>
+                  <td>4x</td>
+                  <td>46 / 24 min</td>
                 </tr>
                 <tr>
                   <td>8 (one seed)</td>
-                  <td class="num">3.7 / 0.8 min</td>
-                  <td class="num">4.6×</td>
-                  <td class="num">30 / 14 min</td>
-                  <td class="num">2.1×</td>
+                  <td>3.7 / 0.8 min</td>
+                  <td>4.6x</td>
+                  <td>30 / 14 min</td>
                 </tr>
                 <tr>
                   <td>16 (three seeds)</td>
-                  <td class="num">7 / 1 min</td>
-                  <td class="num">6–9×</td>
-                  <td class="num">28–33 / 10–12 min</td>
-                  <td class="num">2–3×</td>
+                  <td>7 / 1 min</td>
+                  <td>6 to 9x</td>
+                  <td>28 to 33 / 10 to 12 min</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p>
-            GitHub's queue slows as more work arrives, because it builds two groups at a time;
-            Gitstalk keeps landing each change in about a minute, so the gap grows with parallelism.
-            With 16 workers Gitstalk landed about 3× as many changes per 10 minutes. Every run
-            landed all 38 changes correctly on both forges.
+            With 16 workers Gitstalk landed 2 to 3 times as many changes per 10 minutes. Every run
+            in this table landed all 38 changes correctly on both forges.
           </p>
-
-          <h3 id="orchestrated">With real agents organising the work</h3>
+          <h3 id="agents">With real agents organising the work</h3>
           <p>
-            One Claude Code lead with Sonnet worker subagents got the whole backlog on each forge
-            and decided splitting, ordering and retries itself. At 4 workers the forges tied: the
-            agents were the bottleneck. At 8 workers Gitstalk's last task went green at 22 minutes
-            against GitHub's 41 (about 2×), and the median change integrated in 1.0 minute against
-            5.4.
+            One Claude Code lead with Sonnet worker subagents got the whole backlog on each forge.
+            At 4 workers the forges tied: the agents were the bottleneck. At 8 workers Gitstalk's
+            last task went green at 22 to 26 minutes (two runs) against GitHub's 41 (one run), and
+            the median change integrated in 1.0 to 1.2 minutes against 5.4.
           </p>
-
           <h3 id="arena">The synthetic 30-agent arena</h3>
           <p>
             30 Claude Code agents (Sonnet) worked 40 tasks that collide on purpose, on three seeds,
-            against a batched merge queue we built to behave like GitHub's. Gitstalk shipped 39–40
-            of 40 against the queue's 34–35, reached its 30th green task 1.7–2.3× sooner and
-            finished 1.3–1.6× sooner, with no red stalk check and the same agent spend ($13.31
-            against $13.20 over the three seeds). Cloudflare infrastructure cost about $0.40 per
-            Gitstalk race.
+            against a batched merge queue we built to behave like GitHub's. Gitstalk shipped 39 to
+            40 of 40 against the queue's 34 to 35, and reached its 30th green task 1.7 to 2.2 times
+            sooner, with no red validation (the queue had 9 to 13) and about the same agent spend.
+            In the 12-agent version of this race, metered Cloudflare infrastructure cost $0.35 to
+            $0.42 per Gitstalk race.
+          </p>
+          <aside class="callout warning">
+            <p class="callout-title">Read these with care</p>
+            <p>
+              The 4- and 8-worker rows are one seed each; the arena is three seeds, one run each,
+              and seeds swing a lot. CI minutes are not like for like: GitHub's include runner setup
+              and npm ci. The arena's tasks are short and synthetic, and with 7 times longer tasks
+              the lead shrank to 1.3 to 1.4 times. Its queue is ours, not GitHub's. Agents ran on a
+              laptop; only the forge ran on Cloudflare. Earlier harness versions favoured Gitstalk:
+              see <a href="/docs/research#harness">what did not work</a>.
+            </p>
+          </aside>
+          <p>
+            Runs and write-ups:
+            <a href="https://github.com/coop-collective/gitstalk/tree/HEAD/research/race/runs"
+              >research/race/runs</a
+            >,
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/loadgen/README.md"
+              >research/race/loadgen/README.md</a
+            >,
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/ORCHESTRATED.md"
+              >research/race/ORCHESTRATED.md</a
+            >.
           </p>
 
-          <div class="note caveat">
-            <p><strong>Read these with care.</strong></p>
-            <ul>
-              <li>
-                The 4- and 8-worker fastify rows are one seed each; the arena is three seeds, one
-                run each, and seeds swing a lot.
-              </li>
-              <li>
-                CI minutes are not like for like: GitHub's include runner setup and
-                <code>npm ci</code>.
-              </li>
-              <li>
-                The arena's tasks are short and synthetic; with 7× longer tasks the lead shrank to
-                1.3–1.4×. Its queue is ours, not GitHub's.
-              </li>
-              <li>
-                The orchestrated races are one run each. Agents ran on a laptop; only the forge ran
-                on Cloudflare.
-              </li>
-              <li>
-                Earlier harness versions favoured Gitstalk;
-                <a href="/docs/research#harness">how much, and the fix</a>.
-              </li>
-            </ul>
-          </div>
-
-          <section class="sources">
-            <h2>Runs and write-ups</h2>
-            <ul>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/loadgen/README.md"
-                  >research/race/loadgen/README.md</a
-                >
-                and
-                <a href="https://github.com/coop-collective/gitstalk/tree/HEAD/research/race/runs"
-                  >research/race/runs</a
-                >
-                (<code>lg-fastify-*</code>, <code>orch-fastify-*</code>,
-                <code>cf-demo2-sonnet-30-*</code>, <code>cf-queue-sonnet-30-*</code>)
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/research/race/ORCHESTRATED.md"
-                  >research/race/ORCHESTRATED.md</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/11-experiments-summary.md"
-                  >docs/claude-opus/11-experiments-summary.md</a
-                >
-                (every engine rule and its measurements)
-              </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/18-git-native-flow.md"
-                  >docs/claude-opus/18-git-native-flow.md</a
-                >
-                (git proxy, continuous engine, capacity)
-              </li>
-            </ul>
-          </section>
+          <h2 id="rules">Engine rules</h2>
+          <p>
+            For the curious. Each rule was added because a measured run needed it. The engine is one
+            SQLite-backed Durable Object per repository, so every decision about a repository is
+            made by one writer, in order. Open a rule to read why.
+          </p>
+          <details class="fold">
+            <summary>Check the exact tree, before landing</summary>
+            <p>
+              Landing first and fixing forward collapsed with real agents: repairs cost about 7
+              times a task, and with 12 Sonnet agents only 2 of 40 tasks ever went green before it
+              collapsed. Checking the merged tree before landing, and handing a red back to its
+              author, removed the red trunk. Releasing the author while its check runs keeps agents
+              busy.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>The sprout window</summary>
+            <p>
+              When agents were released during checks, landings came in bursts (19 in one minute)
+              and validation fell 27 commits behind. Now at most W landings may run ahead of
+              validation. W starts at 8, grows by 2 with each green validation, halves on a red one,
+              and stays between 2 and 16. Together with the other changes in that version, it held
+              landings to about 6 a minute and took that race from 24 to 34 green tasks.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>Check reuse</summary>
+            <p>
+              A bean that lands on the very commit its pre-land check passed needs no second run of
+              the same suite on the same tree. On staging this replaced 7 to 8 of about 22
+              validations per race.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>Revert first, then reset the red window</summary>
+            <p>
+              A red validation is confirmed by the same test failing twice, so a flake never reverts
+              a good bean. When one bean is the only suspect it is reverted at once. Otherwise the
+              engine resets the sprout: one new commit takes the stalk's tree, and every bean in the
+              window re-runs its pre-land check and lands again, suspects one at a time. With the
+              reset the sprout was green again about 1.3 minutes after a red at 30 agents, where an
+              unrevertable break had once held it red for about 20 minutes.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>Informed repair, then reconcile, then decide</summary>
+            <p>
+              A red resumes the author's own session with the failing tests and the intent and diff
+              of the bean it collided with. A repeated red goes to a reconcile step, and only a
+              genuine contradiction becomes a decision card, with the bean parked. See
+              <a href="/docs/decisions">Decision cards</a>.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>Structural merge, re-checked</summary>
+            <p>
+              When git's line merge conflicts on code files, the runner retries with a structural
+              merge (Mergiraf, run as a separate binary) on just those paths. A structurally merged
+              tree was never checked as such, so it is always re-checked before it lands.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>Dependency-aware starts</summary>
+            <p>
+              With a task list, a free agent takes a task that clashes with nothing in flight,
+              longest dependency chain first. This applies where Gitstalk schedules the work (races,
+              backlogs); pushed beans are taken in arrival order.
+            </p>
+          </details>
+          <details class="fold">
+            <summary>On-demand pre-land capacity</summary>
+            <p>
+              Each bean in check gets its own container from a shared pool, up to 32 per repository.
+              Waiting for a container never counts against the suite's time limit, and a timeout is
+              never reported as a red.
+            </p>
+          </details>
+          <p>
+            The full contract is in
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/31-gateway-engine-internals.md"
+              >docs/claude-opus/31-gateway-engine-internals.md</a
+            >, with every rule's measurements in
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/11-experiments-summary.md"
+              >docs/claude-opus/11-experiments-summary.md</a
+            >.
+          </p>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/self-hosting"><small>Previous</small>Self-hosting</a>
-            <a class="next" href="/docs/research"><small>Next</small>What did not work</a>
+            <a class="prev" href="/docs/troubleshooting"><small>Previous</small>Troubleshooting</a
+            ><a class="next" href="/docs/research"><small>Next</small>What did not work</a>
           </nav>
         </article>
       </div>

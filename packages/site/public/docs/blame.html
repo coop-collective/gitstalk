@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Why this line: blame by bean: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Blame by bean points at the change and its intent instead of an unreadable commit. See it in the file view and ask for it from an agent with why_lines."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Why this line: blame by bean: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Blame by bean points at the change and its intent instead of an unreadable commit. See it in the file view and ask for it from an agent with why_lines."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Why this line: blame by bean</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs blame</p>
+          <h1>Why this line: blame by bean <span class="badge beta">beta</span></h1>
+          <p class="lede">
+            With dozens of changes landing an hour, <code>git blame</code> points at a commit nobody
+            can read. Gitstalk points at the bean: the change, and the one-sentence reason it was
+            made. Ask before you edit a line and you learn what you would be undoing.
+          </p>
+          <aside class="callout note">
+            <p class="callout-title">Status</p>
+            <p>
+              The <code>why_lines</code> tool and the history behind it were merged on 14 October
+              2026 and are <span class="badge beta">beta</span> until the hosted deploy is
+              confirmed. The blame column in the web explorer is
+              <span class="badge live">live</span>; it is computed a different way and shows less
+              (see <a href="#web">In the web app</a>).
+            </p>
+          </aside>
+
+          <h2 id="problem">The problem with git blame here</h2>
+          <p>
+            A line's last commit in a busy repository is usually a squash made by the engine or a
+            revert. The author is an agent, and the message was written for the engine. What you
+            want to know is:
+          </p>
+          <ul>
+            <li>Which bean changed this line, and what was it trying to do?</li>
+            <li>Did a person weigh in through a decision card?</li>
+            <li>Was that bean taken back later, so the line really belongs to an older one?</li>
+          </ul>
+
+          <h2 id="web">In the web app</h2>
+          <p>
+            On the Ask tab, before you ask anything, choose <strong>Browse all files</strong>, then
+            ask the Files explorer a who or why question, such as "who changed tax rounding and
+            why?". It opens the first matching file with a column that names the bean that last
+            changed each run of lines, linked to the bean, with its landing number. Lines older than
+            the first landing show as <em>base</em>.
+          </p>
+          <figure
+            class="mock"
+            aria-label="A file with a blame column naming the bean for each run of lines"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url"
+                >gitstalk.io/acme/shop/files?q=who changed tax rounding and why</span
+              >
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title"><b>src/tax.ts</b> <span class="ms landed">sprout</span></div>
+                <p class="meta">Blame by bean. 3 lines changed in this range are marked.</p>
+              </div>
+              <pre class="m-term"><span class="dim">bean                  line</span>
+<span class="ok">round-tax-lines #4</span>    <span class="dim"> 1</span>  export function tax(cents: number, rate: number) {
+                      <span class="dim"> 2</span>    const raw = cents * rate;
+<span class="ok">half-up-rounding #9</span>  <span class="dim"> 3</span>    return Math.round(raw);
+<span class="dim">base</span>                  <span class="dim"> 4</span>  }
+<span class="ok">round-tax-lines #4</span>    <span class="dim"> 5</span>  export const TAX_RATE = 0.0825;</pre>
+            </div>
+            <figcaption>
+              The bean and its landing number are printed once at the top of each run of lines that
+              one bean wrote.
+            </figcaption>
+          </figure>
+
+          <h2 id="agents">How agents use it</h2>
+          <p>
+            Before editing, an agent calls <code>why_lines</code>. Omit <code>start</code> and
+            <code>end</code> for the whole file. <code>ref</code> is <code>sprout</code> (the staged
+            line, the default) or <code>stalk</code> (the stable line). Needs the
+            <code>read</code> scope; see <a href="/docs/mcp">MCP tools and scopes</a>.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Tool call</span></header>
+            <pre
+              class="chat"
+            ><code>why_lines { "repo": "acme/shop", "path": "src/tax.ts", "start": 1, "end": 5, "ref": "sprout" }</code></pre>
+          </div>
+          <p>The answer (shortened, with illustrative values):</p>
+          <pre><code>{
+  "path": "src/tax.ts", "ref": "sprout", "lines": 5,
+  "ranges": [
+    { "lines": "1-2", "bean": "round-tax-lines",  "commit": "9c1e4a7b02", "kind": "landing" },
+    { "lines": "3",   "bean": "half-up-rounding", "commit": "41d0be3c88", "kind": "landing" },
+    { "lines": "4",   "bean": null, "commit": "0a77f2e9d1", "kind": "base", "title": "Initial import" }
+  ],
+  "beans": {
+    "round-tax-lines":  { "title": "Round tax per line, not per cart", "actor": "ada", "decisions": [], "reverted": false },
+    "half-up-rounding": { "title": "Round half up", "actor": "claude-code", "decisions": ["D-3"], "reverted": false }
+  },
+  "history": [
+    { "commit": "41d0be3c88", "kind": "landing", "bean": "half-up-rounding", "change": "modified", "at": "2026-10-14T09:12:00Z", "on_stalk": true }
+  ],
+  "summary": "2 beans last changed these lines: round-tax-lines, half-up-rounding. Read their titles and decisions before changing them."
+}</code></pre>
+          <ul>
+            <li>
+              <strong>Per range</strong>: the bean, its landing commit and the kind of commit
+              (<code>landing</code>, <code>revert</code>, <code>reset</code>, <code>base</code> or
+              an ordinary <code>commit</code>).
+            </li>
+            <li>
+              <strong>Per bean</strong>: its title (its intent), who pushed it, the decision cards
+              that named it and whether a later revert took it off the sprout.
+            </li>
+            <li>
+              <strong>Path history</strong>: the recent landings and reverts that touched the file,
+              newest first, and whether each is on the stalk.
+            </li>
+            <li>
+              <strong>Reverts give lines back.</strong> If a bean was reverted, its lines go back to
+              the beans that wrote them before, and later beans keep their own lines.
+            </li>
+          </ul>
+          <aside class="callout tip">
+            <p class="callout-title">Pair it with the other read tools</p>
+            <p>
+              <code>work_overlaps</code> tells an agent who is editing the same files right now;
+              <code>why_lines</code> tells it who changed them before. Together they let it fit its
+              change to the intents around it.
+            </p>
+          </aside>
+
+          <h2 id="no-checkout">Edit and read with no checkout</h2>
+          <p>
+            Two tools are companions for an agent that has no clone. <code>repo_read</code> reads
+            files, lists trees and greps code; <code>bean_commit</code> sends the changed files and
+            Gitstalk builds the commit. Both are <span class="badge beta">beta</span>. See
+            <a href="/docs/mcp#commit">MCP tools and scopes</a> for limits and the conflict answer.
+          </p>
+
+          <h2 id="how">How it is computed</h2>
+          <p>
+            Gitstalk keeps a derived history beside each repository's engine. It follows the
+            sprout's landings in order, classifies each from the trailers the engine writes (<code
+              >Task:</code
+            >
+            for a landing, <code>Reverts:</code> for a revert), and records which commit last
+            changed each span of lines in each file.
+          </p>
+          <p>
+            Each kind of history has a version, and when the code's version changes the rows are
+            dropped and computed again. Some kinds update when a landing is reported, others when
+            someone first asks, so a read always answers from up to date rows. The design is in
+            <a
+              href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/34-derived-data-and-blame.md"
+              >docs/claude-opus/34</a
+            >.
+          </p>
+
+          <h3 id="limits">Limits and what is not done</h3>
+          <ul>
+            <li>
+              History begins at the repository's first commit, or at most 256 commits back. Older
+              lines show as <em>base</em>.
+            </li>
+            <li>
+              Bean branches are not derived; <code>ref</code> is <code>sprout</code> or
+              <code>stalk</code>.
+            </li>
+            <li>
+              A file that is binary, over 256 KB or past the first 200 files of a change is owned
+              whole by the commit that changed it.
+            </li>
+            <li>
+              The web file view does not show the bean's title, decisions or reverts yet; only the
+              tool does. Showing "why" in the web view is not built.
+            </li>
+            <li>
+              <code>work_overlaps</code> was not moved onto this history (the overlap index is
+              planned), because most of its answer is about beans still in flight.
+            </li>
+          </ul>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/34-derived-data-and-blame.md"
+                  >docs/claude-opus/34-derived-data-and-blame.md</a
+                >,
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/33-server-side-commits.md"
+                  >33-server-side-commits.md</a
+                >
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/ask"><small>Previous</small>Ask the repository</a>
+            <a class="next" href="/docs/cloud-agents"
+              ><small>Next</small>Cloud agents and sandboxes</a
+            >
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

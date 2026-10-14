@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Automation builder and templates: Gitstalk docs</title>
+    <meta
+      name="description"
+      content="Build an automation in the browser with a form beside its YAML, start from a template such as Area watcher, save it as a bean, and test run it."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Automation builder and templates: Gitstalk docs" />
+    <meta
+      property="og:description"
+      content="Build an automation in the browser with a form beside its YAML, start from a template such as Area watcher, save it as a bean, and test run it."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: Automation builder and templates</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs automation-builder</p>
+          <h1>Automation builder and templates <span class="badge beta">beta</span></h1>
+          <p class="lede">
+            Build an <a href="/docs/automations">automation</a> in the browser: a form beside the
+            file's YAML (tabs on a phone), always in sync. Start from a template, or from a blank
+            page.
+          </p>
+          <aside class="callout note">
+            <p class="callout-title">Beta</p>
+            <p>
+              The builder is merged and wired to the same save path as the rest of Gitstalk. Its
+              rollout to the hosted service is still going out, so a repository may not show
+              <strong>New automation</strong> yet. Writing the file by hand always works.
+            </p>
+          </aside>
+
+          <h2 id="walkthrough">Walkthrough</h2>
+          <ol class="steps">
+            <li>
+              <h3>Open the builder</h3>
+              <p>
+                On the repository's <strong>Automations</strong> tab, press
+                <strong>New automation</strong> and pick a template. <strong>Edit</strong> on an
+                existing automation opens it.
+              </p>
+            </li>
+            <li>
+              <h3>Edit the form or the YAML</h3>
+              <p>
+                Change a field and only that line of the YAML changes, with your comments and layout
+                kept. Edit the YAML and the form follows. If the YAML does not parse, the form
+                pauses and points at the line.
+              </p>
+            </li>
+            <li>
+              <h3>Fix problems where they are</h3>
+              <p>
+                Every change is checked by the same rules Gitstalk uses when it reads the file.
+                Problems show at their field and at their line. Compatibility notes, such as a
+                capped timeout, show beside the file.
+              </p>
+            </li>
+            <li>
+              <h3>Save as a bean</h3>
+              <p>
+                Add an optional commit message and press <strong>Save as bean</strong>. Nothing is
+                pushed to <code>main</code>.
+              </p>
+            </li>
+          </ol>
+
+          <figure class="mock" aria-label="The automation builder: form beside YAML">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/automations/new</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title"><b>New automation</b></div>
+                <p class="meta">
+                  .gitstalk/automations/fix-red.yml · saves as a bean: pre-land check, then live
+                  when the stalk takes it
+                </p>
+                <div class="m-tabs" aria-hidden="true">
+                  <span class="on">Form</span><span>YAML</span>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Name</b><span>File name: lowercase letters, digits, - and _.</span>
+                </div>
+                <div class="m-input">Fix red beans</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Triggers</b
+                  ><span>Gitstalk events, with beans, authors and paths filters.</span>
+                </div>
+                <div class="m-input">bean_red</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>On a schedule (UTC)</b
+                  ><span>Every Monday at 09:00. Next: Mon 19 Oct, Mon 26 Oct.</span>
+                </div>
+                <div class="m-input">0 9 * * 1</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Harness</b><span>Prompt runs an agent. Shell runs a script.</span>
+                </div>
+                <div class="m-input">Prompt · kimi-k2.7-code</div>
+              </div>
+              <div class="m-field">
+                <div class="label"><b>Limits</b><span>Timeout, max turns, max cost.</span></div>
+                <div class="m-input">30 · 40 · $0.50</div>
+              </div>
+              <pre class="m-term"><span class="dim"># .gitstalk/automations/fix-red.yml</span>
+name: Fix red beans
+on:
+  bean_red:
+  schedule: [{ cron: "0 9 * * 1" }]
+permissions:
+  beans: write
+max-cost-usd: 0.50</pre>
+              <span class="m-btn primary">Save as bean</span> <span class="m-btn">Test run</span>
+            </div>
+            <figcaption>
+              The form has sections for Name, Triggers, Harness, Permissions, Secrets, Limits and
+              Memory. Schedules show in words with their next run times.
+            </figcaption>
+          </figure>
+
+          <h2 id="templates">Templates</h2>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Template</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Fix red beans</td>
+                  <td>
+                    When a bean goes red, an agent reads why, fixes it in a new bean and notes what
+                    it learned.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Weekly dependency bump</td>
+                  <td>
+                    Every Monday, updates dependencies one at a time and pushes a bean for each that
+                    passes.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Summarize landed work</td>
+                  <td>
+                    Every Friday, writes a short summary of what landed this week to the repository.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Triage decision cards</td>
+                  <td>
+                    When a decision card opens, compares the beans and leaves a recommendation in
+                    memory.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Shell heartbeat</td>
+                  <td>
+                    A tiny shell hook every hour: no model, just a script with the workspace and
+                    memory.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Area watcher</td>
+                  <td>Reviews every landing in one area of the code. See below.</td>
+                </tr>
+                <tr>
+                  <td>Blank</td>
+                  <td>An agent you run by hand, with a prompt to fill in.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="area-watcher">Area watcher, step by step</h2>
+          <p>
+            An area watcher is a reviewer that knows one part of the code well. When a bean lands
+            and changes files under the area's paths, an agent reviews the landing against the
+            area's intent and recent history. It <strong>reviews and never merges</strong>.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>It wakes on a landing in the area</h3>
+              <p>
+                <code>bean_landed</code> with a <code>paths</code> filter. A landing that changes
+                nothing under <code>src/billing/</code> never starts it.
+              </p>
+              <div class="cmd" data-copyable>
+                <header><span>.gitstalk/automations/billing-watcher.yml</span></header>
+                <pre class="url"><code>name: Area watcher (billing)
+on:
+  bean_landed:
+    paths: ['src/billing/**']   # the area
+permissions:
+  beans: write                  # only to push an evidence bean
+max-cost-usd: 0.5
+prompt: |
+  You watch one area: src/billing/. Its intent: what it must always do.
+  Review the landing against that intent and write a verdict to memory.</code></pre>
+              </div>
+              <p>
+                The template's real prompt is longer. This is the file in short, and it is valid as
+                written.
+              </p>
+            </li>
+            <li>
+              <h3>It reads its memory, then the landing</h3>
+              <p>
+                It opens <code>area.md</code> (what it knows about the area) and
+                <code>reviews/</code> in its memory. Then it reads the landing's intent and diff,
+                with the Gitstalk MCP tools when they are in its tool list, or plain git otherwise.
+              </p>
+            </li>
+            <li>
+              <h3>It checks the landing against the area's intent and last 20 landings</h3>
+              <p>
+                It looks for behaviour that changed without the intent saying so, a reverted fix
+                coming back, a test or check removed, or an invariant in <code>area.md</code> that
+                no longer holds.
+              </p>
+            </li>
+            <li>
+              <h3>It writes a verdict to memory</h3>
+              <p>
+                <code>reviews/&lt;bean&gt;.md</code> holds the verdict (fine, drift or regression),
+                the evidence and what to watch next time. <code>area.md</code> gains what it
+                learned.
+              </p>
+            </li>
+            <li>
+              <h3>On a regression it opens an evidence bean</h3>
+              <p>
+                Only when it can show the problem, it pushes one bean with a failing test that
+                proves it. It does not fix it, and it changes nothing outside
+                <code>src/billing/</code> and its tests. That bean goes through the pre-land check
+                like any other, and a failing test stays red. Landing stays the engine's job.
+              </p>
+            </li>
+          </ol>
+          <aside class="callout tip">
+            <p class="callout-title">Make it yours</p>
+            <p>
+              Set the paths and the area in the prompt, write the area's intent in a sentence or
+              two, and name the file after the area, such as <code>billing-watcher.yml</code>.
+            </p>
+          </aside>
+          <aside class="callout note">
+            <p class="callout-title">Not yet</p>
+            <p>
+              The watcher reads code, git history and its own notes. It does not read production
+              telemetry or logs. A hook for a telemetry digest exists in the prompt, and today it is
+              never filled.
+            </p>
+          </aside>
+
+          <h2 id="saving">Saving, editing and deleting</h2>
+          <ul>
+            <li>
+              <strong>Saving is a bean you author.</strong> Gitstalk commits the file in your name
+              on the latest landed version and pushes it as
+              <code>bean/automation-&lt;name&gt;-&lt;id&gt;</code>. It goes through the pre-land
+              check and is live when the stalk takes it.
+            </li>
+            <li>
+              <strong>You need the write role</strong>, or the maintain role if
+              <code>checks.toml</code> lists the file in <code>protected_paths</code>. A reader can
+              still edit and copy the YAML, but cannot save it, and the page says why.
+            </li>
+            <li><strong>Delete</strong> is a bean that removes the file, after you confirm.</li>
+          </ul>
+
+          <figure
+            class="mock"
+            aria-label="The builder following a saved bean from checking to saved"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/automations/new</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/automation-fix-red-k3f9</span>
+                <span class="by">Saved: checking</span>
+                <span class="ms checking">checking</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/automation-fix-red-k3f9</span>
+                <span class="by">Saved. Landed as 8be40d7; live when the stalk takes it.</span>
+                <span class="ms landed">saved</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/automation-fix-red-k3f9</span>
+                <span class="by">red: the reason, and each failing check</span>
+                <span class="ms red">red</span>
+              </div>
+            </div>
+            <figcaption>
+              The builder follows the bean: checking, then saved with a link to the commit, or red
+              with the reason. These are the same bean as three moments, not three beans.
+            </figcaption>
+          </figure>
+
+          <h2 id="concurrent">When someone else edits at the same time</h2>
+          <p>
+            If the file changed on the stalk while you edited, the builder merges field by field.
+          </p>
+          <ul>
+            <li>
+              <strong>Different fields:</strong> they merge, and the builder shows the result before
+              you save: "Merged with @dana's change to the schedule. Your change to the prompt is
+              kept."
+            </li>
+            <li>
+              <strong>The same field:</strong> it shows theirs and yours side by side. Pick one, or
+              edit a value of your own.
+            </li>
+            <li>
+              <strong>Deleted meanwhile:</strong> recreate it with your version, or keep it deleted.
+            </li>
+            <li>
+              <strong>Your draft is kept in the browser</strong> until it is saved. Reopening the
+              builder offers to restore it or discard it.
+            </li>
+          </ul>
+
+          <h2 id="test-run">Test run</h2>
+          <p>
+            <strong>Test run</strong> is for maintainers and the owner. It runs the draft once by
+            hand without saving it, and it never writes the automation's memory, because the test
+            job has no save-memory step. The builder then links to the run.
+          </p>
+
+          <section class="sources">
+            <h2>Sources</h2>
+            <ul>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/25-actions-and-automations.md"
+                  >docs/claude-opus/25-actions-and-automations.md</a
+                >
+                (§7.13)
+              </li>
+              <li>
+                <a
+                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/33-server-side-commits.md"
+                  >docs/claude-opus/33-server-side-commits.md</a
+                >
+                (the save path)
+              </li>
+            </ul>
+          </section>
+          <nav class="pager" aria-label="Previous and next page">
+            <a class="prev" href="/docs/automations"><small>Previous</small>Automations</a>
+            <a class="next" href="/docs/limits"><small>Next</small>Limits and plans</a>
+          </nav>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

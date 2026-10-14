@@ -6,14 +6,14 @@
     <title>Collaborators and visibility: Gitstalk docs</title>
     <meta
       name="description"
-      content="Roles, invitations, public, private and internal repositories, and the one rule that decides access on every transport."
+      content="Four roles, three visibilities, one rule on every transport: invite people, see who cloned or pushed, and choose who can read."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Collaborators and visibility: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Roles, invitations, public, private and internal repositories, and the one rule that decides access on every transport."
+      content="Four roles, three visibilities, one rule on every transport: invite people, see who cloned or pushed, and choose who can read."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -167,13 +167,22 @@
         </details>
         <article class="doc">
           <p class="prompt" aria-hidden="true">gitstalk docs collaborators</p>
-          <h1>Collaborators and visibility <span class="pill live">live</span></h1>
+          <h1>Collaborators and visibility <span class="badge live">live</span></h1>
           <p class="lede">
-            Invite people by handle with a role, make a repository public, private or internal, and
-            see every session and token that acted on it.
+            The 20-second answer: <strong>four roles</strong> (read, write, maintain, owner),
+            <strong>three visibilities</strong> (private, public, internal) and
+            <strong>one rule</strong> that decides access the same way over git, MCP and the web.
           </p>
 
           <h2 id="roles">Roles</h2>
+          <ol class="flow" aria-label="Roles from read to owner, each adding to the last">
+            <li class="bean"><b>read</b><span>clone, fetch, view</span></li>
+            <li class="bean"><b>write</b><span>also push beans</span></li>
+            <li class="sprout">
+              <b>maintain</b><span>also deploy tokens, Actions secrets, protected paths</span>
+            </li>
+            <li class="stalk"><b>owner</b><span>everything, settings and deletion</span></li>
+          </ol>
           <div class="tbl">
             <table>
               <thead>
@@ -193,144 +202,192 @@
                 </tr>
                 <tr>
                   <td>maintain</td>
-                  <td>Also answer decision cards, manage deploy tokens, change protected paths.</td>
+                  <td>
+                    Also manage deploy tokens, run workflows and manage Actions secrets, and change
+                    <a href="/docs/checks#protected">protected paths</a> and
+                    <a href="/docs/approval-rules">approval rules</a> with their own token or SSH
+                    key. It is the role that may answer decision cards (see the note below).
+                  </td>
                 </tr>
                 <tr>
                   <td>owner</td>
-                  <td>Everything, settings and deletion included. Not invitable.</td>
+                  <td>
+                    Everything: visibility, collaborators, archive, transfer and delete. Not
+                    invitable. For an organization's repository, the organization's owners and
+                    admins are owners.
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <aside class="callout note">
+            <p class="callout-title">Decision cards on repository pages</p>
+            <p>
+              The maintain role is what the gateway requires to answer a
+              <a href="/docs/decisions">decision card</a>. The control to answer one is built for
+              benchmark race pages; on a repository's own pages a card shows in the bean's journey,
+              but an answer control is not there yet (<span class="badge planned">planned</span>).
+            </p>
+          </aside>
+
+          <h2 id="invite">Invite people</h2>
           <p>
-            Invitations wait 14 days and appear on the invitee's Home. Settings → Collaborators
-            changes or removes roles, and an access log records every invitation, answer, change and
-            removal.
+            Only the owner opens <strong>Settings, Collaborators</strong>. Type a Gitstalk handle,
+            pick a role (read, write or maintain; the default is write) and invite.
+          </p>
+          <figure
+            class="mock"
+            aria-label="Settings, Collaborators: invite by handle with a role, and the people with access"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/settings/collaborators</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label">
+                  <b>Invite by handle</b><span>They accept or decline on their Home.</span>
+                </div>
+                <div class="m-input">dana &nbsp;|&nbsp; write</div>
+              </div>
+              <div class="m-secret">
+                <span class="key">@ada</span>
+                <span class="val">maintain</span>
+                <span class="when">since 3 weeks ago</span>
+                <span class="m-btn">Change role</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@lee</span>
+                <span class="val">read</span>
+                <span class="when">since 2 days ago</span>
+                <span class="m-btn">Remove</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">@dana</span>
+                <span class="val">invited as write</span>
+                <span class="when">until Oct 28, 2026, 10:00 AM</span>
+                <span class="m-btn">Cancel invitation</span>
+              </div>
+            </div>
+            <figcaption>
+              Change a role or remove someone in the same list. A role takes effect on the person's
+              next request.
+            </figcaption>
+          </figure>
+          <p>
+            Invitations wait <strong>14 days</strong> and appear on the invitee's Home, where they
+            accept or decline. An <strong>access log</strong> under the list records every
+            invitation, answer, role change, removal and leave, plus visibility changes, transfers
+            and changes to Actions secrets and variables.
+          </p>
+          <p>
+            Email invitations are <span class="badge planned">planned</span>: Gitstalk sends no mail
+            yet, so invite by handle. Teams are <span class="badge planned">planned</span> too.
           </p>
 
           <h2 id="visibility">Visibility</h2>
-          <ul>
-            <li>
-              <strong>Private</strong>: only the owner and people they invite. Anyone else gets a
-              404, on every transport.
-            </li>
-            <li>
-              <strong>Public</strong>: anyone reads and clones, signed in or not. Pushing still
-              needs a role.
-            </li>
-            <li>
-              <strong>Internal</strong> <span class="pill live">live</span>: for an organization's
-              repositories only. Every member of the organization, any role, reads and clones it;
-              anyone else gets a 404, as for private. Pushing still needs a role. A personal
-              repository cannot be internal, and an internal repository moved to a person becomes
-              private.
-            </li>
-          </ul>
+          <div class="fgrid">
+            <div class="fcard">
+              <h3>Private <span class="badge live">live</span></h3>
+              <p>
+                Only the owner and people they invite. Anyone else gets a 404, as if it did not
+                exist, on every transport.
+              </p>
+            </div>
+            <div class="fcard">
+              <h3>Public <span class="badge live">live</span></h3>
+              <p>Anyone reads and clones, signed in or not. Pushing still needs a role.</p>
+            </div>
+            <div class="fcard">
+              <h3>Internal <span class="badge live">live</span></h3>
+              <p>
+                For an organization's repositories only. Every member of the organization, any role,
+                reads and clones it. Anyone else gets a 404.
+              </p>
+            </div>
+          </div>
+          <p>
+            The owner changes it in <strong>Settings, Visibility</strong>. A personal repository
+            cannot be internal, and an internal repository moved to a person becomes private.
+          </p>
 
           <h2 id="rule">One rule, every transport</h2>
           <p>
             Access is decided in one place for HTTPS git, SSH git, MCP and the web. Tokens, keys and
-            agent sessions get their person's role capped by their scopes. Answering decision cards,
-            managing deploy tokens and changing settings are done only by a person on the web, never
-            by a token. The rule is tested as a matrix of every role, visibility and transport: 128
-            cases for collaborators, and more for organizations (below).
+            agent sessions get their person's role, capped by their scopes: a token with only read
+            access cannot push, whatever its person may do. Three things are a person's alone and no
+            git token, SSH key or deploy token may do them: answering decision cards, managing
+            deploy tokens, and changing settings.
+          </p>
+          <p>
+            A deploy token is bound to one repository. It never decides or administers, and it does
+            not depend on collaborators.
           </p>
 
           <h2 id="people">The People tab</h2>
           <p>
-            Who has access, and every credential that cloned or pushed: the person it acted for, its
-            name (<em>laptop git</em>, <em>Claude Code</em>, a deploy token), last read, last push.
-            A collaborator can leave from here.
+            Open it from any repository you have a role on. It lists who has access and every
+            credential that cloned or pushed.
+          </p>
+          <figure
+            class="mock"
+            aria-label="The People tab: who has access, and sessions and tokens that cloned or pushed"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/people</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-field">
+                <div class="label">
+                  <b>Who has access</b
+                  ><span
+                    >You are maintain: also answer decision cards and manage deploy tokens.</span
+                  >
+                </div>
+                <div class="m-input">@coop owner &middot; @ada maintain &middot; @lee read</div>
+              </div>
+              <div class="m-secret">
+                <span class="key">laptop git</span>
+                <span class="val">for @ada, SSH key</span>
+                <span class="when">last read 2 min ago, last push 1 h ago</span>
+                <span class="m-btn">3 pushes</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">Claude Code</span>
+                <span class="val">for @coop, agent over MCP</span>
+                <span class="when">last read 9 min ago, last push 9 min ago</span>
+                <span class="m-btn">12 pushes</span>
+              </div>
+              <div class="m-secret">
+                <span class="key">ci-deploy</span>
+                <span class="val">for @coop, deploy token</span>
+                <span class="when">last read 3 days ago</span>
+                <span class="m-btn">0 pushes</span>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Leave acme/api</b><span>For collaborators; the owner cannot leave.</span>
+                </div>
+                <span class="m-btn">Leave</span>
+              </div>
+            </div>
+            <figcaption>
+              Every agent session, token and key acts for a person. The table shows who, through
+              what, last read, last push and how many pushes.
+            </figcaption>
+          </figure>
+          <p>
+            On a public repository, someone with no role sees only that it is public and who owns
+            it.
           </p>
 
-          <h2 id="organizations">Organizations <span class="pill live">live</span></h2>
+          <h2 id="organizations">Organizations</h2>
           <p>
-            An organization owns repositories together. Its handle shares one namespace with
-            people's handles, so <code>&lt;gitstalk host&gt;/&lt;handle&gt;</code> is a person or an
-            organization, never both. Create one from the menu under your handle; you become its
-            owner. Invite people by handle; they accept or decline on their Home.
+            Organization roles, the base permission and how they combine with a collaborator role
+            are on <a href="/docs/organizations">Organizations</a>. The short version: a
+            collaborator role on one repository adds to what an organization gives, and the stronger
+            one counts.
           </p>
-          <ul>
-            <li>
-              <strong>Owner</strong>: everything, including other owners and deleting the
-              organization. The last owner cannot leave.
-            </li>
-            <li>
-              <strong>Admin</strong>: settings, secrets and members, and every repository as its
-              owner.
-            </li>
-            <li>
-              <strong>Member</strong>: the organization's base permission on every repository;
-              creates repositories unless only admins may.
-            </li>
-            <li><strong>Viewer</strong>: the base permission, at most read.</li>
-          </ul>
-          <p>
-            <strong>Base permission</strong> <span class="pill live">live</span>: none by default,
-            so members and viewers reach only the repositories they are invited to, plus the
-            organization's internal and public ones. Owners and admins reach every repository. An
-            organization can raise it to read or write in Settings, Repository defaults.
-            Organizations that were on the earlier default (read) move to none.
-          </p>
-          <div class="tbl">
-            <table>
-              <thead>
-                <tr>
-                  <th>Who</th>
-                  <th>Private</th>
-                  <th>Internal</th>
-                  <th>Public</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Owner, admin</td>
-                  <td>Owner</td>
-                  <td>Owner</td>
-                  <td>Owner</td>
-                </tr>
-                <tr>
-                  <td>Member or viewer, base none (default)</td>
-                  <td>Not found</td>
-                  <td>Read</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Member, base read or write</td>
-                  <td>Read or write</td>
-                  <td>Read or write</td>
-                  <td>Read or write</td>
-                </tr>
-                <tr>
-                  <td>Viewer, base read or write</td>
-                  <td>Read</td>
-                  <td>Read</td>
-                  <td>Read</td>
-                </tr>
-                <tr>
-                  <td>Outside the organization</td>
-                  <td>Not found</td>
-                  <td>Not found</td>
-                  <td>Read</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            A collaborator role on one repository adds to this; the stronger one counts. You can
-            create a repository under an organization from New repository, and move one of yours
-            into an organization you administer (or back) from its Settings. The same one rule
-            decides access over HTTPS, SSH, MCP and the web; its test matrix adds 603 cases of
-            organization role, base permission, collaborator role, visibility (public, private,
-            internal) and transport. An organization secret or variable set for "private
-            repositories" reaches internal ones too, as on GitHub.
-          </p>
-          <p>
-            <strong>Moving a repository</strong> <span class="pill live">live</span>: its old
-            address keeps working. See
-            <a href="/docs/repositories#moved">Repositories: renamed and moved</a>.
-          </p>
-          <p>Teams and email invitations are <span class="pill soon">coming soon</span>.</p>
 
           <section class="sources">
             <h2>Sources</h2>
@@ -341,19 +398,13 @@
                   >docs/claude-opus/22-collaborators.md</a
                 >
               </li>
-              <li>
-                <a
-                  href="https://github.com/coop-collective/gitstalk/blob/HEAD/docs/claude-opus/28-organizations.md"
-                  >docs/claude-opus/28-organizations.md</a
-                >
-              </li>
             </ul>
           </section>
           <nav class="pager" aria-label="Previous and next page">
-            <a class="prev" href="/docs/checks"><small>Previous</small>Checks</a>
-            <a class="next" href="/docs/decisions"
-              ><small>Next</small>Decision cards and reconcile</a
+            <a class="prev" href="/docs/decisions"
+              ><small>Previous</small>Decision cards and reconcile</a
             >
+            <a class="next" href="/docs/organizations"><small>Next</small>Organizations</a>
           </nav>
         </article>
       </div>
