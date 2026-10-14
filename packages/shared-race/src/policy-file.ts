@@ -22,7 +22,13 @@
  *     match: { paths: ["src/auth/**"] }
  *     route: card
  *     writers: ["@security"]
+ *   - name: everything-else
+ *     match: { otherwise: true }
+ *     route: triage
  * ```
+ *
+ * `match: { otherwise: true }` makes the fallback class: it applies only when no other class
+ * matched (at most one per file; `approval-policy.ts`).
  */
 import { stringify } from 'yaml';
 import { z } from 'zod';
@@ -55,7 +61,9 @@ export const POLICY_CHANGE_CLASS = 'policy-change';
 export type ClassMatch =
   | { readonly kind: 'paths'; readonly paths: readonly string[] }
   | { readonly kind: 'syntax'; readonly syntax: 'comments-and-whitespace' }
-  | { readonly kind: 'class'; readonly class: BuiltinClass };
+  | { readonly kind: 'class'; readonly class: BuiltinClass }
+  /** The fallback: applies only when no other class matched (`approval-policy.ts`). */
+  | { readonly kind: 'otherwise' };
 
 export type PolicyClass = {
   readonly name: string;
@@ -95,14 +103,15 @@ export type PolicyResolution =
 /**
  * The recommended starter rules, offered by Settings → Approval rules when a repository has no
  * file: comments, docs, tests and lockfiles land on their tests; migrations and auth code wait
- * for a person; other code under the usual source roots is triaged by Clef. An agent's change
- * to `.gitstalk/` is held for a person by the built-in `policy-change` class, so it needs no
- * class here (and a class there would hold a maintainer's own save from Settings too).
+ * for a person; everything else is triaged by Clef (the fallback class). An agent's change to
+ * `.gitstalk/` is held for a person by the built-in `policy-change` class, so it needs no class
+ * here (and a class there would hold a maintainer's own save from Settings too).
  */
 export const STARTER_POLICY = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
 # Recommended starter rules (docs: /docs/approval-rules). A bean takes the strictest route of
-# the classes it matches; a comment-only change takes the comments class's route. An agent's
-# change to .gitstalk/ always waits for a person (built in).
+# the classes it matches; a comment-only change takes the comments class's route; the
+# everything-else class applies only when no other class matched. An agent's change to
+# .gitstalk/ always waits for a person (built in).
 classes:
   - name: comments
     description: Only comments and whitespace changed.
@@ -128,9 +137,9 @@ classes:
     description: Authentication, sessions, permissions and secrets handling.
     match: { paths: ["**/auth/**", "**/permissions/**", "**/security/**"] }
     route: card
-  - name: source
-    description: Application and library code.
-    match: { paths: ["src/**", "lib/**", "app/**", "packages/**", "pkg/**", "cmd/**", "internal/**"] }
+  - name: everything-else
+    description: Any other change.
+    match: { otherwise: true }
     route: triage
 `;
 
@@ -166,6 +175,9 @@ const Principals = z
   .array(Principal, { error: 'must be a list of principals' })
   .max(MAX_PRINCIPALS, `must have at most ${MAX_PRINCIPALS} entries`);
 
+const MATCH_SHAPES =
+  'must be { paths: [...] }, { syntax: comments-and-whitespace }, { class: docs-only | tests-only | lockfile | comment-only } or { otherwise: true }';
+
 const Match = z.union(
   [
     z.strictObject({
@@ -176,11 +188,9 @@ const Match = z.union(
     }),
     z.strictObject({ syntax: z.literal('comments-and-whitespace') }),
     z.strictObject({ class: z.enum(BUILTIN_CLASSES) }),
+    z.strictObject({ otherwise: z.literal(true) }),
   ],
-  {
-    error:
-      'must be { paths: [...] }, { syntax: comments-and-whitespace } or { class: docs-only | tests-only | lockfile | comment-only }',
-  },
+  { error: (issue) => matchProblem(issue.input) },
 );
 
 const ClassEntry = z.strictObject({
@@ -238,6 +248,15 @@ export function readApprovalPolicy(text: string | null, path = POLICY_PATH): Pol
         parsed.at.value(['classes', duplicate.index, 'name']),
         `classes[${duplicate.index}].name`,
         `two classes are named "${duplicate.name}"`,
+      ),
+    ]);
+  const second = secondFallback(file.data.classes.map((entry) => entry.match));
+  if (second !== null)
+    return invalid(path, [
+      at(
+        parsed.at.value(['classes', second, 'match', 'otherwise']),
+        `classes[${second}].match.otherwise`,
+        'only one class may be the fallback ({ otherwise: true })',
       ),
     ]);
   return {
@@ -329,7 +348,22 @@ type ParsedMatch = z.infer<typeof Match>;
 function matchOf(match: ParsedMatch): ClassMatch {
   if ('paths' in match) return { kind: 'paths', paths: match.paths };
   if ('syntax' in match) return { kind: 'syntax', syntax: match.syntax };
+  if ('otherwise' in match) return { kind: 'otherwise' };
   return { kind: 'class', class: match.class };
+}
+
+/** Why a `match` is none of its shapes: a misused `otherwise` gets its own message. */
+function matchProblem(input: unknown): string {
+  if (typeof input !== 'object' || input === null || !('otherwise' in input)) return MATCH_SHAPES;
+  if (Object.keys(input).length > 1)
+    return 'otherwise cannot be combined with paths, syntax or class: the fallback applies only when no other class matched';
+  return input.otherwise === true ? MATCH_SHAPES : 'otherwise must be true';
+}
+
+/** The index of the second fallback class, or null when there is at most one. */
+function secondFallback(matches: readonly ParsedMatch[]): number | null {
+  const fallbacks = [...matches.entries()].filter(([, match]) => 'otherwise' in match);
+  return fallbacks[1]?.[0] ?? null;
 }
 
 function matchInput(match: ClassMatch): ParsedMatch {
@@ -340,6 +374,8 @@ function matchInput(match: ClassMatch): ParsedMatch {
       return { syntax: match.syntax };
     case 'class':
       return { class: match.class };
+    case 'otherwise':
+      return { otherwise: true };
     default:
       return assertNever(match);
   }

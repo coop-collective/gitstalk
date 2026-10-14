@@ -280,6 +280,9 @@ classes:
     writers: ["@security"]
   - name: api
     match: { paths: ["src/api/**"] }
+    route: triage
+  - name: everything-else
+    match: { otherwise: true }
     route: triage</code></pre>
           </div>
           <div class="tbl">
@@ -303,14 +306,22 @@ classes:
                   </td>
                 </tr>
                 <tr>
+                  <td><code>description</code></td>
+                  <td>
+                    Optional: what the class is, in a sentence (at most 200 characters). Clef reads
+                    it when it triages the class's beans.
+                  </td>
+                </tr>
+                <tr>
                   <td><code>match</code></td>
                   <td>
                     One of <code>{ paths: [...] }</code> (any changed file matches a pattern; the
                     patterns are the same as <a href="/docs/checks#format">protected paths</a>),
                     <code>{ syntax: comments-and-whitespace }</code> (every changed file differs
-                    only in comments and whitespace), or
+                    only in comments and whitespace),
                     <code>{ class: docs-only | tests-only | lockfile | comment-only }</code> (a
-                    built-in class).
+                    built-in class), or <code>{ otherwise: true }</code> (the
+                    <a href="#fallback">fallback class</a>: everything no other class matched).
                   </td>
                 </tr>
                 <tr>
@@ -395,6 +406,60 @@ classes:
             is the decision and the other classes route it. The policy file is also always a
             <a href="/docs/checks#protected">protected path</a>.
           </p>
+          <h3 id="fallback">Everything else: the fallback class</h3>
+          <p>
+            A class with <code>match: { otherwise: true }</code> applies
+            <strong>only when no other class matched</strong>, so "everything else is triaged" needs
+            no list of source folders. When another class matches, the fallback stays out of it
+            entirely: its route, reviewers and writers do not count. An agent's change to
+            <code>.gitstalk/</code> is still a card, and a change made only inside
+            <code>.gitstalk/</code> (your own save from Settings, an agent ticking the backlog) is
+            never routed by it. The built-in classes count only when one of your classes names them:
+            without a docs class, a docs-only change takes the fallback's route.
+          </p>
+          <p>
+            A file may have one fallback class, and <code>otherwise</code> cannot be combined with
+            <code>paths</code>, <code>syntax</code> or <code>class</code>; either mistake is shown
+            with its line and column. The fallback is an ordinary class otherwise: it has a name on
+            receipts, a <code>description</code> for Clef, and may have reviewers and writers.
+          </p>
+          <h3 id="starter">Starter rules</h3>
+          <p>
+            A repository without a file opens Settings, Approval rules on these recommended rules;
+            nothing changes until you save them.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/policy.yml</span></header>
+            <pre class="url"><code>classes:
+  - name: comments
+    description: Only comments and whitespace changed.
+    match: { syntax: comments-and-whitespace }
+    route: auto
+  - name: docs
+    description: Documentation only.
+    match: { class: docs-only }
+    route: auto
+  - name: tests
+    description: Tests only.
+    match: { class: tests-only }
+    route: auto
+  - name: lockfile
+    description: A package manager's lockfile only.
+    match: { class: lockfile }
+    route: auto
+  - name: migrations
+    description: Database schema and data migrations.
+    match: { paths: ["**/migrations/**", "**/*.sql"] }
+    route: card
+  - name: auth
+    description: Authentication, sessions, permissions and secrets handling.
+    match: { paths: ["**/auth/**", "**/permissions/**", "**/security/**"] }
+    route: card
+  - name: everything-else
+    description: Any other change.
+    match: { otherwise: true }
+    route: triage</code></pre>
+          </div>
 
           <h2 id="routes">Routes</h2>
           <ol class="flow" aria-label="A bean is classified, then routed auto, triage or card">
@@ -406,7 +471,9 @@ classes:
           <p>
             When several classes match, the strictest route wins: card over triage over auto. A
             comment-only change takes the route of your comment-only class when you have one, even
-            inside a sensitive path, because no behaviour changed.
+            inside a sensitive path, because no behaviour changed. When none matches, the
+            <a href="#fallback">fallback class</a> routes the bean if you have one; otherwise it is
+            <code>auto</code>.
           </p>
           <div class="tbl">
             <table>
@@ -424,7 +491,8 @@ classes:
                 <tr>
                   <td><code>triage</code></td>
                   <td>
-                    Clef, a small model that only sees class names and paths (never contents), picks
+                    Clef, a small model that sees the classes and their descriptions, the paths and
+                    the diff's size (never contents), picks
                     <code>auto</code> or <code>card</code> within 2.5 seconds. If it is late or
                     unavailable, fixed rules decide: auto when the bean is also comment-only,
                     docs-only or tests-only, otherwise card. Clef holds a bean only when it is at

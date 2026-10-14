@@ -67,7 +67,7 @@ export type ChangedFile = {
 export type Classification = {
   /** Every class that matched, built-in ones first, in the file's order after them. */
   readonly classes: readonly string[];
-  /** The route before any triage: the strictest of the matched classes' (see `routeOf`). */
+  /** The route before any triage: the strictest of the matched classes' (`classifyChange`). */
   readonly route: Route;
   /** The class whose route decided (null: no class matched, so `auto`). */
   readonly decidedBy: string | null;
@@ -89,7 +89,9 @@ export type ChangeOrigin = 'agent' | 'decider';
  * directory is always `policy-change` → `card` (a decider's is listed as `policy-change` and
  * routed by the other classes); and a change that is comment-only takes the route of the
  * policy's comment-only class when it has one, since no behaviour changed (writer limits still
- * apply). No file changed, or no class matched: `auto`.
+ * apply). The fallback class (`match: { otherwise: true }`) matches only when no other class
+ * did, the change is not an agent's policy change, and it has a file outside the configuration
+ * directory, so a decider's own save and the backlog's ticks stay as they were. No file changed, or no class matched: `auto`.
  */
 export function classifyChange(
   policy: ApprovalPolicy,
@@ -97,12 +99,13 @@ export function classifyChange(
   origin: ChangeOrigin = 'agent',
 ): Classification {
   const builtins = builtinClasses(files);
-  const matched = policy.classes.filter((entry) => matches(entry.match, files, builtins));
   const isPolicyChange = files.some(
-    (file) =>
-      !POLICY_CHANGE_EXEMPT.includes(file.path) &&
-      POLICY_CHANGE_PATTERNS.some((pattern) => matchesPattern(file.path, pattern)),
+    (file) => !POLICY_CHANGE_EXEMPT.includes(file.path) && isInConfigDir(file.path),
   );
+  const isAgentPolicyChange = isPolicyChange && origin === 'agent';
+  const ordinary = policy.classes.filter((entry) => matches(entry.match, files, builtins));
+  const matched =
+    ordinary.length > 0 || isAgentPolicyChange ? ordinary : fallbackClasses(policy, files);
   const writers = matched
     .filter((entry) => entry.writers.length > 0)
     .map((entry) => ({ class: entry.name, allowed: expand(policy, entry.writers) }));
@@ -114,8 +117,7 @@ export function classifyChange(
   ];
   const reviewers = [...new Set(matched.flatMap((entry) => expand(policy, entry.reviewers)))];
   const base = { classes, writers, reviewers };
-  if (isPolicyChange && origin === 'agent')
-    return { ...base, route: 'card', decidedBy: POLICY_CHANGE_CLASS };
+  if (isAgentPolicyChange) return { ...base, route: 'card', decidedBy: POLICY_CHANGE_CLASS };
   const commentRule = builtins.includes('comment-only')
     ? matched.find((entry) => isCommentMatch(entry.match))
     : undefined;
@@ -209,6 +211,20 @@ function extensionOf(path: string): string {
   return dot <= 0 ? '' : name.slice(dot + 1).toLowerCase();
 }
 
+/** The fallback class, for a change no other class matched, when it has a file to route. */
+function fallbackClasses(
+  policy: ApprovalPolicy,
+  files: readonly ChangedFile[],
+): readonly PolicyClass[] {
+  const fallback = policy.classes.find((entry) => entry.match.kind === 'otherwise');
+  const isOutsideConfig = files.some((file) => !isInConfigDir(file.path));
+  return fallback !== undefined && isOutsideConfig ? [fallback] : [];
+}
+
+function isInConfigDir(path: string): boolean {
+  return POLICY_CHANGE_PATTERNS.some((pattern) => matchesPattern(path, pattern));
+}
+
 function matches(
   match: ClassMatch,
   files: readonly ChangedFile[],
@@ -223,6 +239,8 @@ function matches(
       return builtins.includes('comment-only');
     case 'class':
       return builtins.includes(match.class);
+    case 'otherwise':
+      return false;
     default:
       return assertNever(match);
   }
