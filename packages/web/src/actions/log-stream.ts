@@ -2,12 +2,15 @@
  * A job's log over HTTP, for the log route: Server-Sent Events while the job runs (`lines`
  * with the new lines and the last line's number as the event id, `job` with the steps'
  * states, `end` once every line is in, `failed` when the control plane refuses), resumed from
- * `Last-Event-ID` or `?after=`; or, with `?download=1`, the whole log as plain text. The
- * caller has already checked who may read the repository.
+ * `Last-Event-ID` or `?after=`; or, with `?download=1`, the whole log as plain text (kept by
+ * the browser for good once the job has finished; the stream is never kept). The caller has
+ * already checked who may read the repository.
  */
+import { IMMUTABLE, NO_STORE, cacheControl } from '../edge/http-cache';
 import { log } from '../log';
 import type { ActionsClient } from './actions-client';
 import { plainLog } from './log-view';
+import { isLive, stateOf } from './run-view';
 
 /** How often a live job's new lines are read, and how long one response follows (the browser then reconnects). */
 const POLL_MS = 1000;
@@ -51,11 +54,13 @@ async function download(
     /[^\w.-]+/g,
     '-',
   );
+  // A finished job's log never changes: the browser may keep it for good. A running one grows.
+  const rule = isLive(stateOf(job)) ? NO_STORE : IMMUTABLE;
   return new Response(plainLog(job.steps, page.value.lines), {
     headers: {
       'content-type': 'text/plain; charset=utf-8',
       'content-disposition': `attachment; filename="${name}.log"`,
-      'cache-control': 'no-store',
+      'cache-control': cacheControl(rule),
     },
   });
 }

@@ -62,7 +62,7 @@ export function useChangesFeed(scope: RepoScope, options: ChangesFeedOptions = {
   const events = useQuery({
     queryKey: keys.events(),
     queryFn: async ({ signal }) =>
-      (await fetchJson(paths.events, isEventsAnswer, { signal })).events,
+      (await fetchJson(paths.events, isEventsAnswer, { signal, httpCache: 'revalidate' })).events,
     ...freshness('appendOnly', { visibility: scope.visibility, live: feed.status === 'live' }),
   });
   const pushed = useQuery({

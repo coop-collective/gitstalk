@@ -1,6 +1,9 @@
 import { env } from 'cloudflare:workers';
 
+import { isLive, stateOf } from '../../../../../../../../src/actions/run-view';
 import { getUser } from '../../../../../../../../src/auth/user';
+import type { CacheRule } from '../../../../../../../../src/edge/http-cache';
+import { NO_STORE, cacheControl, problem } from '../../../../../../../../src/edge/http-cache';
 import { lookupRepository } from '../../../../../../../../src/repositories/flows';
 import { registryClient } from '../../../../../../../../src/repositories/registry-client';
 import { actionsSessionFor } from '../../../../../../../../src/server/actions-source';
@@ -13,11 +16,12 @@ type Context = {
   }>;
 };
 
-const NO_STORE = { 'cache-control': 'no-store' };
+const FINISHED_RUN: CacheRule = { kind: 'fresh-for', seconds: 3600 };
 
 /**
  * `GET …/actions/runs/:run`: the run as the run page's `RunDetail` JSON, for the page's status
  * poll. One control-plane call, behind the repository's read rule (the same 404 as its pages).
+ * A running run is never kept by the browser; a finished one for an hour.
  */
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { owner, repo, run } = await context.params;
@@ -34,9 +38,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
   if (session === null) return problem(503, 'Actions are not running on this deployment');
   const detail = await session.client.run(decodeURIComponent(run));
   if (!detail.ok) return problem(404, 'no such run');
-  return Response.json(detail.value, { headers: NO_STORE });
-}
-
-function problem(status: number, message: string): Response {
-  return Response.json({ error: { message } }, { status, headers: NO_STORE });
+  // A finished run is final but for a rerun (a new attempt): the browser may keep it an hour.
+  const rule = isLive(stateOf(detail.value)) ? NO_STORE : FINISHED_RUN;
+  return Response.json(detail.value, { headers: { 'cache-control': cacheControl(rule) } });
 }

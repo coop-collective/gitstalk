@@ -75,11 +75,12 @@ const get = (query = '') =>
   new Request(`https://gitstalk.test/api/repos/coop/greeter/events${query}`);
 
 describe('the Changes JSON routes', () => {
-  it('answer a private repository’s events to its owner, uncached', async () => {
+  it('answer a private repository’s events to its owner, private and revalidated', async () => {
     const { reads } = countingReads();
     const response = await answerEvents(get(), await access('greeter', coop, reads));
     expect(response.status).toBe(200);
-    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(response.headers.get('etag')).toBe(`W/"seq-${GREETER_EVENTS.at(-1)?.seq}"`);
     const body: unknown = await response.json();
     expect(body).toEqual({ events: JSON.parse(JSON.stringify(GREETER_EVENTS)) });
   });
@@ -93,7 +94,7 @@ describe('the Changes JSON routes', () => {
     ]);
     expect(refused).toEqual(Array.from({ length: 3 }, () => ({ kind: 'not-found' })));
     const responses = await Promise.all(
-      refused.flatMap((found) => [answerEvents(get(), found), answerPushed(found)]),
+      refused.flatMap((found) => [answerEvents(get(), found), answerPushed(get(), found)]),
     );
     expect(responses.map((response) => response.status)).toEqual(
       Array.from({ length: 6 }, () => 404),
@@ -106,8 +107,10 @@ describe('the Changes JSON routes', () => {
 
   it('serve a public repository to a signed-out reader', async () => {
     const { reads } = countingReads();
-    const response = await answerPushed(await access('notes', null, reads));
+    const response = await answerPushed(get(), await access('notes', null, reads));
     expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(response.headers.get('etag')).toBeNull();
     const body: unknown = await response.json();
     expect(body).toEqual({ pushed: GREETER_PUSHED });
   });
@@ -134,7 +137,7 @@ describe('the Changes JSON routes', () => {
   });
 
   it('say so when the engine is unusable or the gateway fails', async () => {
-    expect((await answerPushed(await access('greeter', coop, null))).status).toBe(503);
+    expect((await answerPushed(get(), await access('greeter', coop, null))).status).toBe(503);
     const failing: RepoAccess = {
       kind: 'found',
       reads: {
@@ -144,6 +147,49 @@ describe('the Changes JSON routes', () => {
       },
     };
     expect((await answerEvents(get(), failing)).status).toBe(502);
-    expect((await answerPushed(failing)).status).toBe(502);
+    expect((await answerPushed(get(), failing)).status).toBe(502);
+  });
+});
+
+describe('revalidating the events', () => {
+  const lastSeq = GREETER_EVENTS.at(-1)?.seq ?? 0;
+  const revalidating = (etag: string) =>
+    new Request('https://gitstalk.test/api/repos/coop/greeter/events', {
+      headers: { 'if-none-match': etag },
+    });
+
+  it('answer 304 without a body when the viewer holds the newest events', async () => {
+    const { reads } = countingReads();
+    const response = await answerEvents(
+      revalidating(`W/"seq-${lastSeq}"`),
+      await access('greeter', coop, reads),
+    );
+    expect(response.status).toBe(304);
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(await response.text()).toBe('');
+  });
+
+  it('answer the events again once the log has grown past the held ETag', async () => {
+    const { reads } = countingReads();
+    const response = await answerEvents(
+      revalidating(`W/"seq-${lastSeq - 1}"`),
+      await access('greeter', coop, reads),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it('never answer 304 to someone who may not read the repository', async () => {
+    const { reads, calls } = countingReads();
+    const responses = await Promise.all(
+      [dana, null].map(async (viewer) =>
+        answerEvents(revalidating(`W/"seq-${lastSeq}"`), await access('greeter', viewer, reads)),
+      ),
+    );
+    expect(responses.map((response) => response.status)).toEqual([404, 404]);
+    expect(responses.map((response) => response.headers.get('cache-control'))).toEqual([
+      'no-store',
+      'no-store',
+    ]);
+    expect(calls).toEqual([]);
   });
 });

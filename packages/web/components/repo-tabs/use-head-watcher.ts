@@ -61,7 +61,12 @@ export function useHeadWatcher(watch: HeadWatch): void {
   const tail = useQuery({
     queryKey: tailKey,
     queryFn: async ({ signal }) =>
-      (await fetchJson(`${paths.events}?after=${seq}`, isEventsAnswer, { signal })).events,
+      (
+        await fetchJson(`${paths.events}?after=${seq}`, isEventsAnswer, {
+          signal,
+          httpCache: 'revalidate',
+        })
+      ).events,
     // Nothing has happened since the render until the feed says so.
     initialData: [],
     ...freshness('appendOnly', { live: feed.status === 'live' }),

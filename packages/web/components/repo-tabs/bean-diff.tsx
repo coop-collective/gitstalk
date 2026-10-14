@@ -62,7 +62,7 @@ function hasLanded(events: readonly RaceEvent[], bean: string): boolean {
 /** The diff, or null while the bean has none (the route's 404). */
 async function readBeanDiff(path: string, signal: AbortSignal): Promise<RepoDiff | null> {
   try {
-    return await fetchJson(path, isRepoDiff, { signal });
+    return await fetchJson(path, isRepoDiff, { signal, httpCache: 'revalidate' });
   } catch (error: unknown) {
     if (isHttpStatus(error, 404)) return null;
     throw error;

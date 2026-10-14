@@ -44,7 +44,9 @@ describe('the admin gate', () => {
   it.each(filesUnder('app/api/runs', /^route\.ts$/))(
     '%s streams a race to platform admins only, a repository to its readers',
     (file) => {
-      expect(source(file)).toMatch(/await mayStreamRun\(request, run\.data\)/);
+      // `runAccess` is the same gate, also naming the repository's visibility (the diff
+      // route edge-caches a public repository's diff by its commit pair).
+      expect(source(file)).toMatch(/await (mayStreamRun|runAccess)\(request, run\.data\)/);
     },
   );
 

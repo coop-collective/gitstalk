@@ -39,12 +39,20 @@ export type FetchJsonInit = {
   readonly method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Sent as JSON with `content-type: application/json`. */
   readonly body?: unknown;
+  /**
+   * The browser's HTTP cache: `no-store` (default) bypasses it; `revalidate` keeps the answer
+   * and asks the server every time with its ETag, so an unchanged answer is a bodiless 304
+   * (routes that send an ETag: the events, a bean's diff). The route's access check runs
+   * before any 304, so a stored answer is never reused for someone refused.
+   */
+  readonly httpCache?: 'no-store' | 'revalidate';
 };
 
 /**
  * Fetches `path` (an absolute path on this origin, such as `/api/repos/a/b/events`) and
- * returns its JSON once `accept` recognises it. Cookies go along; nothing is cached by the
- * browser (TanStack Query is the cache). Throws `FetchJsonError`.
+ * returns its JSON once `accept` recognises it. Cookies go along; the browser's HTTP cache is
+ * bypassed unless `httpCache: 'revalidate'` (TanStack Query is the cache). Throws
+ * `FetchJsonError`.
  */
 export async function fetchJson<T>(
   path: string,
@@ -83,7 +91,7 @@ async function send(path: string, init: FetchJsonInit): Promise<Response> {
       method: init.method ?? 'GET',
       headers,
       credentials: 'same-origin',
-      cache: 'no-store',
+      cache: init.httpCache === 'revalidate' ? 'no-cache' : 'no-store',
       ...(init.signal === undefined ? {} : { signal: init.signal }),
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     });

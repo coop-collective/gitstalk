@@ -107,6 +107,36 @@ describe('the job log route', () => {
     expect(text).not.toContain('\u001b[');
   });
 
+  it('lets the browser keep a finished job’s download for good, never a running one’s', async () => {
+    const { actions, run } = await runningCiRun();
+    const download = () =>
+      jobLogResponse(
+        new Request('https://web.test/log?download=1'),
+        actions.client(),
+        { run: run.id, job: 'test' },
+        TIMING,
+      );
+    expect((await download()).headers.get('cache-control')).toBe('no-store');
+    actions.advance(10 * 60_000);
+    expect((await download()).headers.get('cache-control')).toBe(
+      'private, max-age=31536000, immutable',
+    );
+  });
+
+  it('never lets the browser keep the live stream', async () => {
+    const { actions, run } = await runningCiRun();
+    const controller = new AbortController();
+    const response = await jobLogResponse(
+      new Request('https://web.test/log', { signal: controller.signal }),
+      actions.client(),
+      { run: run.id, job: 'test' },
+      TIMING,
+    );
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    controller.abort();
+    await response.body?.cancel();
+  });
+
   it('answers 404 for a job the run does not have', async () => {
     const { actions, run } = await runningCiRun();
     const request = new Request('https://web.test/log?download=1');
