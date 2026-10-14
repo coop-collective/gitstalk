@@ -1,12 +1,14 @@
 /**
  * A web editor's save (the automation builder, doc 25 §7.13; Settings → Approval rules,
- * doc 32) as a request to the one server-side commit flow (`server-commit.ts`): one file's new
- * text, or its deletion, on the latest landed commit the editor opened, as a new bean named
+ * doc 32; Settings → Checks' conversion, doc 24) as a request to the one server-side commit flow
+ * (`server-commit.ts`): one file's new text, or its deletion (and, for a conversion, the old
+ * file's deletion), on the latest landed commit the editor opened, as a new bean named
  * from its commit, with the person as author. What differs from `bean_commit` is only these
  * parameters: the bean's name, the author and trailers, and the idempotency scope.
  */
 import { automationBeanName } from '@gitstalk/shared-race/automation-editor';
 import type { BeanCommitted } from '@gitstalk/shared-race/bean-commit';
+import { checksBeanName } from '@gitstalk/shared-race/checks-editor';
 import { TaskId } from '@gitstalk/shared-race/ids';
 import type { Sha } from '@gitstalk/shared-race/ids';
 import { rulesBeanName } from '@gitstalk/shared-race/rules-editor';
@@ -20,8 +22,11 @@ import { replayedCommit } from './commit-idempotency';
 import type { CommitDeps, ServerCommit } from './server-commit';
 import { commitChanges } from './server-commit';
 
-/** Which editor saves, which names its bean: `automation-<slug>-<short>` or `rules-<short>`. */
-export type SaveEditor = { readonly kind: 'automation' } | { readonly kind: 'rules' };
+/** Which editor saves, which names its bean: `automation-<slug>-<short>`, `rules-<short>` or `checks-<short>`. */
+export type SaveEditor =
+  | { readonly kind: 'automation' }
+  | { readonly kind: 'rules' }
+  | { readonly kind: 'checks' };
 
 /** One editor save, as the gateway's editor RPC hands it to the repository's engine. */
 export type FileSave = {
@@ -35,6 +40,8 @@ export type FileSave = {
   readonly path: string;
   /** The file's new text; null deletes it. */
   readonly content: string | null;
+  /** Another file the same commit deletes: the `checks.toml` a `checks.yml` replaces. */
+  readonly deletes?: string;
   readonly message: string;
   /** One per save attempt (the web sends it; a request without one is its own attempt). */
   readonly idempotencyKey: string;
@@ -57,6 +64,7 @@ export function commitFileSave(
       save.content === null
         ? { path: save.path, delete: true }
         : { path: save.path, content: save.content },
+      ...(save.deletes === undefined ? [] : [{ path: save.deletes, delete: true as const }]),
     ],
     message: save.message,
     actor: save.actor,
@@ -80,6 +88,8 @@ function beanNameOf(save: FileSave, short: string): string {
       return automationBeanName(save.path, short);
     case 'rules':
       return rulesBeanName(short);
+    case 'checks':
+      return checksBeanName(short);
     default:
       return assertNever(save.editor);
   }
@@ -91,6 +101,8 @@ function viaOf(editor: SaveEditor): string {
       return 'the automation builder';
     case 'rules':
       return 'Settings → Approval rules';
+    case 'checks':
+      return 'Settings → Checks';
     default:
       return assertNever(editor);
   }
@@ -112,6 +124,7 @@ function attemptOf(save: FileSave): CommitPayload {
       editor: save.editor.kind,
       path: save.path,
       content: save.content,
+      ...(save.deletes === undefined ? {} : { deletes: save.deletes }),
       message: save.message,
     },
   };

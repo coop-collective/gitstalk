@@ -1,8 +1,10 @@
 import { env } from 'cloudflare:workers';
 
-import { CHECKS_PATH } from '@gitstalk/shared-race/checks-config';
+import { CHECKS_PATH, isTomlChecks } from '@gitstalk/shared-race/checks-config';
+import { tomlChecksToYaml } from '@gitstalk/shared-race/checks-yaml';
 
 import { ChecksSummary } from '../../../../../components/repository/checks-config';
+import { ChecksConvert } from '../../../../../components/repository/checks-convert';
 import { RepositorySettingsFrame } from '../../../../../components/repository/repository-settings-frame';
 import styles from '../../../../../components/repository/repository.module.css';
 import { SettingsSection } from '../../../../../components/settings/settings-shell';
@@ -19,8 +21,9 @@ export const generateMetadata = settingsMetadata('Checks');
 
 /**
  * Settings → Checks (everyone with a role): the effective checks from the stalk's checks file
- * (`.gitstalk/checks.toml`, or the older `.beanstalk/checks.toml`), changed by a maintainer's
- * bean, never here.
+ * (`.gitstalk/checks.yml`, or an older one, `CHECKS_PATHS`), changed by a maintainer's bean. The
+ * one write here: converting a `checks.toml` to the YAML that declares the same checks, a bean
+ * by an owner or maintainer.
  */
 export default async function ChecksSettingsPage(props: { readonly params: RepositoryParams }) {
   const settings = await repositorySettings(props.params, 'checks');
@@ -48,6 +51,47 @@ export default async function ChecksSettingsPage(props: { readonly params: Repos
           <p className={styles.empty}>The stalk could not be read: {files.error.message}</p>
         )}
       </SettingsSection>
+      {files.ok && files.value.checks !== null && isTomlChecks(checksPath) ? (
+        <ConvertSection settings={settings} from={checksPath} toml={files.value.checks} />
+      ) : null}
     </RepositorySettingsFrame>
   );
+}
+
+/** The TOML's YAML equivalent, and the button that converts it for owners and maintainers. */
+function ConvertSection(props: {
+  readonly settings: Awaited<ReturnType<typeof repositorySettings>>;
+  readonly from: string;
+  readonly toml: string;
+}) {
+  const { settings } = props;
+  const converted = tomlChecksToYaml(props.toml);
+  return (
+    <SettingsSection id="checks-yaml" title="Convert to YAML">
+      {converted.ok ? (
+        <ChecksConvert
+          repo={{
+            owner: settings.record.owner.handle,
+            name: settings.record.name,
+            base: settings.base,
+          }}
+          csrf={settings.session.csrfToken}
+          from={props.from}
+          yaml={converted.yaml}
+          refusal={convertRefusal(settings)}
+        />
+      ) : (
+        <p className={styles.muted}>
+          {props.from} has no YAML equivalent yet: {converted.problems[0]}
+        </p>
+      )}
+    </SettingsSection>
+  );
+}
+
+function convertRefusal(settings: Awaited<ReturnType<typeof repositorySettings>>): string | null {
+  if (settings.isArchived) return 'This repository is archived, so it is read-only.';
+  return settings.maintains
+    ? null
+    : `Only maintainers and the owner change the checks; you have the ${settings.role} role.`;
 }
