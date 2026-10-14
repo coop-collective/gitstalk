@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Docs UI kit: Gitstalk docs</title>
+    <meta name="robots" content="noindex" />
+    <meta name="description" content="Every docs component once, for writers to copy." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gitstalk" />
+    <meta property="og:title" content="Docs UI kit: Gitstalk docs" />
+    <meta property="og:description" content="Every docs component once, for writers to copy." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Gitstalk: watch your work grow like a beanstalk. Agents grow together."
+    />
+    <meta name="theme-color" content="#05080b" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        let t = new URLSearchParams(location.search).get('theme');
+        try {
+          t = t || localStorage.getItem('beanstalk-theme');
+        } catch {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="stylesheet" href="/docs/docs.css" />
+    <script src="/site.js" defer></script>
+    <script src="/docs/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="Gitstalk home">
+          <svg viewBox="0 0 20 22" aria-hidden="true">
+            <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+            <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+            <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+          </svg>
+          gitstalk
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="/#grow">How it grows</a>
+          <a href="/#race">The race</a>
+          <a href="/#agents">Your agents</a>
+          <a href="/docs/" aria-current="true">Docs</a>
+        </nav>
+        <div class="end">
+          <button type="button" class="themebtn" data-theme-toggle aria-label="Switch theme">
+            <svg
+              class="moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg
+              class="sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+              />
+            </svg>
+          </button>
+          <a class="btn small ghost" href="/#start">Install the plugin</a>
+          <a class="btn small primary" href="/agent" data-signup>Sign up</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap docs">
+        <details class="dnav">
+          <summary>Docs: kit</summary>
+          <nav class="inner" aria-label="Docs pages">
+            <h2>Start</h2>
+            <ul>
+              <li><a href="/docs/">Overview</a></li>
+            </ul>
+            <h2>Features</h2>
+            <ul>
+              <li>
+                <a href="/docs/repositories"
+                  >Repositories<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/git">Git compatibility<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/agents"
+                  >Connecting agents<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/checks">Checks<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/collaborators"
+                  >Collaborators and visibility<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/decisions"
+                  >Decision cards and reconcile<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/streaming-diffs"
+                  >Streaming diffs<span class="st soon" title="coming soon"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/actions">GitHub Actions<span class="st live" title="live"></span></a>
+              </li>
+              <li>
+                <a href="/docs/automations"
+                  >Automations<span class="st live" title="live"></span
+                ></a>
+              </li>
+              <li>
+                <a href="/docs/self-hosting"
+                  >Self-hosting<span class="st live" title="live"></span
+                ></a>
+              </li>
+            </ul>
+            <h2>How it works</h2>
+            <ul>
+              <li><a href="/docs/architecture">Architecture</a></li>
+              <li><a href="/docs/research">What did not work</a></li>
+            </ul>
+            <p class="legend">
+              <span><i class="st live"></i>live</span>
+              <span><i class="st rolling"></i>rolling out</span>
+              <span><i class="st soon"></i>coming soon</span>
+            </p>
+          </nav>
+        </details>
+        <article class="doc">
+          <p class="prompt" aria-hidden="true">gitstalk docs kit</p>
+          <h1>Docs UI kit</h1>
+          <p class="lede">
+            Every component once, for writers to copy. This page is not in the nav and is not
+            indexed. Do not write CSS in pages; use these classes.
+          </p>
+
+          <h2 id="badges">Badges</h2>
+          <p>
+            <span class="badge live">live</span> <span class="badge beta">beta</span>
+            <span class="badge planned">planned</span> Next to a heading:
+          </p>
+          <h3>Streaming diffs <span class="badge planned">planned</span></h3>
+
+          <h2 id="callouts">Callouts</h2>
+          <aside class="callout note">
+            <p class="callout-title">Note</p>
+            <p>A fact worth knowing, such as a default.</p>
+          </aside>
+          <aside class="callout tip">
+            <p class="callout-title">Tip</p>
+            <p>A shortcut or a better way, with <code>inline code</code>.</p>
+          </aside>
+          <aside class="callout warning">
+            <p class="callout-title">Warning</p>
+            <p>Something that loses data or access if missed.</p>
+          </aside>
+
+          <h2 id="steps">Quickstart steps with copyable code</h2>
+          <ol class="steps">
+            <li>
+              <h3>Create a branch</h3>
+              <p>Beans are branches named <code>bean/&lt;name&gt;</code>.</p>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>git switch -c work origin/sprout</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Push it</h3>
+              <div class="cmd" data-copyable>
+                <header><span>Terminal</span></header>
+                <pre><code>git push -o wait origin HEAD:refs/heads/bean/add-truncate</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Read the verdict</h3>
+              <p>Output without a prompt uses <code>pre class="url"</code>.</p>
+              <div class="cmd" data-copyable>
+                <header><span>Output</span></header>
+                <pre
+                  class="url"
+                ><code>remote: gitstalk: LANDED: add-truncate is on the sprout</code></pre>
+              </div>
+            </li>
+          </ol>
+
+          <h2 id="tabs">Tabbed code</h2>
+          <div class="install" data-agent-tabs id="kit-tabs">
+            <section class="cmd" data-agent="claude-code" data-name="Claude Code">
+              <header><span>Claude Code: paste in your terminal</span></header>
+              <pre class="chat"><code>/gitstalk:setup &lt;owner&gt;/&lt;repo&gt;</code></pre>
+            </section>
+            <section class="cmd" data-agent="codex" data-name="Codex">
+              <header><span>Codex: paste in your terminal</span></header>
+              <pre><code>codex mcp login gitstalk</code></pre>
+            </section>
+            <section class="cmd" data-agent="git" data-name="git">
+              <header><span>Plain git</span></header>
+              <pre><code>git remote add gitstalk git@gitstalk.dev:&lt;owner&gt;/&lt;repo&gt;.git</code></pre>
+            </section>
+          </div>
+
+          <h2 id="mocks">UI mocks</h2>
+          <p>
+            Mocks sit in a browser frame (<code>figure.mock</code>) and show the real app in
+            miniature. Keep the data plausible, never real.
+          </p>
+
+          <h3>Bean status rows</h3>
+          <figure class="mock" aria-label="Five beans, one in each status">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/add-truncate</span>
+                <span class="by">claude-code, 12 s ago</span>
+                <span class="ms checking">checking</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/fix-retry</span>
+                <span class="by">codex, 2 min ago</span>
+                <span class="ms landed">landed</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/docs-links</span>
+                <span class="by">ada, 9 min ago</span>
+                <span class="ms green">green</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/rename-cache</span>
+                <span class="by">cursor, 14 min ago</span>
+                <span class="ms red">red</span>
+              </div>
+              <div class="m-bean">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="name">bean/drop-legacy-auth</span>
+                <span class="by">claude-code, 1 h ago</span>
+                <span class="ms held">held</span>
+              </div>
+            </div>
+            <figcaption>A bean moves from checking to landed; red and held need a look.</figcaption>
+          </figure>
+
+          <h3>Repository header with tabs</h3>
+          <figure
+            class="mock"
+            aria-label="A repository header with Code, Beans, Actions and Settings tabs"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-repo">
+                <div class="title">
+                  <span>acme /</span> <b>api</b> <span class="badge live">private</span>
+                </div>
+                <p class="meta">TypeScript service. Default branch: stalk.</p>
+                <div class="m-tabs" aria-hidden="true">
+                  <span class="on">Code</span><span>Beans<small>3</small></span
+                  ><span>Actions</span><span>Automations</span><span>Settings</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>The tabs you will meet on every repository.</figcaption>
+          </figure>
+
+          <h3>Settings: form row and secret row</h3>
+          <figure class="mock" aria-label="A settings form row and a masked secret row">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/settings</span>
+            </div>
+            <div class="mock-body">
+              <div>
+                <div class="m-field">
+                  <div class="label"><b>Default branch</b><span>Where beans land first.</span></div>
+                  <div class="m-input">stalk</div>
+                </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>Visibility</b><span>Who can read this repository.</span>
+                  </div>
+                  <div class="m-input">Private</div>
+                </div>
+              </div>
+              <div class="m-secret">
+                <span class="key">NPM_TOKEN</span>
+                <span class="val" aria-label="Value hidden">••••••••••••</span>
+                <span class="when">updated 3 days ago</span>
+                <span class="m-btn">Update</span>
+              </div>
+            </div>
+            <figcaption>
+              Secret values are write-only: the page shows a mask, never the value.
+            </figcaption>
+          </figure>
+
+          <h3>Actions run with steps</h3>
+          <figure class="mock" aria-label="A workflow run with four steps">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/actions</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-run">
+                <header>
+                  <b>ci.yml</b><span class="ms checking">running</span>
+                  <span class="sub">bean/add-truncate</span>
+                </header>
+                <div class="m-step ok"><span>Set up job</span><span class="t">2s</span></div>
+                <div class="m-step ok">
+                  <span>Install dependencies</span><span class="t">14s</span>
+                </div>
+                <div class="m-step run"><span>Run tests</span><span class="t">6s</span></div>
+                <div class="m-step"><span>Upload report</span><span class="t"></span></div>
+              </div>
+            </div>
+            <figcaption>Each step shows done, running, failed or waiting.</figcaption>
+          </figure>
+
+          <h3>Decision card</h3>
+          <figure class="mock" aria-label="A decision card asking which of two changes to keep">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">gitstalk.dev/acme/api/beans</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-decision">
+                <span class="ms held">needs a decision</span>
+                <p class="q">
+                  Two beans changed <code>retry.ts</code> in different ways. Which should win?
+                </p>
+                <div class="opts">
+                  <div class="opt pick">
+                    <b>Keep bean/fix-retry</b><span>Exponential backoff, tests pass.</span>
+                  </div>
+                  <div class="opt">
+                    <b>Keep bean/add-jitter</b><span>Fixed delay with jitter.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              An agent or a person picks; the other bean is rebuilt on the result.
+            </figcaption>
+          </figure>
+
+          <h3>Terminal: git push</h3>
+          <figure class="mock" aria-label="A terminal showing the output of a git push">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre
+                class="m-term"
+              ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/add-truncate
+<span class="dim">remote: gitstalk: pre-land check started</span>
+remote: gitstalk: <span class="ok">LANDED: add-truncate is on the sprout</span>
+remote: gitstalk: <span class="ok">validated: on the stalk</span></pre>
+            </div>
+            <figcaption>The push waits and prints the verdict as git remote lines.</figcaption>
+          </figure>
+
+          <h2 id="flow">Flow diagram</h2>
+          <ol
+            class="flow"
+            aria-label="A push becomes a bean, lands on the sprout, then reaches the stalk"
+          >
+            <li class="bean"><b>Push</b><span>a bean branch</span></li>
+            <li class="bean"><b>Pre-land check</b><span>on sprout plus bean</span></li>
+            <li class="sprout"><b>Sprout</b><span>landed, staged</span></li>
+            <li class="sprout"><b>Validation</b><span>full suite</span></li>
+            <li class="stalk"><b>Stalk</b><span>stable line</span></li>
+          </ol>
+
+          <h2 id="cards">Feature cards</h2>
+          <div class="fgrid">
+            <a class="fcard" href="/docs/git">
+              <h3>Git compatibility <span class="badge live">live</span></h3>
+              <p>Plain git over SSH and HTTPS. Nothing to learn.</p>
+            </a>
+            <a class="fcard" href="/docs/automations">
+              <h3>Automations <span class="badge beta">beta</span></h3>
+              <p>Run an agent when something happens.</p>
+            </a>
+            <a class="fcard" href="/docs/streaming-diffs">
+              <h3>Streaming diffs <span class="badge planned">planned</span></h3>
+              <p>Watch a change take shape as it is written.</p>
+            </a>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <div class="cols">
+          <div class="about">
+            <a class="brand" href="/" aria-label="Gitstalk home">
+              <svg viewBox="0 0 20 22" aria-hidden="true">
+                <path d="M10 21V8" stroke="var(--leaf)" stroke-width="2" stroke-linecap="round" />
+                <path d="M10 12C10 8 6.5 6 3 6.5 3.4 10 6 12.5 10 12Z" fill="var(--leaf)" />
+                <path d="M10 8.5C10 5 13 2.5 17 2.8 16.7 6.3 14 8.8 10 8.5Z" fill="var(--sprout)" />
+              </svg>
+              gitstalk
+            </a>
+            <p>The Git forge for swarms of coding agents.</p>
+          </div>
+          <nav aria-labelledby="f-product">
+            <h2 id="f-product">Product</h2>
+            <ul>
+              <li><a href="/#start">Install</a></li>
+              <li><a href="/docs/">Docs</a></li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/releases">Releases</a>
+              </li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-company">
+            <h2 id="f-company">Company</h2>
+            <ul>
+              <li><a href="/about">About</a></li>
+              <li><a href="https://github.com/coop-collective/gitstalk/issues">Contact</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-community">
+            <h2 id="f-community">Community</h2>
+            <ul>
+              <li><a href="https://github.com/coop-collective/gitstalk">GitHub</a></li>
+            </ul>
+          </nav>
+          <nav aria-labelledby="f-legal">
+            <h2 id="f-legal">Legal</h2>
+            <ul>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/LICENSE"
+                  >Licence (Apache-2.0)</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/coop-collective/gitstalk/blob/HEAD/TRADEMARKS.md"
+                  >Trademarks</a
+                >
+              </li>
+              <li><a href="/privacy">Privacy</a></li>
+              <li><a href="/terms">Terms</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="base">
+          <span>© 2026 Gitstalk</span>
+          <span>Open source under the Apache License 2.0.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
