@@ -95,7 +95,7 @@ describe('approval rules', () => {
     ]);
   });
 
-  it('holds a card bean until a person approves it, then lands it with a receipt', async () => {
+  it('holds a card bean for a person, with a receipt (approving it: bean-approval.test.ts)', async () => {
     const { opened, token } = await withPolicy('rules-card');
     const remote = await pushFiles(opened, token, {
       name: 'login',
@@ -117,11 +117,15 @@ describe('approval rules', () => {
       policy: { path: '.gitstalk/policy.yml', valid: true },
     });
 
-    const approved = await gateway.approveBean(opened.engineId, 'login', 'acme');
-    expect(approved).toEqual({ ok: true, value: { approved: true, resubmitted: true } });
-    await until(opened.engineId, 'login', ['landed', 'green']);
-    const route = await gateway.beanRoute(opened.engineId, 'login');
-    expect(route.ok && route.value?.approval).toEqual({ state: 'approved', actor: 'acme' });
+    const pushed = await gateway.pushedBeans(opened.engineId);
+    const login = pushed.ok ? pushed.value.find((bean) => bean.bean === 'login') : undefined;
+    expect(login?.hold).toMatchObject({ state: 'held', class: 'protected', reviewers: ['@acme'] });
+    // An engine with no repository record (opened by an operator) has nobody to approve it.
+    const refusal = await gateway.approveBean(opened.engineId, 'login', {
+      approver: 'u1',
+      client: { kind: 'web' },
+    });
+    expect(refusal).toMatchObject({ ok: false, error: { code: 'not_found' } });
   });
 
   it('refuses a bean from outside the writers of a class', async () => {
@@ -134,8 +138,8 @@ describe('approval rules', () => {
     expect(remote).toContain('changes a class it may not write');
     const route = await gateway.beanRoute(opened.engineId, 'pay');
     expect(route.ok && route.value?.refused).toBe('@coop may not change class billing');
-    const refusal = await gateway.approveBean(opened.engineId, 'pay', 'acme');
-    expect(refusal.ok).toBe(false);
+    const pushed = await gateway.pushedBeans(opened.engineId);
+    expect(pushed.ok && pushed.value.find((bean) => bean.bean === 'pay')?.hold).toBeNull();
   });
 
   it('triages by rule when Clef cannot answer, and always cards a policy change', async () => {

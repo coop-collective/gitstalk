@@ -300,8 +300,9 @@ function awaitingRed(receipt: RouteReceipt): CheckResult {
     message: `routed to a person by ${why} (${receipt.by})`,
     output: [
       `This bean is routed to a person: ${why}, decided by ${receipt.by}${reviewers}.`,
-      'Nothing in it needs fixing for this. A maintainer approves it from its page (or the approveBean RPC);',
-      'the approval re-submits this revision and its check runs again. A new push needs a new approval.',
+      'Nothing in it needs fixing for this. An owner or maintainer approves this revision with Approve on the',
+      "bean's page (Changes, Held), or has their agent call bean_approve. The approval re-submits it and its",
+      'check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.',
     ],
   });
 }

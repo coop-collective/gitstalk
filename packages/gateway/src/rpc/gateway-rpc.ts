@@ -17,6 +17,7 @@ import type {
 import { REPO_REF_PATTERN } from '@gitstalk/shared-race/rpc';
 import { isSafeRepoPath } from '@gitstalk/shared-race/task';
 
+import { approveBeanRpc } from '../approval/approve-rpc';
 import { issueToken, verifyToken } from '../auth/tokens';
 import type { Deps } from '../deps';
 import { GatewayError, UpstreamError } from '../errors';
@@ -102,11 +103,8 @@ export function gatewayRpc(env: Env, deps: Deps): GatewayRpcSurface {
       return forRun(run, async (id) => fromRun(await deps.run(id).policy(ref ?? null)));
     },
     beanRoute: (run, bean) => forRun(run, async (id) => ok(await deps.run(id).beanRoute(bean))),
-    approveBean: (run, bean, actor) => {
-      const who = actorName(actor);
-      if (who === '') return Promise.resolve(invalid('name the person who approved'));
-      return forRun(run, async (id) => fromRun(await deps.run(id).approveBean(bean, who)));
-    },
+    approveBean: (run, bean, request) =>
+      forRun(run, (id) => approveBeanRpc(env, deps, { run: id, bean, request })),
     decisions: (run, paths) =>
       checkedPaths(run, paths ?? [], async (id) =>
         fromRun(await deps.run(id).decisionRecords(paths ?? null)),

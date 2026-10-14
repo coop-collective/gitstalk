@@ -11,6 +11,7 @@
  * Output sizes are bounded, and a `truncated` flag says when a bound was hit.
  */
 import type { RouteReceipt } from './approval-policy';
+import type { ApproveBeanRequest, ApprovedBean, BeanHold } from './bean-approval';
 import type { ApprovalPolicyView } from './policy-file';
 import type {
   BeanContext,
@@ -582,14 +583,17 @@ export type GatewayRpc = Partial<CollaborationRpc> & {
   /** The approval rules' receipt of a bean's last pre-land check; null when none was routed. */
   beanRoute?(run: string, bean: string): Promise<RpcResult<RouteReceipt | null>>;
   /**
-   * A person approves a bean a `card` route holds (the caller checked they may decide); a
-   * repository's bean is re-submitted at its pushed head.
+   * A person approves a bean a `card` route holds, for its current revision (doc 32 §5): the
+   * one path for the web's Approve button and MCP `bean_approve`. The gateway decides who may
+   * (`decide`: owners and maintainers), refuses a stale revision and, for an agent session, an
+   * approval of a bean that session may have pushed itself unless the person confirmed it;
+   * it audits the approval and re-submits the bean at that revision.
    */
   approveBean?(
     run: string,
     bean: string,
-    actor: string,
-  ): Promise<RpcResult<{ readonly approved: true; readonly resubmitted: boolean }>>;
+    request: ApproveBeanRequest,
+  ): Promise<RpcResult<ApprovedBean>>;
   decisions(run: string, paths?: readonly string[]): Promise<RpcResult<readonly DecisionRecord[]>>;
   testsFor(run: string, paths: readonly string[]): Promise<RpcResult<readonly TestCoverage[]>>;
   /**
@@ -693,6 +697,8 @@ export type PushedBeanStatus = {
   readonly landed_sha: string | null;
   /** The last verdict's `remote:` lines (without the `gitstalk:` prefix, or the older `beanstalk:`). */
   readonly verdict: readonly string[];
+  /** Held for a person's approval, or approved for its head; null when no `card` route applies. */
+  readonly hold: BeanHold | null;
 };
 
 /** A git credential for one repository engine (`git` scope: clone, fetch, push beans). */

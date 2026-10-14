@@ -50,7 +50,12 @@ export type GitUser = { readonly id: string; readonly handle: string };
 export type RunPrincipal = { readonly scope: 'slot' | 'seed' | 'view'; readonly sub: string };
 
 /** A person's credential as the repository's sessions list names it (`<via>:<id>`). */
-export type CredentialSession = { readonly via: SessionVia; readonly id: string };
+export type CredentialSession = {
+  readonly via: SessionVia;
+  readonly id: string;
+  /** The OAuth client an agent session token was minted for (MCP `git_credentials`). */
+  readonly client?: string | null;
+};
 
 export type GitCredential = {
   readonly user: GitUser;
@@ -343,6 +348,7 @@ async function verifyPersonToken(
     session: {
       via: verified.token.kind === 'personal' ? 'personal-token' : 'agent-session',
       id: verified.token.id,
+      client: verified.token.clientId,
     },
   };
 }

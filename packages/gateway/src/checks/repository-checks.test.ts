@@ -8,14 +8,14 @@ import { DEFAULT_SUITE, RunSuite } from '@gitstalk/shared-race/suite';
 import type { GitCredential } from '../auth/git-credential';
 import { templateFiles } from '../repos/templates';
 import type { LandingTree } from './check-store';
-import { protectedAccessOf } from './protected-access';
+import { protectedAccessOf, pusherOf } from './protected-access';
 import type { RepositoryChecksHost } from './repository-checks';
 import { decide, planCheck, protectedGuard } from './repository-checks';
 
 const SPROUT = Sha.parse('a'.repeat(40));
 const MERGED = Sha.parse('b'.repeat(40));
-const AGENT = { allowed: false, who: '@agent (write, with an agent session token)' };
-const OWNER = { allowed: true, who: '@coop (owner, with a personal token)' };
+const AGENT = { allowed: false, who: '@agent (write, with an agent session token)', pusher: null };
+const OWNER = { allowed: true, who: '@coop (owner, with a personal token)', pusher: null };
 /** An engine configured with another suite than the default, to tell the two apart. */
 const ENGINE_SUITE = RunSuite.parse({ argv: ['node', '--test', 'test/'], timeout_seconds: 90 });
 const NO_GUARD = { guard: null, engineSuite: DEFAULT_SUITE };
@@ -210,7 +210,17 @@ describe('who may change protected paths', () => {
     expect(protectedAccessOf(credential(null), 'owner')).toEqual({
       allowed: false,
       who: '@coop (owner, with an engine token)',
+      pusher: 'engine',
     });
+  });
+
+  it('records which credential pushed, an OAuth session by its client', () => {
+    const minted = credential('agent-session');
+    const session = minted.session === null ? null : { ...minted.session, client: 'claude-code' };
+    expect(pusherOf({ ...minted, session })).toBe('oauth:claude-code');
+    expect(pusherOf(credential('agent-session'))).toBe('agent-session:c1');
+    expect(pusherOf(credential('ssh-key'))).toBe('ssh-key:c1');
+    expect(pusherOf(credential(null))).toBe('engine');
   });
 
   it('names a deploy token as acting for the person who made it', () => {
@@ -218,6 +228,7 @@ describe('who may change protected paths', () => {
     expect(protectedAccessOf(deploy, null)).toEqual({
       allowed: false,
       who: 'a deploy token acting for @coop',
+      pusher: 'deploy-token:c1',
     });
   });
 });

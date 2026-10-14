@@ -297,7 +297,7 @@ function save(overrides: Partial<FileSave> = {}): FileSave {
   return {
     editor: { kind: 'rules' },
     actor: 'coop',
-    protectedAccess: { allowed: true, who: '@coop (owner, with the web editor)' },
+    protectedAccess: { allowed: true, who: '@coop (owner, with the web editor)', pusher: 'web' },
     base: Sha.parse(BASE),
     path: '.gitstalk/policy.yml',
     content: 'classes: []\n',
