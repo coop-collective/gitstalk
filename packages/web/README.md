@@ -125,6 +125,12 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
     placeholder in the final layout: a finished job's stored log and the annotations read from
     it (`RunView`, `JobLogPending`), a bean's diff (`StreamedBeanDiff`).
   - `app/[owner]/(profile)/` (unknown owner), `app/orgs/(list)/` (`/orgs` signed out).
+  - Every layout under `[repo]/` starts with `if (await repositoryLayoutAnswers(params))
+    return null;`. vinext probes layouts innermost first and renders a layout's 404 inside the
+    layouts above it; a nested layout that threw for a missing or unreadable repository made
+    the repository layout throw again inside that page, and the response was a bare `Not Found`
+    text instead of `app/not-found.tsx`. Deferring lets the repository layout answer (404 or
+    redirect) inside the root layout alone. Nothing streams either way: the probe runs first.
 
   `src/server/route-tree.test.ts` reads the tree: no layout under a loading file, and no page
   under one calls `notFound`, `redirect` or a status helper unless a layout above the boundary
