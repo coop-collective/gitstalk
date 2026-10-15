@@ -1,0 +1,1887 @@
+[
+  {
+    "id": "k01",
+    "language": "javascript",
+    "clash": true,
+    "note": "The pair the 0.5 threshold was set from: price() moves to dollars, the new shipping fee is added in cents to a sum of price() values.",
+    "this": {
+      "bean": "shipping-fee",
+      "intent": "Add a flat 500-cent shipping fee to the checkout total",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/checkout.mjs",
+          "before": [
+            "import { price } from './price.mjs';",
+            "",
+            "export function total(items) {",
+            "  return items.reduce((sum, item) => sum + price(item), 0);",
+            "}"
+          ],
+          "after": [
+            "import { price } from './price.mjs';",
+            "",
+            "const SHIPPING_CENTS = 500;",
+            "",
+            "export function total(items) {",
+            "  const subtotal = items.reduce((sum, item) => sum + price(item), 0);",
+            "  return subtotal + SHIPPING_CENTS;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "price-dollars",
+      "intent": "Show prices in dollars instead of cents",
+      "message": "Show prices in dollars instead of cents\n\nprice() now returns dollars (cents / 100) so the UI can print it directly.",
+      "changes": [
+        {
+          "path": "src/price.mjs",
+          "before": ["export function price(item) {", "  return item.cents;", "}"],
+          "after": ["export function price(item) {", "  return item.cents / 100;", "}"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k02",
+    "language": "javascript",
+    "clash": true,
+    "note": "Same code as k01, but the landed bean's author wrote a vague subject; only the body hints at the unit.",
+    "this": {
+      "bean": "shipping-fee",
+      "intent": "Add shipping fee to checkout",
+      "message": "Add shipping fee to checkout\n\nFlat fee of 500 for every order.",
+      "changes": [
+        {
+          "path": "src/checkout.mjs",
+          "before": [
+            "import { price } from './price.mjs';",
+            "",
+            "export function total(items) {",
+            "  return items.reduce((sum, item) => sum + price(item), 0);",
+            "}"
+          ],
+          "after": [
+            "import { price } from './price.mjs';",
+            "",
+            "const SHIPPING_FEE = 500;",
+            "",
+            "export function total(items) {",
+            "  const subtotal = items.reduce((sum, item) => sum + price(item), 0);",
+            "  return subtotal + SHIPPING_FEE;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "price-cleanup",
+      "intent": "Refactor price()",
+      "message": "Refactor price()\n\nReturn a float so callers stop dividing by 100 themselves.",
+      "changes": [
+        {
+          "path": "src/price.mjs",
+          "before": ["export function price(item) {", "  return item.cents;", "}"],
+          "after": ["export function price(item) {", "  return item.cents / 100;", "}"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k03",
+    "language": "typescript",
+    "clash": true,
+    "note": "REQUEST_TIMEOUT moves from milliseconds to seconds; the new retry code passes it to AbortSignal.timeout, which takes milliseconds.",
+    "this": {
+      "bean": "fetch-retry",
+      "intent": "Retry failed upstream fetches up to three times with a per-attempt timeout",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/retry.ts",
+          "before": null,
+          "after": [
+            "import { REQUEST_TIMEOUT } from './config';",
+            "",
+            "export async function fetchWithRetry(url: string): Promise<Response> {",
+            "  let lastError: unknown;",
+            "  for (let attempt = 0; attempt < 3; attempt += 1) {",
+            "    try {",
+            "      return await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) });",
+            "    } catch (error) {",
+            "      lastError = error;",
+            "    }",
+            "  }",
+            "  throw lastError;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "timeout-seconds",
+      "intent": "Express timeouts in seconds to match the ops runbook",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/config.ts",
+          "before": [
+            "/** Upstream request timeout, in milliseconds. */",
+            "export const REQUEST_TIMEOUT = 30_000;"
+          ],
+          "after": [
+            "/** Upstream request timeout, in seconds. */",
+            "export const REQUEST_TIMEOUT = 30;"
+          ]
+        },
+        {
+          "path": "src/http.ts",
+          "before": [
+            "import { REQUEST_TIMEOUT } from './config';",
+            "",
+            "export function get(url: string) {",
+            "  return fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) });",
+            "}"
+          ],
+          "after": [
+            "import { REQUEST_TIMEOUT } from './config';",
+            "",
+            "export function get(url: string) {",
+            "  return fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT * 1000) });",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k04",
+    "language": "python",
+    "clash": true,
+    "note": "usage() now returns kilobytes; the new overage check compares it against a byte count.",
+    "this": {
+      "bean": "storage-overage",
+      "intent": "Charge an overage fee when a user stores more than 5 GB",
+      "message": null,
+      "changes": [
+        {
+          "path": "billing/overage.py",
+          "before": null,
+          "after": [
+            "from storage.quota import usage",
+            "",
+            "LIMIT_BYTES = 5 * 1024 ** 3",
+            "",
+            "",
+            "def overage_fee(user):",
+            "    if usage(user) > LIMIT_BYTES:",
+            "        return 200",
+            "    return 0"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "quota-kb",
+      "intent": "Report storage usage in KB for the dashboard",
+      "message": null,
+      "changes": [
+        {
+          "path": "storage/quota.py",
+          "before": ["def usage(user):", "    return sum(f.size for f in user.files)"],
+          "after": ["def usage(user):", "    return sum(f.size for f in user.files) // 1024"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k05",
+    "language": "go",
+    "clash": true,
+    "note": "timeutil.Now() moves from UTC to the store's local zone; the daily report groups stored UTC dates by Now()'s date.",
+    "this": {
+      "bean": "daily-report",
+      "intent": "Group the daily sales report by UTC date",
+      "message": "Group the daily sales report by UTC date\n\nOrders are stored with UTC timestamps; today's bucket is timeutil.Now()'s date.",
+      "changes": [
+        {
+          "path": "reports/daily.go",
+          "before": [
+            "package reports",
+            "",
+            "import \"example.com/shop/timeutil\"",
+            "",
+            "func Today() string {",
+            "\treturn \"\"",
+            "}"
+          ],
+          "after": [
+            "package reports",
+            "",
+            "import \"example.com/shop/timeutil\"",
+            "",
+            "func Today() string {",
+            "\treturn timeutil.Now().Format(\"2006-01-02\")",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "local-time",
+      "intent": "Use the store's local time zone for timestamps",
+      "message": null,
+      "changes": [
+        {
+          "path": "timeutil/now.go",
+          "before": [
+            "package timeutil",
+            "",
+            "import \"time\"",
+            "",
+            "func Now() time.Time {",
+            "\treturn time.Now().UTC()",
+            "}"
+          ],
+          "after": [
+            "package timeutil",
+            "",
+            "import \"time\"",
+            "",
+            "var location, _ = time.LoadLocation(\"America/Chicago\")",
+            "",
+            "func Now() time.Time {",
+            "\treturn time.Now().In(location)",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k06",
+    "language": "typescript",
+    "clash": true,
+    "note": "formatDate() moves from ISO (YYYY-MM-DD) to US MM/DD/YYYY; the new sync sends it as an API query parameter that expects ISO.",
+    "this": {
+      "bean": "order-sync",
+      "intent": "Fetch only orders changed since the last sync",
+      "message": "Fetch only orders changed since the last sync\n\nThe orders API takes since=YYYY-MM-DD.",
+      "changes": [
+        {
+          "path": "src/sync.ts",
+          "before": null,
+          "after": [
+            "import { formatDate } from './format';",
+            "",
+            "export function ordersUrl(base: string, since: Date): string {",
+            "  return `${base}/orders?since=${formatDate(since)}`;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "us-dates",
+      "intent": "Show dates as MM/DD/YYYY for US customers",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/format.ts",
+          "before": [
+            "export function formatDate(date: Date): string {",
+            "  return date.toISOString().slice(0, 10);",
+            "}"
+          ],
+          "after": [
+            "export function formatDate(date: Date): string {",
+            "  return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k07",
+    "language": "javascript",
+    "clash": true,
+    "note": "nextId() returns a string; the new pagination compares ids with > and adds 1 to them.",
+    "this": {
+      "bean": "cursor-pages",
+      "intent": "Paginate the order feed with an id cursor",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/feed.js",
+          "before": null,
+          "after": [
+            "import { nextId } from './ids.js';",
+            "",
+            "export function page(orders, after) {",
+            "  const newer = orders.filter((order) => order.id > after);",
+            "  const cursor = newer.length === 0 ? after : newer[newer.length - 1].id + 1;",
+            "  return { orders: newer, cursor, peek: nextId };",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "string-ids",
+      "intent": "Make order ids strings so they survive JSON in other languages",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/ids.js",
+          "before": [
+            "let counter = 0;",
+            "",
+            "export function nextId() {",
+            "  counter += 1;",
+            "  return counter;",
+            "}"
+          ],
+          "after": [
+            "let counter = 0;",
+            "",
+            "export function nextId() {",
+            "  counter += 1;",
+            "  return String(counter);",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k08",
+    "language": "python",
+    "clash": true,
+    "note": "find_user() now returns None for a missing user instead of raising NotFound; the new handler catches NotFound and then reads user.name.",
+    "this": {
+      "bean": "profile-endpoint",
+      "intent": "Add GET /profile/<id>",
+      "message": "Add GET /profile/<id>\n\nReturns 404 when find_user raises NotFound.",
+      "changes": [
+        {
+          "path": "api/profile.py",
+          "before": null,
+          "after": [
+            "from users.repo import NotFound, find_user",
+            "",
+            "",
+            "def get_profile(user_id):",
+            "    try:",
+            "        user = find_user(user_id)",
+            "    except NotFound:",
+            "        return 404, None",
+            "    return 200, {\"name\": user.name}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "find-user-optional",
+      "intent": "find_user returns None for unknown ids",
+      "message": "find_user returns None for unknown ids\n\nCallers check for None instead of catching NotFound.",
+      "changes": [
+        {
+          "path": "users/repo.py",
+          "before": [
+            "class NotFound(Exception):",
+            "    pass",
+            "",
+            "",
+            "def find_user(user_id):",
+            "    user = _db.get(user_id)",
+            "    if user is None:",
+            "        raise NotFound(user_id)",
+            "    return user"
+          ],
+          "after": [
+            "class NotFound(Exception):",
+            "    pass",
+            "",
+            "",
+            "def find_user(user_id):",
+            "    return _db.get(user_id)"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k09",
+    "language": "rust",
+    "clash": true,
+    "note": "last_index() becomes exclusive (returns len); the new window iterates ..=last_index(), one past the end.",
+    "this": {
+      "bean": "window-iter",
+      "intent": "Add a sliding window over the visible rows",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/window.rs",
+          "before": null,
+          "after": [
+            "use crate::page::last_index;",
+            "",
+            "pub fn visible(rows: &[u32], first: usize) -> Vec<u32> {",
+            "    let mut out = Vec::new();",
+            "    for i in first..=last_index(rows.len()) {",
+            "        out.push(rows[i]);",
+            "    }",
+            "    out",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "exclusive-end",
+      "intent": "Tidy page bounds",
+      "message": "Tidy page bounds\n\nlast_index now returns an exclusive end, like Rust ranges.",
+      "changes": [
+        {
+          "path": "src/page.rs",
+          "before": ["pub fn last_index(len: usize) -> usize {", "    len - 1", "}"],
+          "after": ["pub fn last_index(len: usize) -> usize {", "    len", "}"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k10",
+    "language": "typescript",
+    "clash": true,
+    "note": "sortEvents() flips to newest first; the new helper takes the last element as the latest.",
+    "this": {
+      "bean": "latest-event",
+      "intent": "Show the latest event in the header",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/header.ts",
+          "before": null,
+          "after": [
+            "import { sortEvents } from './events';",
+            "import type { Event } from './events';",
+            "",
+            "export function latestEvent(events: readonly Event[]): Event | undefined {",
+            "  return sortEvents(events).at(-1);",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "newest-first",
+      "intent": "List events newest first",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/events.ts",
+          "before": [
+            "export type Event = { readonly at: number; readonly title: string };",
+            "",
+            "export function sortEvents(events: readonly Event[]): Event[] {",
+            "  return events.toSorted((a, b) => a.at - b.at);",
+            "}"
+          ],
+          "after": [
+            "export type Event = { readonly at: number; readonly title: string };",
+            "",
+            "export function sortEvents(events: readonly Event[]): Event[] {",
+            "  return events.toSorted((a, b) => b.at - a.at);",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k11",
+    "language": "javascript",
+    "clash": true,
+    "note": "The order JSON's total_cents is renamed amountCents; the webhook reads total_cents from the HTTP response. No import or shared name: links are empty.",
+    "this": {
+      "bean": "order-webhook",
+      "intent": "Post paid orders to the accounting webhook",
+      "message": null,
+      "changes": [
+        {
+          "path": "workers/webhook.js",
+          "before": null,
+          "after": [
+            "export async function forwardPaid(apiBase, id, hook) {",
+            "  const response = await fetch(`${apiBase}/orders/${id}`);",
+            "  const order = await response.json();",
+            "  await fetch(hook, { method: 'POST', body: JSON.stringify({ id, amount: order.total_cents }) });",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "camel-json",
+      "intent": "Use camelCase keys in the order API",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/serialize.js",
+          "before": [
+            "export function serializeOrder(order) {",
+            "  return { id: order.id, total_cents: order.totalCents, status: order.status };",
+            "}"
+          ],
+          "after": [
+            "export function serializeOrder(order) {",
+            "  return { id: order.id, amountCents: order.totalCents, status: order.status };",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k12",
+    "language": "go",
+    "clash": true,
+    "note": "The server moves to HTTPS on 8443 by DefaultPort; the new health probe builds an http:// URL from DefaultPort.",
+    "this": {
+      "bean": "health-probe",
+      "intent": "Add a startup health probe",
+      "message": null,
+      "changes": [
+        {
+          "path": "cmd/probe/main.go",
+          "before": null,
+          "after": [
+            "package main",
+            "",
+            "import (",
+            "\t\"fmt\"",
+            "\t\"net/http\"",
+            "",
+            "\t\"example.com/shop/config\"",
+            ")",
+            "",
+            "func main() {",
+            "\turl := fmt.Sprintf(\"http://localhost:%d/health\", config.DefaultPort)",
+            "\tif _, err := http.Get(url); err != nil {",
+            "\t\tpanic(err)",
+            "\t}",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "tls-default",
+      "intent": "Serve TLS by default",
+      "message": "Serve TLS by default\n\nDefaultPort is now 8443 and the listener is ListenAndServeTLS.",
+      "changes": [
+        {
+          "path": "config/config.go",
+          "before": ["package config", "", "const DefaultPort = 8080"],
+          "after": ["package config", "", "const DefaultPort = 8443"]
+        },
+        {
+          "path": "server/server.go",
+          "before": [
+            "package server",
+            "",
+            "import \"net/http\"",
+            "",
+            "func Start(addr string, h http.Handler) error {",
+            "\treturn http.ListenAndServe(addr, h)",
+            "}"
+          ],
+          "after": [
+            "package server",
+            "",
+            "import \"net/http\"",
+            "",
+            "func Start(addr string, h http.Handler) error {",
+            "\treturn http.ListenAndServeTLS(addr, \"cert.pem\", \"key.pem\", h)",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k13",
+    "language": "python",
+    "clash": true,
+    "note": "CACHE_TTL moves from seconds to milliseconds (Redis PX); the new session code adds it to time.time(), which is seconds.",
+    "this": {
+      "bean": "session-expiry",
+      "intent": "Expire sessions with the cache",
+      "message": "Expire sessions with the cache\n\nA session's expires_at is now + CACHE_TTL.",
+      "changes": [
+        {
+          "path": "app/session.py",
+          "before": null,
+          "after": [
+            "import time",
+            "",
+            "from app.cache import CACHE_TTL",
+            "",
+            "",
+            "def new_session(user_id):",
+            "    return {\"user\": user_id, \"expires_at\": time.time() + CACHE_TTL}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "cache-px",
+      "intent": "Switch cache writes to PX",
+      "message": null,
+      "changes": [
+        {
+          "path": "app/cache.py",
+          "before": [
+            "CACHE_TTL = 300",
+            "",
+            "",
+            "def put(client, key, value):",
+            "    client.set(key, value, ex=CACHE_TTL)"
+          ],
+          "after": [
+            "CACHE_TTL = 300_000",
+            "",
+            "",
+            "def put(client, key, value):",
+            "    client.set(key, value, px=CACHE_TTL)"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k14",
+    "language": "java",
+    "clash": true,
+    "note": "RateLimiter's LIMIT becomes per minute (600) instead of per second (10); the new client paces requests as 1000 / LIMIT milliseconds apart.",
+    "this": {
+      "bean": "client-pacing",
+      "intent": "Pace API client calls to stay under the rate limit",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/client/ApiClient.java",
+          "before": null,
+          "after": [
+            "package com.shop.client;",
+            "",
+            "import com.shop.RateLimiter;",
+            "",
+            "public final class ApiClient {",
+            "    public long pauseMillis() {",
+            "        return 1000L / RateLimiter.LIMIT;",
+            "    }",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "limit-per-minute",
+      "intent": "Rate limit per minute instead of per second",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/RateLimiter.java",
+          "before": [
+            "package com.shop;",
+            "",
+            "import java.time.Duration;",
+            "",
+            "public final class RateLimiter {",
+            "    public static final int LIMIT = 10;",
+            "    public static final Duration WINDOW = Duration.ofSeconds(1);",
+            "}"
+          ],
+          "after": [
+            "package com.shop;",
+            "",
+            "import java.time.Duration;",
+            "",
+            "public final class RateLimiter {",
+            "    public static final int LIMIT = 600;",
+            "    public static final Duration WINDOW = Duration.ofMinutes(1);",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k15",
+    "language": "typescript",
+    "clash": true,
+    "note": "discountRate() returns a fraction (0.1) instead of a percent (10); the new cart total divides it by 100 again.",
+    "this": {
+      "bean": "cart-discount",
+      "intent": "Apply the member discount to the cart total",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/cart.ts",
+          "before": [
+            "import { discountRate } from './discount';",
+            "",
+            "export function cartTotal(subtotal: number): number {",
+            "  return subtotal;",
+            "}"
+          ],
+          "after": [
+            "import { discountRate } from './discount';",
+            "",
+            "export function cartTotal(subtotal: number, member: boolean): number {",
+            "  return subtotal * (1 - discountRate(member) / 100);",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "discount-fraction",
+      "intent": "Refactor discountRate()",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/discount.ts",
+          "before": [
+            "export function discountRate(member: boolean): number {",
+            "  return member ? 10 : 0;",
+            "}"
+          ],
+          "after": [
+            "export function discountRate(member: boolean): number {",
+            "  return member ? 0.1 : 0;",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k16",
+    "language": "go",
+    "clash": true,
+    "note": "store.Get returns nil, nil for a missing key instead of ErrNotFound; the new upsert creates the record only on ErrNotFound and dereferences the nil otherwise.",
+    "this": {
+      "bean": "upsert-profile",
+      "intent": "Create a profile on first login",
+      "message": null,
+      "changes": [
+        {
+          "path": "auth/login.go",
+          "before": null,
+          "after": [
+            "package auth",
+            "",
+            "import (",
+            "\t\"errors\"",
+            "",
+            "\t\"example.com/shop/store\"",
+            ")",
+            "",
+            "func EnsureProfile(id string) (string, error) {",
+            "\tprofile, err := store.Get(id)",
+            "\tif errors.Is(err, store.ErrNotFound) {",
+            "\t\treturn store.Create(id)",
+            "\t}",
+            "\treturn profile.Name, err",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "get-nil",
+      "intent": "Simplify store.Get",
+      "message": "Simplify store.Get\n\nA missing key is not an error: Get returns nil, nil.",
+      "changes": [
+        {
+          "path": "store/store.go",
+          "before": [
+            "package store",
+            "",
+            "func Get(id string) (*Profile, error) {",
+            "\tp, ok := profiles[id]",
+            "\tif !ok {",
+            "\t\treturn nil, ErrNotFound",
+            "\t}",
+            "\treturn p, nil",
+            "}"
+          ],
+          "after": [
+            "package store",
+            "",
+            "func Get(id string) (*Profile, error) {",
+            "\treturn profiles[id], nil",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "k17",
+    "language": "typescript",
+    "clash": true,
+    "note": "A Python API moves its created timestamp from seconds to milliseconds; the TypeScript table multiplies it by 1000. Two languages over HTTP: no import, no shared name.",
+    "this": {
+      "bean": "order-row-date",
+      "intent": "Show when each order was placed in the orders table",
+      "message": "Show when each order was placed in the orders table\n\nThe API's created field is a Unix timestamp.",
+      "changes": [
+        {
+          "path": "web/src/order-row.ts",
+          "before": [
+            "export function orderRow(order: { id: string }): string[] {",
+            "  return [order.id];",
+            "}"
+          ],
+          "after": [
+            "export function orderRow(order: { id: string; created: number }): string[] {",
+            "  return [order.id, new Date(order.created * 1000).toLocaleString()];",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "ms-timestamps",
+      "intent": "Send timestamps in milliseconds",
+      "message": "Send timestamps in milliseconds\n\nJavaScript clients can pass them straight to new Date().",
+      "changes": [
+        {
+          "path": "api/orders.py",
+          "before": [
+            "def order_json(order):",
+            "    return {",
+            "        \"id\": order.id,",
+            "        \"created\": int(order.created_at.timestamp()),",
+            "    }"
+          ],
+          "after": [
+            "def order_json(order):",
+            "    return {",
+            "        \"id\": order.id,",
+            "        \"created\": int(order.created_at.timestamp() * 1000),",
+            "    }"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n01",
+    "language": "javascript",
+    "clash": false,
+    "note": "Both beans move to dollars: price() returns dollars and the new fee is 5 dollars. Same links as k01.",
+    "this": {
+      "bean": "shipping-fee",
+      "intent": "Add a flat $5.00 shipping fee to the checkout total",
+      "message": "Add a flat $5.00 shipping fee to the checkout total\n\nprice() returns dollars now, so the fee is 5.",
+      "changes": [
+        {
+          "path": "src/checkout.mjs",
+          "before": [
+            "import { price } from './price.mjs';",
+            "",
+            "export function total(items) {",
+            "  return items.reduce((sum, item) => sum + price(item), 0);",
+            "}"
+          ],
+          "after": [
+            "import { price } from './price.mjs';",
+            "",
+            "const SHIPPING_DOLLARS = 5;",
+            "",
+            "export function total(items) {",
+            "  const subtotal = items.reduce((sum, item) => sum + price(item), 0);",
+            "  return subtotal + SHIPPING_DOLLARS;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "price-dollars",
+      "intent": "Show prices in dollars instead of cents",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/price.mjs",
+          "before": ["export function price(item) {", "  return item.cents;", "}"],
+          "after": ["export function price(item) {", "  return item.cents / 100;", "}"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n02",
+    "language": "javascript",
+    "clash": false,
+    "note": "Same intents as k02 (vague \"Refactor price()\" against a 500 fee), but the refactor keeps cents.",
+    "this": {
+      "bean": "shipping-fee",
+      "intent": "Add shipping fee to checkout",
+      "message": "Add shipping fee to checkout\n\nFlat fee of 500 for every order.",
+      "changes": [
+        {
+          "path": "src/checkout.mjs",
+          "before": [
+            "import { price } from './price.mjs';",
+            "",
+            "export function total(items) {",
+            "  return items.reduce((sum, item) => sum + price(item), 0);",
+            "}"
+          ],
+          "after": [
+            "import { price } from './price.mjs';",
+            "",
+            "const SHIPPING_FEE = 500;",
+            "",
+            "export function total(items) {",
+            "  const subtotal = items.reduce((sum, item) => sum + price(item), 0);",
+            "  return subtotal + SHIPPING_FEE;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "price-cleanup",
+      "intent": "Refactor price()",
+      "message": "Refactor price()\n\nDestructure the item; no behaviour change.",
+      "changes": [
+        {
+          "path": "src/price.mjs",
+          "before": ["export function price(item) {", "  return item.cents;", "}"],
+          "after": [
+            "export function price(item) {",
+            "  const { cents } = item;",
+            "  return cents;",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n03",
+    "language": "typescript",
+    "clash": false,
+    "note": "formatDate() gains a locale parameter whose default keeps ISO; the sync calls it without one.",
+    "this": {
+      "bean": "order-sync",
+      "intent": "Fetch only orders changed since the last sync",
+      "message": "Fetch only orders changed since the last sync\n\nThe orders API takes since=YYYY-MM-DD.",
+      "changes": [
+        {
+          "path": "src/sync.ts",
+          "before": null,
+          "after": [
+            "import { formatDate } from './format';",
+            "",
+            "export function ordersUrl(base: string, since: Date): string {",
+            "  return `${base}/orders?since=${formatDate(since)}`;",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "date-locale",
+      "intent": "Let formatDate take an optional locale (defaults to ISO)",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/format.ts",
+          "before": [
+            "export function formatDate(date: Date): string {",
+            "  return date.toISOString().slice(0, 10);",
+            "}"
+          ],
+          "after": [
+            "export function formatDate(date: Date, locale: string | null = null): string {",
+            "  if (locale === null) return date.toISOString().slice(0, 10);",
+            "  return date.toLocaleDateString(locale);",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n04",
+    "language": "python",
+    "clash": false,
+    "note": "find_user() gains a log line and still raises NotFound; the new handler catches NotFound.",
+    "this": {
+      "bean": "profile-endpoint",
+      "intent": "Add GET /profile/<id>",
+      "message": "Add GET /profile/<id>\n\nReturns 404 when find_user raises NotFound.",
+      "changes": [
+        {
+          "path": "api/profile.py",
+          "before": null,
+          "after": [
+            "from users.repo import NotFound, find_user",
+            "",
+            "",
+            "def get_profile(user_id):",
+            "    try:",
+            "        user = find_user(user_id)",
+            "    except NotFound:",
+            "        return 404, None",
+            "    return 200, {\"name\": user.name}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "repo-logging",
+      "intent": "Log user lookups that miss",
+      "message": null,
+      "changes": [
+        {
+          "path": "users/repo.py",
+          "before": [
+            "class NotFound(Exception):",
+            "    pass",
+            "",
+            "",
+            "def find_user(user_id):",
+            "    user = _db.get(user_id)",
+            "    if user is None:",
+            "        raise NotFound(user_id)",
+            "    return user"
+          ],
+          "after": [
+            "class NotFound(Exception):",
+            "    pass",
+            "",
+            "",
+            "def find_user(user_id):",
+            "    user = _db.get(user_id)",
+            "    if user is None:",
+            "        log.info(\"user lookup missed\", extra={\"user_id\": user_id})",
+            "        raise NotFound(user_id)",
+            "    return user"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n05",
+    "language": "go",
+    "clash": false,
+    "note": "Docs only: a README section and a doc comment on Now() saying it is UTC; the report relies on UTC.",
+    "this": {
+      "bean": "daily-report",
+      "intent": "Group the daily sales report by UTC date",
+      "message": null,
+      "changes": [
+        {
+          "path": "reports/daily.go",
+          "before": [
+            "package reports",
+            "",
+            "import \"example.com/shop/timeutil\"",
+            "",
+            "func Today() string {",
+            "\treturn \"\"",
+            "}"
+          ],
+          "after": [
+            "package reports",
+            "",
+            "import \"example.com/shop/timeutil\"",
+            "",
+            "func Today() string {",
+            "\treturn timeutil.Now().Format(\"2006-01-02\")",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "time-docs",
+      "intent": "Document timeutil",
+      "message": null,
+      "changes": [
+        {
+          "path": "timeutil/now.go",
+          "before": [
+            "package timeutil",
+            "",
+            "import \"time\"",
+            "",
+            "func Now() time.Time {",
+            "\treturn time.Now().UTC()",
+            "}"
+          ],
+          "after": [
+            "package timeutil",
+            "",
+            "import \"time\"",
+            "",
+            "// Now is the current time in UTC; every stored timestamp uses it.",
+            "func Now() time.Time {",
+            "\treturn time.Now().UTC()",
+            "}"
+          ]
+        },
+        {
+          "path": "timeutil/README.md",
+          "before": null,
+          "after": ["# timeutil", "", "All times are UTC. Convert to local time only for display."]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n06",
+    "language": "java",
+    "clash": false,
+    "note": "An unrelated addition to the same class: getEmail() is added to User; the cache keys users by getId().",
+    "this": {
+      "bean": "user-cache",
+      "intent": "Cache users by id",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/users/UserCache.java",
+          "before": null,
+          "after": [
+            "package com.shop.users;",
+            "",
+            "import java.util.HashMap;",
+            "import java.util.Map;",
+            "",
+            "public final class UserCache {",
+            "    private final Map<Long, User> byId = new HashMap<>();",
+            "",
+            "    public void remember(User user) {",
+            "        byId.put(user.getId(), user);",
+            "    }",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "user-email",
+      "intent": "Expose the user's email address",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/users/User.java",
+          "before": [
+            "package com.shop.users;",
+            "",
+            "public final class User {",
+            "    private final long id;",
+            "",
+            "    public User(long id) {",
+            "        this.id = id;",
+            "    }",
+            "",
+            "    public long getId() {",
+            "        return id;",
+            "    }",
+            "}"
+          ],
+          "after": [
+            "package com.shop.users;",
+            "",
+            "public final class User {",
+            "    private final long id;",
+            "    private String email = \"\";",
+            "",
+            "    public User(long id) {",
+            "        this.id = id;",
+            "    }",
+            "",
+            "    public long getId() {",
+            "        return id;",
+            "    }",
+            "",
+            "    public String getEmail() {",
+            "        return email;",
+            "    }",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n07",
+    "language": "rust",
+    "clash": false,
+    "note": "A refactor of the page module that keeps last_index() inclusive (an extracted doc comment and a named constant).",
+    "this": {
+      "bean": "window-iter",
+      "intent": "Add a sliding window over the visible rows",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/window.rs",
+          "before": null,
+          "after": [
+            "use crate::page::last_index;",
+            "",
+            "pub fn visible(rows: &[u32], first: usize) -> Vec<u32> {",
+            "    let mut out = Vec::new();",
+            "    for i in first..=last_index(rows.len()) {",
+            "        out.push(rows[i]);",
+            "    }",
+            "    out",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "page-tidy",
+      "intent": "Tidy page bounds",
+      "message": "Tidy page bounds\n\nName the page size constant and document last_index (inclusive, unchanged).",
+      "changes": [
+        {
+          "path": "src/page.rs",
+          "before": [
+            "pub fn page_size() -> usize {",
+            "    50",
+            "}",
+            "",
+            "pub fn last_index(len: usize) -> usize {",
+            "    len - 1",
+            "}"
+          ],
+          "after": [
+            "const PAGE_SIZE: usize = 50;",
+            "",
+            "pub fn page_size() -> usize {",
+            "    PAGE_SIZE",
+            "}",
+            "",
+            "/// The index of the last element (inclusive).",
+            "pub fn last_index(len: usize) -> usize {",
+            "    len - 1",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n08",
+    "language": "typescript",
+    "clash": false,
+    "note": "Both edit config.ts compatibly: one adds MAX_RETRIES, the other adds a backoff and uses REQUEST_TIMEOUT, still milliseconds.",
+    "this": {
+      "bean": "fetch-retry",
+      "intent": "Retry failed upstream fetches with a per-attempt timeout",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/config.ts",
+          "before": [
+            "/** Upstream request timeout, in milliseconds. */",
+            "export const REQUEST_TIMEOUT = 30_000;"
+          ],
+          "after": [
+            "/** Upstream request timeout, in milliseconds. */",
+            "export const REQUEST_TIMEOUT = 30_000;",
+            "/** Pause between retries, in milliseconds. */",
+            "export const RETRY_BACKOFF_MS = 200;"
+          ]
+        },
+        {
+          "path": "src/retry.ts",
+          "before": null,
+          "after": [
+            "import { REQUEST_TIMEOUT, RETRY_BACKOFF_MS } from './config';",
+            "",
+            "export async function fetchWithRetry(url: string): Promise<Response> {",
+            "  try {",
+            "    return await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) });",
+            "  } catch {",
+            "    await new Promise((resolve) => setTimeout(resolve, RETRY_BACKOFF_MS));",
+            "    return fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT) });",
+            "  }",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "max-retries",
+      "intent": "Add a MAX_RETRIES setting",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/config.ts",
+          "before": [
+            "/** Upstream request timeout, in milliseconds. */",
+            "export const REQUEST_TIMEOUT = 30_000;"
+          ],
+          "after": [
+            "/** Upstream request timeout, in milliseconds. */",
+            "export const REQUEST_TIMEOUT = 30_000;",
+            "/** Attempts after the first one. */",
+            "export const MAX_RETRIES = 3;"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n09",
+    "language": "python",
+    "clash": false,
+    "note": "Tests only for usage(), which still returns bytes; the overage check compares bytes.",
+    "this": {
+      "bean": "storage-overage",
+      "intent": "Charge an overage fee when a user stores more than 5 GB",
+      "message": null,
+      "changes": [
+        {
+          "path": "billing/overage.py",
+          "before": null,
+          "after": [
+            "from storage.quota import usage",
+            "",
+            "LIMIT_BYTES = 5 * 1024 ** 3",
+            "",
+            "",
+            "def overage_fee(user):",
+            "    if usage(user) > LIMIT_BYTES:",
+            "        return 200",
+            "    return 0"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "quota-tests",
+      "intent": "Test usage() with empty and large accounts",
+      "message": null,
+      "changes": [
+        {
+          "path": "tests/test_quota.py",
+          "before": null,
+          "after": [
+            "from storage.quota import usage",
+            "",
+            "",
+            "def test_usage_counts_bytes(user_with_files):",
+            "    assert usage(user_with_files([10, 20])) == 30",
+            "",
+            "",
+            "def test_usage_of_empty_account(user_with_files):",
+            "    assert usage(user_with_files([])) == 0"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n10",
+    "language": "go",
+    "clash": false,
+    "note": "The config gains DefaultHost and DefaultPort keeps 8080 over plain HTTP; the probe builds an http:// URL from DefaultPort.",
+    "this": {
+      "bean": "health-probe",
+      "intent": "Add a startup health probe",
+      "message": null,
+      "changes": [
+        {
+          "path": "cmd/probe/main.go",
+          "before": null,
+          "after": [
+            "package main",
+            "",
+            "import (",
+            "\t\"fmt\"",
+            "\t\"net/http\"",
+            "",
+            "\t\"example.com/shop/config\"",
+            ")",
+            "",
+            "func main() {",
+            "\turl := fmt.Sprintf(\"http://localhost:%d/health\", config.DefaultPort)",
+            "\tif _, err := http.Get(url); err != nil {",
+            "\t\tpanic(err)",
+            "\t}",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "default-host",
+      "intent": "Make the listen host configurable",
+      "message": null,
+      "changes": [
+        {
+          "path": "config/config.go",
+          "before": ["package config", "", "const DefaultPort = 8080"],
+          "after": [
+            "package config",
+            "",
+            "// DefaultPort is the plain-HTTP port the server listens on.",
+            "const DefaultPort = 8080",
+            "",
+            "const DefaultHost = \"0.0.0.0\""
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n11",
+    "language": "javascript",
+    "clash": false,
+    "note": "The order JSON gains a currency field and keeps total_cents; the webhook reads total_cents. No links, like k11.",
+    "this": {
+      "bean": "order-webhook",
+      "intent": "Post paid orders to the accounting webhook",
+      "message": null,
+      "changes": [
+        {
+          "path": "workers/webhook.js",
+          "before": null,
+          "after": [
+            "export async function forwardPaid(apiBase, id, hook) {",
+            "  const response = await fetch(`${apiBase}/orders/${id}`);",
+            "  const order = await response.json();",
+            "  await fetch(hook, { method: 'POST', body: JSON.stringify({ id, amount: order.total_cents }) });",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "order-currency",
+      "intent": "Include the currency in the order API",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/serialize.js",
+          "before": [
+            "export function serializeOrder(order) {",
+            "  return { id: order.id, total_cents: order.totalCents, status: order.status };",
+            "}"
+          ],
+          "after": [
+            "export function serializeOrder(order) {",
+            "  return { id: order.id, total_cents: order.totalCents, currency: order.currency, status: order.status };",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n12",
+    "language": "typescript",
+    "clash": false,
+    "note": "sortEvents() becomes stable on ties (by title) and stays oldest first; the header takes the last element.",
+    "this": {
+      "bean": "latest-event",
+      "intent": "Show the latest event in the header",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/header.ts",
+          "before": null,
+          "after": [
+            "import { sortEvents } from './events';",
+            "import type { Event } from './events';",
+            "",
+            "export function latestEvent(events: readonly Event[]): Event | undefined {",
+            "  return sortEvents(events).at(-1);",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "stable-sort",
+      "intent": "Break ties in sortEvents by title",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/events.ts",
+          "before": [
+            "export type Event = { readonly at: number; readonly title: string };",
+            "",
+            "export function sortEvents(events: readonly Event[]): Event[] {",
+            "  return events.toSorted((a, b) => a.at - b.at);",
+            "}"
+          ],
+          "after": [
+            "export type Event = { readonly at: number; readonly title: string };",
+            "",
+            "export function sortEvents(events: readonly Event[]): Event[] {",
+            "  return events.toSorted((a, b) => a.at - b.at || a.title.localeCompare(b.title));",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n13",
+    "language": "java",
+    "clash": false,
+    "note": "RateLimiter gains a rejection counter; LIMIT and WINDOW are unchanged; the client paces by LIMIT.",
+    "this": {
+      "bean": "client-pacing",
+      "intent": "Pace API client calls to stay under the rate limit",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/client/ApiClient.java",
+          "before": null,
+          "after": [
+            "package com.shop.client;",
+            "",
+            "import com.shop.RateLimiter;",
+            "",
+            "public final class ApiClient {",
+            "    public long pauseMillis() {",
+            "        return 1000L / RateLimiter.LIMIT;",
+            "    }",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "limiter-metrics",
+      "intent": "Count rejected requests in RateLimiter",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/main/java/com/shop/RateLimiter.java",
+          "before": [
+            "package com.shop;",
+            "",
+            "import java.time.Duration;",
+            "",
+            "public final class RateLimiter {",
+            "    public static final int LIMIT = 10;",
+            "    public static final Duration WINDOW = Duration.ofSeconds(1);",
+            "}"
+          ],
+          "after": [
+            "package com.shop;",
+            "",
+            "import java.time.Duration;",
+            "import java.util.concurrent.atomic.AtomicLong;",
+            "",
+            "public final class RateLimiter {",
+            "    public static final int LIMIT = 10;",
+            "    public static final Duration WINDOW = Duration.ofSeconds(1);",
+            "    public static final AtomicLong REJECTED = new AtomicLong();",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n14",
+    "language": "python",
+    "clash": false,
+    "note": "A rename of the cache's private key helper; CACHE_TTL stays in seconds; the session adds it to time.time().",
+    "this": {
+      "bean": "session-expiry",
+      "intent": "Expire sessions with the cache",
+      "message": "Expire sessions with the cache\n\nA session's expires_at is now + CACHE_TTL.",
+      "changes": [
+        {
+          "path": "app/session.py",
+          "before": null,
+          "after": [
+            "import time",
+            "",
+            "from app.cache import CACHE_TTL",
+            "",
+            "",
+            "def new_session(user_id):",
+            "    return {\"user\": user_id, \"expires_at\": time.time() + CACHE_TTL}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "cache-rename",
+      "intent": "Rename _key to _cache_key",
+      "message": null,
+      "changes": [
+        {
+          "path": "app/cache.py",
+          "before": [
+            "CACHE_TTL = 300",
+            "",
+            "",
+            "def _key(name):",
+            "    return f\"shop:{name}\"",
+            "",
+            "",
+            "def put(client, name, value):",
+            "    client.set(_key(name), value, ex=CACHE_TTL)"
+          ],
+          "after": [
+            "CACHE_TTL = 300",
+            "",
+            "",
+            "def _cache_key(name):",
+            "    return f\"shop:{name}\"",
+            "",
+            "",
+            "def put(client, name, value):",
+            "    client.set(_cache_key(name), value, ex=CACHE_TTL)"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n15",
+    "language": "go",
+    "clash": false,
+    "note": "store.Get gains a tracing span and still returns ErrNotFound; the upsert relies on ErrNotFound.",
+    "this": {
+      "bean": "upsert-profile",
+      "intent": "Create a profile on first login",
+      "message": null,
+      "changes": [
+        {
+          "path": "auth/login.go",
+          "before": null,
+          "after": [
+            "package auth",
+            "",
+            "import (",
+            "\t\"errors\"",
+            "",
+            "\t\"example.com/shop/store\"",
+            ")",
+            "",
+            "func EnsureProfile(id string) (string, error) {",
+            "\tprofile, err := store.Get(id)",
+            "\tif errors.Is(err, store.ErrNotFound) {",
+            "\t\treturn store.Create(id)",
+            "\t}",
+            "\treturn profile.Name, err",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "store-tracing",
+      "intent": "Trace store lookups",
+      "message": null,
+      "changes": [
+        {
+          "path": "store/store.go",
+          "before": [
+            "package store",
+            "",
+            "func Get(id string) (*Profile, error) {",
+            "\tp, ok := profiles[id]",
+            "\tif !ok {",
+            "\t\treturn nil, ErrNotFound",
+            "\t}",
+            "\treturn p, nil",
+            "}"
+          ],
+          "after": [
+            "package store",
+            "",
+            "func Get(id string) (*Profile, error) {",
+            "\tspan := tracer.Start(\"store.Get\")",
+            "\tdefer span.End()",
+            "\tp, ok := profiles[id]",
+            "\tif !ok {",
+            "\t\treturn nil, ErrNotFound",
+            "\t}",
+            "\treturn p, nil",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n16",
+    "language": "javascript",
+    "clash": false,
+    "note": "nextId() starts at 1000 and still returns a number; the pagination compares ids numerically.",
+    "this": {
+      "bean": "cursor-pages",
+      "intent": "Paginate the order feed with an id cursor",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/feed.js",
+          "before": null,
+          "after": [
+            "import { nextId } from './ids.js';",
+            "",
+            "export function page(orders, after) {",
+            "  const newer = orders.filter((order) => order.id > after);",
+            "  const cursor = newer.length === 0 ? after : newer[newer.length - 1].id + 1;",
+            "  return { orders: newer, cursor, peek: nextId };",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "ids-from-1000",
+      "intent": "Start order ids at 1000",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/ids.js",
+          "before": [
+            "let counter = 0;",
+            "",
+            "export function nextId() {",
+            "  counter += 1;",
+            "  return counter;",
+            "}"
+          ],
+          "after": [
+            "let counter = 999;",
+            "",
+            "export function nextId() {",
+            "  counter += 1;",
+            "  return counter;",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n17",
+    "language": "typescript",
+    "clash": false,
+    "note": "A changed constant in the same unit: the member discount goes from 10 to 15 percent; the cart divides by 100.",
+    "this": {
+      "bean": "cart-discount",
+      "intent": "Apply the member discount to the cart total",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/cart.ts",
+          "before": [
+            "import { discountRate } from './discount';",
+            "",
+            "export function cartTotal(subtotal: number): number {",
+            "  return subtotal;",
+            "}"
+          ],
+          "after": [
+            "import { discountRate } from './discount';",
+            "",
+            "export function cartTotal(subtotal: number, member: boolean): number {",
+            "  return subtotal * (1 - discountRate(member) / 100);",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "discount-15",
+      "intent": "Raise the member discount to 15%",
+      "message": null,
+      "changes": [
+        {
+          "path": "src/discount.ts",
+          "before": [
+            "export function discountRate(member: boolean): number {",
+            "  return member ? 10 : 0;",
+            "}"
+          ],
+          "after": [
+            "export function discountRate(member: boolean): number {",
+            "  return member ? 15 : 0;",
+            "}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "n18",
+    "language": "typescript",
+    "clash": false,
+    "note": "The same pair as k17, but the API adds an updated field in seconds and keeps created in seconds.",
+    "this": {
+      "bean": "order-row-date",
+      "intent": "Show when each order was placed in the orders table",
+      "message": "Show when each order was placed in the orders table\n\nThe API's created field is a Unix timestamp.",
+      "changes": [
+        {
+          "path": "web/src/order-row.ts",
+          "before": [
+            "export function orderRow(order: { id: string }): string[] {",
+            "  return [order.id];",
+            "}"
+          ],
+          "after": [
+            "export function orderRow(order: { id: string; created: number }): string[] {",
+            "  return [order.id, new Date(order.created * 1000).toLocaleString()];",
+            "}"
+          ]
+        }
+      ]
+    },
+    "theirs": {
+      "bean": "order-updated",
+      "intent": "Add an updated timestamp to the order API",
+      "message": null,
+      "changes": [
+        {
+          "path": "api/orders.py",
+          "before": [
+            "def order_json(order):",
+            "    return {",
+            "        \"id\": order.id,",
+            "        \"created\": int(order.created_at.timestamp()),",
+            "    }"
+          ],
+          "after": [
+            "def order_json(order):",
+            "    return {",
+            "        \"id\": order.id,",
+            "        \"created\": int(order.created_at.timestamp()),",
+            "        \"updated\": int(order.updated_at.timestamp()),",
+            "    }"
+          ]
+        }
+      ]
+    }
+  }
+]

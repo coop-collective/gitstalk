@@ -10,6 +10,7 @@ import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
 import type { ConfigFile } from '@gitstalk/shared-race/config-dir';
 
 import type { ArtifactsPort } from '../adapters/artifacts';
+import type { EngineState } from '../engine/state';
 import {
   readCheckLines,
   readLandingTree,
@@ -20,6 +21,7 @@ import { UpstreamError } from '../errors';
 import { readPushBean } from '../push/push-bean';
 import type { ApprovalJobHost } from '../run/run-jobs';
 import { readApproval, readRoute, saveRoute } from './approval-store';
+import { inFlightBefore, landedSinceFork } from './landed-since-fork';
 
 /** A triage must come back within this, or the rule answers. */
 const CLEF_BUDGET_MS = 2500;
@@ -31,6 +33,8 @@ export type ApprovalHostDeps = {
   readonly repo: string;
   /** `continuous`: principals and revisions come from pushes; `race`: from agent slots. */
   readonly engine: 'race' | 'continuous';
+  /** The engine's state, for the beans that landed after a bean forked. */
+  readonly state: () => EngineState;
   readonly ai: ModelRunner | null;
   readonly aiGateway: string | null;
   readonly now: () => number;
@@ -55,11 +59,28 @@ export function approvalJobHost(deps: ApprovalHostDeps): ApprovalJobHost {
       },
       origin: (task) => (pushed(task)?.protectedAccess.allowed === true ? 'decider' : 'agent'),
       revision: (task) => pushed(task)?.head ?? null,
+      intent: (task) => pushed(task)?.intent ?? null,
+      beansNotSeen: (task) => {
+        if (deps.engine !== 'continuous') return [];
+        const state = deps.state();
+        const filesOf = (bean: string) => readPushBean(sql, bean)?.files ?? [];
+        return [...landedSinceFork(state, task), ...inFlightBefore(state.tasks, task, filesOf)];
+      },
+      headMessage: async (task) => {
+        const head = pushed(task)?.head;
+        return head === undefined ? null : artifacts.commitMessage(repo, head);
+      },
       approval: (task, revision) => readApproval(sql, task, revision),
       previous: (task) => readRoute(sql, task),
       save: (entry) => saveRoute(sql, entry),
       model: decisionModelFrom({
         name: 'clef',
+        ai: deps.ai,
+        gateway: deps.aiGateway ?? '',
+        budgetMs: CLEF_BUDGET_MS,
+      }),
+      clashModel: decisionModelFrom({
+        name: 'clef-27b',
         ai: deps.ai,
         gateway: deps.aiGateway ?? '',
         budgetMs: CLEF_BUDGET_MS,

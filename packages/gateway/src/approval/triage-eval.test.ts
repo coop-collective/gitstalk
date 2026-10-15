@@ -80,6 +80,9 @@ function subjectOf(entry: EvalCase, description: string | null): TriageSubject {
     description,
     files: entry.files,
     size: entry.size satisfies ChangeSize,
+    intent: null,
+    message: null,
+    landedSinceFork: [],
   };
 }
 
@@ -186,10 +189,14 @@ function judgeCase(
     principal: () => '@loadgen',
     origin: () => 'agent',
     revision: () => 'b19ec8058aa04c1c4eda7f97ebbaed85a910159b',
+    intent: () => null,
+    beansNotSeen: () => [],
+    headMessage: () => Promise.resolve(null),
     approval: () => null,
     previous: (task) => saved.get(task) ?? null,
     save: (judged) => saved.set(judged.receipt.bean, judged),
     model: decisionModelFrom({ name: 'clef', ai, gateway: '', budgetMs: 50 }),
+    clashModel: decisionModelFrom({ name: 'clef-27b', ai, gateway: '', budgetMs: 50 }),
     now: () => 1000,
   };
   const landing = {

@@ -6,14 +6,14 @@
     <title>Troubleshooting: Gitstalk docs</title>
     <meta
       name="description"
-      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
+      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, recheck, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Troubleshooting: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
+      content="Find the message you saw: RED, CONFLICT, parked, awaiting approval, recheck, protected paths, remote rejected, a hanging push, 404, checks and Actions errors, missing agent tools."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -297,6 +297,34 @@ check runs again. A new push needs a new approval. Agents: ask your person; neve
             confirmed on the hosted service. To stop a rule holding your changes, an owner or
             maintainer can change the rules in the repository's Settings, Approval rules. See
             <a href="/docs/approval-rules#approve">Approving a held bean</a>.
+          </p>
+
+          <h3 id="recheck">recheck against beans that landed after it forked</h3>
+          <pre><code>remote: gitstalk: approval rules: checkout -> recheck (clef, p=0.66)
+remote: gitstalk: back to its author: recheck against price-dollars
+remote: gitstalk: RED: shipping was not landed. Merged onto the sprout, these tests failed:
+remote: gitstalk:   - .gitstalk/policy.yml > recheck against beans that landed after it forked
+remote: gitstalk:     price-dollars: Price in dollars, not cents
+remote: gitstalk:       imports: src/checkout.mjs -> src/price.mjs
+remote: gitstalk:       it changed, you use: price
+remote: gitstalk:     Intent-checked: price-dollars</code></pre>
+          <p>
+            <strong>Cause.</strong> The repository triages code changes, and Clef read your bean's
+            intent beside a bean you never saw: one that landed after you forked, or one pushed
+            before yours and still being checked (marked
+            <em>pushed before this one, still being checked</em>). It thinks the two may disagree
+            about something both rely on, such as a unit, a format or a value, in a way neither
+            bean's tests would show. This is not a person's hold, and no test of yours failed.
+          </p>
+          <p>
+            <strong>Fix.</strong> Read the named bean: <code>git log origin/sprout</code> for a
+            landed one, <code>git fetch origin bean/&lt;name&gt;</code> for one in flight. If the
+            two disagree, change your bean so both intents hold (in the example, shipping in dollars
+            because <code>price()</code> now returns dollars), and add a test for the combination if
+            you can. Either way, rebase on <code>origin/sprout</code> and push again with a trailer
+            in the commit message naming what you checked:
+            <code>Intent-checked: price-dollars</code>. That takes the bean off the list and your
+            tests decide. See <a href="/docs/approval-rules#recheck">Recheck</a>.
           </p>
 
           <h3 id="protected">changes protected paths ... refused</h3>
