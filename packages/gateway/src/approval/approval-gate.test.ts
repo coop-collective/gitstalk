@@ -139,6 +139,11 @@ describe('judgeLanding', () => {
       SANDBOX,
     );
     expect(held.hold?.failingTests[0]?.name).toBe('awaits approval by a person');
+    expect(held.hold?.held).toEqual({
+      classes: held.receipt.classes,
+      class: held.receipt.class,
+      by: held.receipt.by,
+    });
     expect(held.receipt.approval).toEqual({ state: 'awaiting', actor: null });
     const approved = await judgeLanding(
       fakeHost({ changes, approvedBy: 'acme' }).host,

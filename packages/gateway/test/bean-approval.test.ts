@@ -69,6 +69,12 @@ describe('a held bean', () => {
       policy: { path: '.gitstalk/policy.yml' },
       approval: null,
     });
+    expect(bean.reason).toBe("held for a person's approval (class protected, decided by policy)");
+    expect(bean.verdict[0]).toBe(
+      "HELD: login waits for a person's approval (class protected, decided by policy); nothing in it needs fixing",
+    );
+    expect(bean.verdict.join('\n')).not.toMatch(/RED:|fix:/u);
+    expect(bean.approvals).toEqual([]);
   }, 30_000);
 
   it('refuses a writer, and hides the repository from a stranger', async () => {
@@ -124,6 +130,17 @@ describe('a held bean', () => {
     ]);
     const landed = await waitForPhase('login', ['landed', 'green']);
     expect(landed.hold).toMatchObject({ state: 'approved', approval: { by: 'ap-dana' } });
+    expect(landed.approvals).toEqual([{ ...approved.approval, revision: head }]);
+    expect(await checksAndCommits('login')).toEqual([
+      { type: 'task.commit', sha: head },
+      {
+        type: 'preland.check',
+        green: false,
+        held: { classes: ['protected'], class: 'protected', by: 'policy' },
+      },
+      { type: 'task.commit', sha: head },
+      { type: 'preland.check', green: true },
+    ]);
   }, 30_000);
 
   it('needs a new approval for a new push', async () => {
@@ -193,6 +210,32 @@ async function pushed(bean: string): Promise<PushedBeanStatus> {
   );
   if (found === undefined) throw new Error(`no pushed bean ${bean}`);
   return found;
+}
+
+/**
+ * The bean's commits and checks as the engine logged them: the journey reads a hold from the
+ * check's `held`, and an approval from the same head committed again.
+ */
+async function checksAndCommits(bean: string): Promise<readonly Record<string, unknown>[]> {
+  const page = value(await gateway.runEvents(repo.engine_id, 0, 1000));
+  return page.events
+    .map((line): unknown => JSON.parse(line))
+    .filter(
+      (event): event is Record<string, unknown> =>
+        typeof event === 'object' &&
+        event !== null &&
+        Reflect.get(event, 'task') === bean &&
+        ['task.commit', 'preland.check'].includes(String(Reflect.get(event, 'type'))),
+    )
+    .map((event) =>
+      event['type'] === 'task.commit'
+        ? { type: event['type'], sha: event['sha'] }
+        : {
+            type: event['type'],
+            green: event['green'],
+            held: event['held'],
+          },
+    );
 }
 
 async function waitForPhase(bean: string, phases: readonly string[]): Promise<PushedBeanStatus> {

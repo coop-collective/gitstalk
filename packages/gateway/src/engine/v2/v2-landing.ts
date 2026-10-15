@@ -601,6 +601,7 @@ function logCheck(
     check_seconds: roundTo(seconds, 3),
     ...(outcome.isInherited ? { inherited: true } : {}),
     ...(check.targets === null ? {} : { targets: [...check.targets] }),
+    ...(result.held === undefined ? {} : { held: result.held }),
   });
 }
 

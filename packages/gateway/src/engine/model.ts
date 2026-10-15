@@ -7,6 +7,7 @@ import type {
   WorkspaceMerge,
 } from '@gitstalk/shared-race/driver';
 import type {
+  CheckHold,
   CiMeta,
   EventEnvelope,
   Json,
@@ -229,6 +230,11 @@ export type CheckResult = {
    * nothing failed. A continuous engine spends no rework round on it (`v2-landing.ts`).
    */
   readonly awaitsApproval?: true;
+  /**
+   * The hold itself (classes, deciding class, who decided); the `preland.check` event carries it
+   * as `held`.
+   */
+  readonly held?: CheckHold;
 };
 
 export type CiPurpose = 'batch' | 'bisect' | 'validate' | 'final';

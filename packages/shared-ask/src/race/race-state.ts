@@ -41,6 +41,11 @@ export type BeanPhase =
   | 'testing'
   /** Sent back to its author (a rework is running, or waits for an agent). */
   | 'rework'
+  /**
+   * The approval rules hold it for a person (`preland.check.held`): nothing to fix; a person's
+   * approval checks the same revision again, a new push is judged again.
+   */
+  | 'held'
   /** A decision card about it is open. */
   | 'deciding'
   /** On the sprout, not validated yet. */
@@ -56,6 +61,10 @@ export type BeanStepKind =
   | 'committed'
   | 'check-green'
   | 'check-red'
+  /** The approval rules held it for a person at its check (a hold, not a red). */
+  | 'held'
+  /** A person approved the held revision, so its check runs again on the same commit. */
+  | 'approved'
   | 'recheck'
   | 'optimistic'
   | 'conflict'

@@ -24,6 +24,10 @@ export const BeanApproval = z.object({
 });
 export type BeanApproval = z.infer<typeof BeanApproval>;
 
+/** An approval of one named revision of a bean, as its journey shows it. */
+export const RevisionApproval = BeanApproval.extend({ revision: z.string() });
+export type RevisionApproval = z.infer<typeof RevisionApproval>;
+
 /**
  * A bean whose route is `card`: `held` until a person approves its current revision (its
  * pushed head), then `approved` for that revision. A new push is judged again and needs a new

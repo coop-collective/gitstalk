@@ -27,7 +27,9 @@ import {
 import { qk } from '../../src/query/keys';
 import { timeAgo } from '../../src/repositories/when';
 import type { ApproveAccess } from '../../src/changes/approval-client';
+import type { JourneyTone } from '../../src/changes/journey';
 import { ChangeGlyph } from './change-glyph';
+import { Glyph } from './glyph';
 import { HeldPanel } from './held-panel';
 import { LiveBadge } from './live-badge';
 import styles from './repo-tabs.module.css';
@@ -130,6 +132,17 @@ function ChangeHeader(props: { readonly change: Change; readonly filesHref: stri
   );
 }
 
+/** A step's mark: a dot by its tone; a hold wears the held panel's hollow violet bean. */
+function StepMark(props: { readonly tone: JourneyTone }) {
+  if (props.tone === 'held')
+    return (
+      <span className={styles.stepGlyph}>
+        <Glyph kind="held" />
+      </span>
+    );
+  return <span className={styles.dot} data-tone={props.tone} aria-hidden="true" />;
+}
+
 function Journey(props: {
   readonly change: Change;
   readonly base: string;
@@ -149,8 +162,8 @@ function Journey(props: {
       ) : (
         <ol className={styles.journey}>
           {change.journey.map((entry, index) => (
-            <li key={`${entry.at}-${index}`}>
-              <span className={styles.dot} data-tone={entry.tone} aria-hidden="true" />
+            <li key={`${entry.at}-${index}`} data-tone={entry.tone}>
+              <StepMark tone={entry.tone} />
               <div className={styles.stepText}>
                 {entry.text}
                 <time dateTime={at(entry.at)}>{timeAgo(at(entry.at), props.nowMs)}</time>

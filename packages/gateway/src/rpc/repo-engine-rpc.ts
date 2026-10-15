@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 
-import type { BeanHold } from '@gitstalk/shared-race/bean-approval';
+import type { BeanHold, RevisionApproval } from '@gitstalk/shared-race/bean-approval';
 import { RunId } from '@gitstalk/shared-race/ids';
 import type {
   GitToken,
@@ -95,7 +95,10 @@ export async function openRepoEngine(
 
 /** A pushed bean in the RPC's shape. */
 export function pushedBeanStatus(
-  bean: PushBean & { readonly hold?: BeanHold | null },
+  bean: PushBean & {
+    readonly hold?: BeanHold | null;
+    readonly approvals?: readonly RevisionApproval[];
+  },
 ): PushedBeanStatus {
   return {
     bean: bean.bean,
@@ -109,6 +112,7 @@ export function pushedBeanStatus(
     landed_sha: bean.landedSha,
     verdict: (bean.verdict?.lines ?? []).map((line) => withoutRemotePrefix(line)),
     hold: bean.hold ?? null,
+    approvals: bean.approvals ?? [],
   };
 }
 

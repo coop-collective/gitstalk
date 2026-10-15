@@ -248,6 +248,7 @@ function FilesTable(props: DefaultsProps) {
 
 export function PhaseMark({ phase }: { readonly phase: string }) {
   if (phase === 'rework') return <i className={styles.reddot} />;
+  if (phase === 'held') return <i className={styles.helddot} />;
   if (phase === 'working') return <i className={styles.purple} />;
   return <i className={styles.ring} />;
 }
@@ -255,6 +256,7 @@ export function PhaseMark({ phase }: { readonly phase: string }) {
 export function phaseWord(phase: string): string {
   if (phase === 'working') return 'writing';
   if (phase === 'rework') return 'reworking';
+  if (phase === 'held') return 'held for approval';
   if (phase === 'deciding') return 'waiting on a decision';
   return phase;
 }

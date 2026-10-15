@@ -107,6 +107,31 @@ export function redLines(context: VerdictContext, facts: ReworkFacts, prompt: st
   return [...lines, ...fixLines(context.bean), ...linkLines(context)];
 }
 
+/** Why the approval rules held a bean, as a line names it: `class auth, decided by policy`. */
+export function heldWhy(hold: {
+  readonly classes: readonly string[];
+  readonly class: string | null;
+  readonly by: string;
+}): string {
+  const why =
+    hold.class === null ? `classes ${hold.classes.join(', ') || 'none'}` : `class ${hold.class}`;
+  return `${why}, decided by ${hold.by}`;
+}
+
+/**
+ * A hold of the approval rules: the bean waits for a person, and its author has nothing to fix
+ * (`approval/approval-gate.ts`). Never the red lines' "fix".
+ */
+export function heldLines(context: VerdictContext, why: string): string[] {
+  return [
+    `${P} HELD: ${context.bean} waits for a person's approval (${why}); nothing in it needs fixing`,
+    `${P}   an owner or maintainer approves this revision on its page, or their agent calls bean_approve;`,
+    `${P}   its pre-land check then runs again. A new push is judged again and needs a new approval.`,
+    `${P}   keep working; ${waitCommand([context.bean])} wakes at its next verdict`,
+    ...linkLines(context),
+  ];
+}
+
 export function conflictLines(
   context: VerdictContext,
   facts: ReworkFacts,

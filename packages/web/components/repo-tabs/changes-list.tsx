@@ -122,11 +122,14 @@ function ChangeRow(props: {
           </time>
         )}
       </div>
-      {change.state === 'held' && change.hold !== null ? (
+      {change.state === 'held' ? (
         <p className={styles.heldLine}>
           Waits for an owner or maintainer to approve{' '}
-          <span className={styles.mono}>{change.hold.revision.slice(0, 7)}</span>
-          {change.hold.class === null ? '' : ` (rule ${change.hold.class})`}
+          <span className={styles.mono}>
+            {(change.hold?.revision ?? change.head ?? '').slice(0, 7)}
+          </span>
+          {change.hold === null || change.hold.class === null ? '' : ` (rule ${change.hold.class})`}
+          . Nothing in it needs fixing.
         </p>
       ) : null}
       {change.state === 'held' ||
