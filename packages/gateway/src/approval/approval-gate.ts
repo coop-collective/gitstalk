@@ -33,8 +33,12 @@ import { dialectOf, isCommentOnlyChange } from '@gitstalk/shared-race/code-token
 import type { ConfigFile } from '@gitstalk/shared-race/config-dir';
 import type { Sha } from '@gitstalk/shared-race/ids';
 
-import type { DecisionModel } from '@gitstalk/shared-ask/pick/decision-model';
-import { askChoice } from '@gitstalk/shared-ask/pick/decision-model';
+import type {
+  ChoiceAnswer,
+  DecisionModel,
+  Question,
+} from '@gitstalk/shared-ask/pick/decision-model';
+import { askChoice, askQuestions } from '@gitstalk/shared-ask/pick/decision-model';
 
 import type { CheckInstance, CheckResult } from '../engine/model';
 import type { FileChange } from '../git/diff-text';
@@ -42,10 +46,11 @@ import type { LandingTree } from '../checks/check-store';
 import { guardRed } from '../checks/repository-checks';
 import { REMOTE_PREFIX as P } from '../push/push-messages';
 import type { Approval } from './approval-store';
-import type { LandedBean, LandedIntent } from './landed-since-fork';
-import { INTENT_CHECKED_TRAILER, withIntents } from './landed-since-fork';
-import type { TriageSubject } from './triage-question';
-import { changeSize, triageQuestion } from './triage-question';
+import { NO_LINKS, beanLinks } from './bean-links';
+import type { LandedBean, LandedContext, LandedIntent } from './landed-since-fork';
+import { INTENT_CHECKED_TRAILER, intentCheckedBeans, withIntents } from './landed-since-fork';
+import type { TriageQuestion, TriageSubject } from './triage-question';
+import { changeSize, clashQuestions, triageQuestion } from './triage-question';
 
 /** Classes whose beans the triage rule lets through when Clef does not answer. */
 const LOW_RISK: ReadonlySet<string> = new Set(['comment-only', 'docs-only', 'tests-only']);
@@ -55,6 +60,10 @@ const LOW_RISK: ReadonlySet<string> = new Set(['comment-only', 'docs-only', 'tes
  * every seed with nobody to approve it; below this the bean lands on its tests alone.
  */
 export const CARD_MIN_PROBABILITY = 0.65;
+/** A `clash` yes sends the bean back to its author only when Clef is this sure. */
+export const RECHECK_MIN_PROBABILITY = 0.65;
+/** Characters of a commit message Clef reads; an intent is one line, a body a few. */
+const MESSAGE_CHARS = 600;
 
 /** What the gate needs from the engine's Durable Object. */
 export type ApprovalHost = {
@@ -78,8 +87,8 @@ export type ApprovalHost = {
   intent(task: string): string | null;
   /** Beans that landed on the sprout after `task` forked, newest first (`landed-since-fork.ts`). */
   landedSinceFork(task: string): readonly LandedBean[];
-  /** The beans the `Intent-checked:` trailers of the bean's pushed head name. */
-  intentChecked(task: string): Promise<ReadonlySet<string>>;
+  /** The whole commit message of a bean's latest push (its trailers too); null when unknown. */
+  headMessage(task: string): Promise<string | null>;
   approval(task: string, revision: string | null): Approval | null;
   /** The bean's last receipt and the fingerprint of the change it judged. */
   previous(task: string): { readonly receipt: RouteReceipt; readonly fingerprint: string } | null;
@@ -145,13 +154,20 @@ export async function judgeLanding(
       lines: linesOf(receipt, resolution),
     };
   }
+  /** The triage subject, once Clef was asked: the recheck red names its links. */
+  const asked: { subject: Promise<TriageSubject> | null } = { subject: null };
   const routed = await routeOf(host, {
     classification,
     fingerprint,
     task: landing.task,
-    unseen,
     triage: () =>
-      triageSubject(host, { landing, policy, classification, changes: diffRead.changes, unseen }),
+      (asked.subject ??= triageSubject(host, {
+        landing,
+        policy,
+        classification,
+        changes: diffRead.changes,
+        unseen,
+      })),
   });
   const receipt = receiptOf(subject, classification, {
     ...routed,
@@ -159,11 +175,15 @@ export async function judgeLanding(
     approval: approvalOf(host, routed.route, subject),
   });
   host.save({ receipt, fingerprint });
-  return { receipt, hold: holdOf(receipt, unseen), lines: linesOf(receipt, resolution) };
+  const landed = asked.subject === null ? unseen : (await asked.subject).landedSinceFork;
+  return { receipt, hold: holdOf(receipt, landed), lines: linesOf(receipt, resolution) };
 }
 
 /** A card awaiting a person holds the bean; a recheck sends it back to its author. */
-function holdOf(receipt: RouteReceipt, unseen: readonly LandedIntent[]): CheckResult | null {
+function holdOf(
+  receipt: RouteReceipt,
+  unseen: readonly (LandedIntent | LandedContext)[],
+): CheckResult | null {
   if (receipt.approval.state === 'awaiting') return awaitingRed(receipt);
   const named = new Set(receipt.recheck ?? []);
   const recheck = unseen.filter((entry) => named.has(entry.bean));
@@ -177,7 +197,7 @@ async function unseenBeans(
 ): Promise<readonly LandedIntent[]> {
   const landed = host.landedSinceFork(landing.task);
   if (landed.length === 0) return [];
-  const checked = await host.intentChecked(landing.task);
+  const checked = intentCheckedBeans(await host.headMessage(landing.task));
   return withIntents(
     landed.filter((entry) => !checked.has(entry.bean)),
     { files: landing.files, intent: (bean) => host.intent(bean) },
@@ -258,7 +278,8 @@ async function changedFilesOf(
 
 /**
  * What Clef reads about a bean it triages: the classes, the deciding class's description,
- * the paths and the diff's size (read now if the comment-only check did not read it).
+ * the paths and the diff's size (read now if the comment-only check did not read it), its
+ * intent and message, and each unseen landed bean's message and links (its diff read now).
  */
 async function triageSubject(
   host: ApprovalHost,
@@ -277,15 +298,47 @@ async function triageSubject(
       ? null
       : await host.changedFiles({ from: landing.onto, to: landing.sha }));
   const decided = input.policy.classes.find((entry) => entry.name === classification.decidedBy);
+  const intent = host.intent(landing.task);
+  const [message, landedSinceFork] = await Promise.all([
+    input.unseen.length === 0 ? null : host.headMessage(landing.task),
+    Promise.all(input.unseen.map((bean) => landedContext(host, bean, changes))),
+  ]);
   return {
     classes: classification.classes,
     decidedBy: classification.decidedBy,
     description: decided?.description ?? null,
     files: landing.files,
     size: changeSize(changes),
-    intent: host.intent(landing.task),
-    landedSinceFork: input.unseen,
+    intent,
+    message: messageBeyond(intent, message),
+    landedSinceFork,
   };
+}
+
+/** A landed bean with its message and how its change and the bean's connect. */
+async function landedContext(
+  host: ApprovalHost,
+  bean: LandedIntent,
+  mine: readonly FileChange[] | null,
+): Promise<LandedContext> {
+  const [theirs, message] = await Promise.all([
+    mine === null ? null : host.changedFiles({ from: bean.parent, to: bean.sha }),
+    host.headMessage(bean.bean),
+  ]);
+  return {
+    ...bean,
+    message: messageBeyond(bean.intent, message),
+    links: mine === null || theirs === null ? NO_LINKS : beanLinks(mine, theirs),
+  };
+}
+
+/** A commit message without its trailers, when it says more than the intent; else null. */
+function messageBeyond(intent: string | null, message: string | null): string | null {
+  if (message === null) return null;
+  const trailer = new RegExp(`^${INTENT_CHECKED_TRAILER}:.*$`, 'gimu');
+  const text = message.replace(trailer, '').trim();
+  if (text === '' || text === intent?.trim()) return null;
+  return text.slice(0, MESSAGE_CHARS);
 }
 
 /**
@@ -299,7 +352,6 @@ async function routeOf(
     readonly classification: Classification;
     readonly fingerprint: string;
     readonly task: string;
-    readonly unseen: readonly LandedIntent[];
     /** What Clef reads, gathered only when it is asked. */
     readonly triage: () => Promise<TriageSubject>;
   },
@@ -323,40 +375,124 @@ async function routeOf(
   const fallback: Route = classification.classes.some((name) => LOW_RISK.has(name))
     ? 'auto'
     : 'card';
-  const answer = await askChoice(host.model, {
-    id: 'route',
-    ...triageQuestion(await input.triage()),
-    fallback,
-  });
-  const chosen = choiceOf(answer.value.choice, input.unseen);
+  const subject = await input.triage();
+  const clashes = clashQuestions(subject.landedSinceFork);
+  if (Object.keys(clashes.questions).length === 0)
+    return routeAlone(host, triageQuestion(subject), fallback);
+  return routeWithClashes(host, { question: triageQuestion(subject), clashes, fallback });
+}
+
+/** The route question by itself (no bean landed since the fork): as before 2026-10-15. */
+async function routeAlone(
+  host: ApprovalHost,
+  question: TriageQuestion,
+  fallback: Route,
+): Promise<Routed> {
+  const answer = await askChoice(host.model, { id: 'route', ...question, fallback });
   const latencyMs = host.model === null ? null : answer.ms;
   if (answer.kind === 'fell-back')
-    return {
-      route: chosen === 'card' ? 'card' : 'auto',
-      by: 'rules',
-      probability: null,
-      latencyMs,
-    };
-  const probability = answer.value.probabilities[chosen] ?? answer.confidence;
-  if (chosen !== 'auto' && probability !== null && probability < CARD_MIN_PROBABILITY) {
-    const auto = answer.value.probabilities['auto'] ?? null;
-    return { route: 'auto', by: 'clef', probability: auto, latencyMs };
-  }
-  if (chosen === 'recheck')
+    return { route: fallback, by: 'rules', probability: null, latencyMs };
+  return clefRoute(answer.value, null, latencyMs);
+}
+
+/**
+ * The route question and one `clash` question per connected landed bean, in one call. A card
+ * Clef is sure of wins (a person); else any clash it is sure of is a recheck (the author);
+ * else the bean lands on its tests. A failed call is the rule's, which never rechecks.
+ */
+async function routeWithClashes(
+  host: ApprovalHost,
+  input: {
+    readonly question: TriageQuestion;
+    readonly clashes: ReturnType<typeof clashQuestions>;
+    readonly fallback: Route;
+  },
+): Promise<Routed> {
+  const started = host.now();
+  const answered = await askRouteAndClashes(host.model, input.question, input.clashes);
+  const latencyMs = host.model === null ? null : host.now() - started;
+  if (answered === null)
+    return { route: input.fallback, by: 'rules', probability: null, latencyMs };
+  const sure = Object.entries(answered.clashes).filter(
+    ([, probability]) => probability >= RECHECK_MIN_PROBABILITY,
+  );
+  return clefRoute(answered.route, sure.length === 0 ? null : sure, latencyMs);
+}
+
+/** Clef's route, held to `CARD_MIN_PROBABILITY`, or a recheck against the beans it is sure of. */
+function clefRoute(
+  route: ChoiceAnswer,
+  recheck: readonly (readonly [string, number])[] | null,
+  latencyMs: number | null,
+): Routed {
+  const chosen = route.choice === 'card' ? 'card' : 'auto';
+  const probability = route.probabilities[chosen] ?? route.confidence;
+  const sureCard =
+    chosen === 'card' && (probability === null || probability >= CARD_MIN_PROBABILITY);
+  if (sureCard) return { route: 'card', by: 'clef', probability, latencyMs };
+  if (recheck !== null)
     return {
       route: 'auto',
       by: 'clef',
-      probability,
+      probability: Math.max(...recheck.map(([, value]) => value)),
       latencyMs,
-      recheck: input.unseen.map((entry) => entry.bean),
+      recheck: recheck.map(([bean]) => bean),
     };
-  return { route: chosen, by: 'clef', probability, latencyMs };
+  const auto = chosen === 'auto' ? probability : (route.probabilities['auto'] ?? null);
+  return { route: 'auto', by: 'clef', probability: auto, latencyMs };
 }
 
-/** Clef's answer as a route; `recheck` counts only when there were beans to recheck against. */
-function choiceOf(choice: string, unseen: readonly LandedIntent[]): 'auto' | 'recheck' | 'card' {
-  if (choice === 'auto' || choice === 'card') return choice;
-  return choice === 'recheck' && unseen.length > 0 ? 'recheck' : 'card';
+/** The route's choice and each clash's probability by bean; null when the call failed. */
+async function askRouteAndClashes(
+  model: DecisionModel | null,
+  question: TriageQuestion,
+  clashes: ReturnType<typeof clashQuestions>,
+): Promise<{
+  readonly route: ChoiceAnswer;
+  readonly clashes: Readonly<Record<string, number>>;
+} | null> {
+  if (model === null) return null;
+  const questions: Record<string, Question> = {
+    route: { type: 'choice', instructions: question.instructions, criteria: question.criteria },
+    ...clashes.questions,
+  };
+  try {
+    const answers = await askQuestions(model, question.state, questions);
+    const route = answers['route'];
+    if (
+      route === undefined ||
+      !('choice' in route) ||
+      !Object.hasOwn(question.criteria, route.choice)
+    )
+      throw new Error('the route answer is not one of its choices');
+    const probabilities = route.probabilities ?? {};
+    return {
+      route: {
+        choice: route.choice,
+        probabilities,
+        confidence: route.confidence ?? probabilities[route.choice] ?? null,
+      },
+      clashes: clashProbabilities(answers, clashes.beans),
+    };
+  } catch (error: unknown) {
+    model.onError?.('route', error);
+    return null;
+  }
+}
+
+/** Each asked bean's clash probability; an answer that is missing or not a yes-or-no is left out. */
+function clashProbabilities(
+  answers: Readonly<Record<string, unknown>>,
+  beans: Readonly<Record<string, string>>,
+): Readonly<Record<string, number>> {
+  return Object.fromEntries(
+    Object.entries(beans).flatMap(([key, bean]) => {
+      const answer = answers[key];
+      const noul =
+        typeof answer === 'object' && answer !== null ? Reflect.get(answer, 'noul') : undefined;
+      return typeof noul === 'number' && noul >= 0 && noul <= 1 ? [[bean, noul]] : [];
+    }),
+  );
 }
 
 function receiptOf(
@@ -388,7 +524,7 @@ function writerRed(broken: ReturnType<typeof brokenWriterLimits>, principal: str
   });
 }
 
-function recheckRed(bean: string, landed: readonly LandedIntent[]): CheckResult {
+function recheckRed(bean: string, landed: readonly (LandedIntent | LandedContext)[]): CheckResult {
   const names = landed.map((entry) => entry.bean);
   return guardRed({
     file: POLICY_PATH,
@@ -402,6 +538,7 @@ function recheckRed(bean: string, landed: readonly LandedIntent[]): CheckResult 
         ...(entry.sharedFiles.length === 0
           ? []
           : [`    both change: ${entry.sharedFiles.join(', ')}`]),
+        ...linkLines(entry),
       ]),
       'Rebase on origin/sprout and read them (git log origin/sprout). If they disagree, fix this bean so both',
       `intents hold. Either way, push again with a trailer naming what you checked, which takes them out:`,
@@ -409,6 +546,22 @@ function recheckRed(bean: string, landed: readonly LandedIntent[]): CheckResult 
       `This is not a person's hold: the tests of ${bean} still decide once you push.`,
     ],
   });
+}
+
+/** How a landed bean connects to this one, for the author reading a recheck. */
+function linkLines(entry: LandedIntent | LandedContext): string[] {
+  if (!('links' in entry)) return [];
+  const { links } = entry;
+  return [
+    ...links.thisImportsTheirs.map((link) => `    imports: ${link}`),
+    ...links.theirsImportsThis.map((link) => `    imported by: ${link}`),
+    ...(links.theyChangedThisUses.length === 0
+      ? []
+      : [`    it changed, you use: ${links.theyChangedThisUses.join(', ')}`]),
+    ...(links.thisChangedTheyUse.length === 0
+      ? []
+      : [`    you changed, it uses: ${links.thisChangedTheyUse.join(', ')}`]),
+  ];
 }
 
 function awaitingRed(receipt: RouteReceipt): CheckResult {

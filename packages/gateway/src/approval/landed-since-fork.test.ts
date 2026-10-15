@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { Sha } from '@gitstalk/shared-race/ids';
+
 import { intentCheckedBeans, withIntents } from './landed-since-fork';
 
 describe('intentCheckedBeans', () => {
@@ -21,7 +23,14 @@ describe('intentCheckedBeans', () => {
 
 describe('withIntents', () => {
   it('adds each landed bean’s intent and the files both beans changed', () => {
-    const landed = [{ bean: 'price-dollars', files: ['src/price.mjs', 'src/checkout.mjs'] }];
+    const landed = [
+      {
+        bean: 'price-dollars',
+        files: ['src/price.mjs', 'src/checkout.mjs'],
+        sha: Sha.parse('d'.repeat(40)),
+        parent: Sha.parse('a'.repeat(40)),
+      },
+    ];
     const intents = withIntents(landed, {
       files: ['src/checkout.mjs'],
       intent: (bean) => (bean === 'price-dollars' ? 'Price in dollars, not cents' : null),

@@ -21,7 +21,7 @@ import { UpstreamError } from '../errors';
 import { readPushBean } from '../push/push-bean';
 import type { ApprovalJobHost } from '../run/run-jobs';
 import { readApproval, readRoute, saveRoute } from './approval-store';
-import { intentCheckedBeans, landedSinceFork } from './landed-since-fork';
+import { landedSinceFork } from './landed-since-fork';
 
 /** A triage must come back within this, or the rule answers. */
 const CLEF_BUDGET_MS = 2500;
@@ -62,11 +62,9 @@ export function approvalJobHost(deps: ApprovalHostDeps): ApprovalJobHost {
       intent: (task) => pushed(task)?.intent ?? null,
       landedSinceFork: (task) =>
         deps.engine === 'continuous' ? landedSinceFork(deps.state(), task) : [],
-      intentChecked: async (task) => {
+      headMessage: async (task) => {
         const head = pushed(task)?.head;
-        return head === undefined
-          ? new Set()
-          : intentCheckedBeans(await artifacts.commitMessage(repo, head));
+        return head === undefined ? null : artifacts.commitMessage(repo, head);
       },
       approval: (task, revision) => readApproval(sql, task, revision),
       previous: (task) => readRoute(sql, task),

@@ -8,6 +8,7 @@
 import type { Sha } from '@gitstalk/shared-race/ids';
 
 import type { EngineState } from '../engine/state';
+import type { BeanLinks } from './bean-links';
 import type { V2State } from '../engine/v2/v2-state';
 import { sproutIndex } from '../engine/v2/v2-sprout';
 
@@ -17,13 +18,26 @@ export const LANDED_SINCE_FORK_LIMIT = 8;
 /** The trailer an author adds once they checked their bean against the beans it names. */
 export const INTENT_CHECKED_TRAILER = 'Intent-checked';
 
-/** A bean that landed after another forked: its name and the files it changed. */
-export type LandedBean = { readonly bean: string; readonly files: readonly string[] };
+/** A bean that landed after another forked: its name, the files it changed and its commit. */
+export type LandedBean = {
+  readonly bean: string;
+  readonly files: readonly string[];
+  /** Its commit on the sprout and that commit's parent: the range that is its change. */
+  readonly sha: Sha;
+  readonly parent: Sha;
+};
 
-/** A landed bean as Clef reads it: with its intent and the files both beans changed. */
+/** A landed bean with its intent and the files both beans changed. */
 export type LandedIntent = LandedBean & {
   readonly intent: string | null;
   readonly sharedFiles: readonly string[];
+};
+
+/** A landed bean as Clef reads it: also its full commit message and how the two connect. */
+export type LandedContext = LandedIntent & {
+  /** Its latest push's whole commit message, when it says more than the intent. */
+  readonly message: string | null;
+  readonly links: BeanLinks;
 };
 
 /**
@@ -38,7 +52,7 @@ export function landedSinceFork(state: EngineState, task: string): readonly Land
     .slice(sproutIndex(sprout, fork) + 1)
     .flatMap((commit) =>
       isOtherLiveBean(commit, task) && commit.task !== null
-        ? [{ bean: commit.task, files: [...commit.files] }]
+        ? [{ bean: commit.task, files: [...commit.files], sha: commit.sha, parent: commit.parent }]
         : [],
     )
     .toReversed()
