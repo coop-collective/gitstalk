@@ -17,8 +17,6 @@ claude plugin marketplace add coop-collective/gitstalk-plugin && claude plugin i
 codex plugin marketplace add coop-collective/gitstalk-plugin && codex plugin add gitstalk@gitstalk && codex mcp login gitstalk
 ```
 
-This repository's `.claude-plugin/marketplace.json` only redirects to that repository, so installs made from the old `disturbing/beanstalk` marketplace keep updating; do not install from it.
-
 Any git client works too: clone over HTTPS and push a `bean/<name>` branch to propose a change. Git over SSH is built ([`packages/ssh`](packages/ssh/README.md)) but not yet open on gitstalk.io, because SSH on port 22 needs a paid Cloudflare plan.
 
 ## Architecture
