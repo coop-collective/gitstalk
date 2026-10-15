@@ -1,7 +1,8 @@
 /**
  * The Code tab: a folder of the stalk (or the sprout, or a bean's branch) with what last
  * changed it, its README rendered below, and beside it what the repository is and what is
- * growing. Cloning and connecting an agent live behind the bar's Code button.
+ * growing. Cloning and connecting an agent live behind the bar's Code button. Folders and files
+ * linked from the bar and the listing open in place inside the workspace (`CodeLink`).
  */
 import { IntentLink as Link } from '../shell/intent-link';
 import { LinkPending } from '../shell/link-pending';
@@ -18,7 +19,9 @@ import type { CodeMenu } from '../../src/repositories/code-menu';
 import { timeAgo } from '../../src/repositories/when';
 import { Glyph } from './glyph';
 import { MarkdownView } from './markdown-view';
+import type { RefBean } from './ref-switcher';
 import { RefSwitcher, glyphOfState } from './ref-switcher';
+import { CodeLink } from './code-opener';
 import styles from './repo-tabs.module.css';
 
 export type CodeLocation = {
@@ -34,7 +37,7 @@ export function CodeBar(props: {
   readonly at: CodeLocation;
   readonly view: CodeView;
   readonly repoName: string;
-  readonly beans: readonly Change[];
+  readonly beans: readonly RefBean[];
   /** What the Code button offers; null where it is not shown (a file). */
   readonly menu?: { readonly menu: CodeMenu; readonly slug: string } | null;
 }) {
@@ -53,7 +56,9 @@ export function CodeBar(props: {
         {parts.length === 0 ? (
           <strong>{props.repoName}</strong>
         ) : (
-          <Link href={codeHref(at.base, 'tree', '', at.ref)}>{props.repoName}</Link>
+          <CodeLink href={codeHref(at.base, 'tree', '', at.ref)} to={{ view: 'tree', path: '' }}>
+            {props.repoName}
+          </CodeLink>
         )}
         {parts.map((crumb, index) => (
           <span key={crumb.path} style={{ display: 'contents' }}>
@@ -61,7 +66,12 @@ export function CodeBar(props: {
             {index === parts.length - 1 ? (
               <strong>{crumb.name}</strong>
             ) : (
-              <Link href={codeHref(at.base, 'tree', crumb.path, at.ref)}>{crumb.name}</Link>
+              <CodeLink
+                href={codeHref(at.base, 'tree', crumb.path, at.ref)}
+                to={{ view: 'tree', path: crumb.path }}
+              >
+                {crumb.name}
+              </CodeLink>
             )}
           </span>
         ))}
@@ -93,38 +103,38 @@ export function FolderView(props: {
           <ul className={styles.files}>
             {at.path === '' ? null : (
               <li>
-                <Link
+                <CodeLink
                   href={codeHref(at.base, 'tree', parentOf(at.path), at.ref)}
+                  to={{ view: 'tree', path: parentOf(at.path) }}
                   aria-label="Up one folder"
                 >
                   <span />
                   <span className={styles.fileName}>..</span>
                   <span />
                   <LinkPending />
-                </Link>
+                </CodeLink>
               </li>
             )}
-            {props.entries.map((entry) => (
-              <li key={entry.path}>
-                <Link
-                  href={codeHref(
-                    at.base,
-                    entry.kind === 'dir' ? 'tree' : 'blob',
-                    entry.path,
-                    at.ref,
-                  )}
-                >
-                  <span className={styles.icon} data-dir={entry.kind === 'dir' ? '' : undefined}>
-                    <FileIcon dir={entry.kind === 'dir'} />
-                  </span>
-                  <span className={styles.fileName}>{entry.name}</span>
-                  <span className={styles.size}>
-                    {entry.size === null || entry.size === 0 ? '' : sizeText(entry.size)}
-                  </span>
-                  <LinkPending />
-                </Link>
-              </li>
-            ))}
+            {props.entries.map((entry) => {
+              const view = entry.kind === 'dir' ? 'tree' : 'blob';
+              return (
+                <li key={entry.path}>
+                  <CodeLink
+                    href={codeHref(at.base, view, entry.path, at.ref)}
+                    to={{ view, path: entry.path }}
+                  >
+                    <span className={styles.icon} data-dir={entry.kind === 'dir' ? '' : undefined}>
+                      <FileIcon dir={entry.kind === 'dir'} />
+                    </span>
+                    <span className={styles.fileName}>{entry.name}</span>
+                    <span className={styles.size}>
+                      {entry.size === null || entry.size === 0 ? '' : sizeText(entry.size)}
+                    </span>
+                    <LinkPending />
+                  </CodeLink>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

@@ -2,12 +2,11 @@
  * One file at a ref: highlighted lines with numbers you can link to (`#L12`), a Markdown file
  * rendered (its source one click away), and a plain word for binary or cut files.
  */
-import { IntentLink as Link } from '../shell/intent-link';
-
 import { highlight, languageOf } from '../../src/code/highlight';
 import type { CodeLocation } from './code-browser';
 import type { FileBlob } from '../../src/repo-pages/engine-reads';
 import { codeHref, readmeHref, sizeText } from '../../src/code/tree';
+import { CodeLink } from './code-opener';
 import { CodeTokens } from './code-tokens';
 import { MarkdownView } from './markdown-view';
 import styles from './repo-tabs.module.css';
@@ -30,9 +29,12 @@ export function BlobView(props: {
         </span>
         <span className={styles.headMeta}>
           {isMarkdown ? (
-            <Link href={props.plain ? self : `${self}${self.includes('?') ? '&' : '?'}plain=1`}>
+            <CodeLink
+              href={props.plain ? self : `${self}${self.includes('?') ? '&' : '?'}plain=1`}
+              to={{ view: 'blob', path: file.path, plain: !props.plain }}
+            >
               {props.plain ? 'Rendered' : 'Source'}
-            </Link>
+            </CodeLink>
           ) : null}
           <span className={styles.mono}>{at.sha.slice(0, 7)}</span>
         </span>

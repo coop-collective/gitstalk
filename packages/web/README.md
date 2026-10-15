@@ -29,7 +29,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/login`, `/signup`, `/signup/agent` | One sign-in flow (`components/account/sign-in-flow.tsx`): continue with a passkey (autofill where supported) or an email and six-digit code; a new address picks a handle, then is offered a passkey; `/signup` also creates an account from a handle and a passkey. Turnstile when configured; `next` is kept on every step. Sign-up through your agent's own OAuth flow |
 | `/connect` | OAuth consent for an agent, opened by `gitstalk-mcp`'s `/authorize` |
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
-| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk: the beanstalk beside a folder and the file tree beside a file, tabs for both (`components/repo-tabs/code-workspace.tsx`, `code-stalk.tsx`, `file-tree.tsx`, `go-to-file.tsx`; model in `src/code/file-tree.ts`), its folders read through `/api/repos/<owner>/<repo>/code/folder` and Go to file through `/code/paths` |
+| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk: the beanstalk beside a folder and the file tree beside a file, tabs for both (`components/repo-tabs/code-workspace.tsx`, `code-stalk.tsx`, `file-tree.tsx`, `go-to-file.tsx`; model in `src/code/file-tree.ts`), its folders read through `/api/repos/<owner>/<repo>/code/folder` and Go to file through `/code/paths`; a folder or file opened from inside the tab is drawn in the browser from `/code/folder` and `/code/file` at the page's commit, with the URL written by `history.pushState` (`code-opener.tsx`, `code-main.tsx`) |
 | `/<owner>/<repo>/ask`, `/files` | Ask, the generated explorer: a question becomes a view spec with removable chips, then a fixed arrangement of files, beans, decisions and checks |
 | `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, held for approval, landed, parked) and a bean's detail (a held bean's page has the Held panel where owners and maintainers approve it); stalk and sprout history with validation verdicts; who has access |
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
@@ -124,6 +124,18 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
     keeps the open page on screen until the next is ready, the clicked row pulses meanwhile
     (`LinkPending`), and the stalk pane shows the stalk last drawn while its own streams in
     (`CodeStalkFallback`). A hard load waits for the tab's reads before its first byte.
+    From inside the tab, a folder or file opens with no server render at all
+    (`components/repo-tabs/code-opener.tsx`): a plain click on a tree row, a listing row, a
+    path crumb, Source/Rendered or a Go to file match writes the location's URL with
+    `history.pushState`, which vinext 1.1 treats as Next.js's shallow routing (it patches the
+    History API: `usePathname` and `useSearchParams` follow, no RSC request, and back and
+    forward between such entries only commit the URL). The bar, the main pane and the tree read
+    the open location from the URL (`src/code/code-location.ts`); the page's own location shows
+    the server's render, any other is drawn from `/code/folder` and `/code/file` at the page's
+    commit (TanStack Query, immutable; hovering or focusing a link reads it ahead). Still a
+    page render: a hard load, no script, a modified click, another ref (the ref switcher),
+    another tab, a README's relative links (plain anchors: a document load), and the head watcher's `router.refresh()` when the
+    line moves (it renders whatever URL is open, at the new commit).
   - `[repo]/changes/` and `history/`: a layout redirects home when the engine is unusable
     (`engineTab`), above their skeletons; a bean's page (`changes/[bean]`) has none, so an
     unknown bean is a 404. `ask/`: the layout redirects to the start page until something

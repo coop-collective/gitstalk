@@ -12,6 +12,8 @@
  * - Below 1024 px it is a drawer the Files button opens; it closes on Escape, on the backdrop,
  *   or when a file opens. Without script, the Files link opens it as the page's `:target`.
  * - `t` opens Go to file anywhere on the page (not while typing).
+ * - Folders and files open in place (`code-opener.tsx`): the URL changes, the page is not
+ *   rendered again, and the bar, the main pane and the tree follow the URL.
  */
 import type { KeyboardEvent, MouseEvent, PointerEvent, ReactNode, Ref, RefObject } from 'react';
 import {
@@ -36,6 +38,7 @@ import {
   readLayout,
   resizeByKey,
 } from '../../src/code/tree-layout';
+import { CodeOpenerProvider, useCodeOpenerState } from './code-opener';
 import type { TreeAt } from './file-tree';
 import { FileTree } from './file-tree';
 import { cssVars } from './css-vars';
@@ -49,22 +52,32 @@ const WIDE_QUERY = '(min-width: 1024px)';
 
 export function CodeWorkspace(props: {
   readonly scope: RepoScope;
+  /** What the server rendered; the open location is the URL's (`code-opener.tsx`). */
   readonly at: TreeAt;
+  /** Whether the server rendered a Markdown file as its source (`?plain=1`). */
+  readonly plain: boolean;
   readonly folders: readonly FolderListing[];
   /** The bar over both panes (ref switcher, path, Code button). */
   readonly bar: ReactNode;
   /** The beanstalk, the side pane's tab on a folder. */
   readonly stalk: ReactNode;
-  /** The open file or folder. */
+  /** The open file or folder (`OpenCodeMain`). */
   readonly children: ReactNode;
 }) {
   const wide = useMediaQuery(WIDE_QUERY);
   const [layout, setLayout] = useStoredLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [finding, setFinding] = useState(false);
-  const [pane, setPane] = usePaneOfView(props.at.view);
   const toggleButton = useRef<HTMLAnchorElement>(null);
   const sidebar = useRef<HTMLElement>(null);
+  const main = useRef<HTMLDivElement>(null);
+  const opener = useCodeOpenerState({
+    scope: props.scope,
+    rendered: { ...props.at, plain: props.plain },
+    onOpen: () => revealTop(main.current),
+  });
+  const at: TreeAt = { ...props.at, view: opener.open.view, path: opener.open.path };
+  const [pane, setPane] = usePaneOfView(at.view);
   useDrawerFocus({ open: drawerOpen, sidebar, toggleButton });
   const toggle = useCallback(() => {
     if (window.matchMedia(WIDE_QUERY).matches)
@@ -72,82 +85,89 @@ export function CodeWorkspace(props: {
     else setDrawerOpen((open) => !open);
   }, [setLayout]);
   useShortcuts({ onToggle: toggle, onFind: () => setFinding(true) });
-  useCloseDrawerOnNavigation(props.at, setDrawerOpen);
+  useCloseDrawerOnNavigation(at, setDrawerOpen);
   const closeDrawer = () => setDrawerOpen(false);
   const expanded = wide ? !layout.collapsed : drawerOpen;
   return (
-    <div
-      className={styles.workspace}
-      data-collapsed={layout.collapsed ? '' : undefined}
-      data-drawer={drawerOpen ? 'open' : undefined}
-      style={cssVars({ '--tree-width': `${layout.width}px` })}
-    >
-      <div className={styles.toolbar} inert={!wide && drawerOpen}>
-        <FilesToggle ref={toggleButton} expanded={expanded} onToggle={toggle} />
-        <div className={styles.barSlot}>{props.bar}</div>
-      </div>
-      <div className={styles.panes}>
-        <aside
-          ref={sidebar}
-          id={PANEL_ID}
-          className={styles.sidebar}
-          aria-label="Stalk and files"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && !wide && drawerOpen) closeDrawer();
-          }}
-        >
-          <a href="#" className={styles.drawerClose} onClick={drawerCloseClick(closeDrawer)}>
-            Close
-          </a>
-          <PaneTabs pane={pane} onPick={setPane} />
-          <div
-            id={`${PANEL_ID}-stalk`}
-            role="tabpanel"
-            aria-labelledby={`${PANEL_ID}-stalk-tab`}
-            className={styles.panePanel}
-            hidden={pane !== 'stalk'}
-          >
-            {props.stalk}
-          </div>
-          <div
-            id={`${PANEL_ID}-files`}
-            role="tabpanel"
-            aria-labelledby={`${PANEL_ID}-files-tab`}
-            className={styles.panePanel}
-            hidden={pane !== 'files'}
-          >
-            <FileTree
-              scope={props.scope}
-              at={props.at}
-              folders={props.folders}
-              onFind={() => setFinding(true)}
-            />
-          </div>
-          <ResizeHandle
-            width={layout.width}
-            onResize={(width) => setLayout((current) => ({ ...current, width }))}
-          />
-        </aside>
-        <button
-          type="button"
-          className={styles.backdrop}
-          tabIndex={-1}
-          aria-label="Close the file tree"
-          onClick={closeDrawer}
-        />
-        <div className={styles.main} inert={!wide && drawerOpen}>
-          {props.children}
+    <CodeOpenerProvider opener={opener}>
+      <div
+        className={styles.workspace}
+        data-collapsed={layout.collapsed ? '' : undefined}
+        data-drawer={drawerOpen ? 'open' : undefined}
+        style={cssVars({ '--tree-width': `${layout.width}px` })}
+      >
+        <div className={styles.toolbar} inert={!wide && drawerOpen}>
+          <FilesToggle ref={toggleButton} expanded={expanded} onToggle={toggle} />
+          <div className={styles.barSlot}>{props.bar}</div>
         </div>
+        <div className={styles.panes}>
+          <aside
+            ref={sidebar}
+            id={PANEL_ID}
+            className={styles.sidebar}
+            aria-label="Stalk and files"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !wide && drawerOpen) closeDrawer();
+            }}
+          >
+            <a href="#" className={styles.drawerClose} onClick={drawerCloseClick(closeDrawer)}>
+              Close
+            </a>
+            <PaneTabs pane={pane} onPick={setPane} />
+            <div
+              id={`${PANEL_ID}-stalk`}
+              role="tabpanel"
+              aria-labelledby={`${PANEL_ID}-stalk-tab`}
+              className={styles.panePanel}
+              hidden={pane !== 'stalk'}
+            >
+              {props.stalk}
+            </div>
+            <div
+              id={`${PANEL_ID}-files`}
+              role="tabpanel"
+              aria-labelledby={`${PANEL_ID}-files-tab`}
+              className={styles.panePanel}
+              hidden={pane !== 'files'}
+            >
+              <FileTree
+                scope={props.scope}
+                at={at}
+                folders={props.folders}
+                onFind={() => setFinding(true)}
+              />
+            </div>
+            <ResizeHandle
+              width={layout.width}
+              onResize={(width) => setLayout((current) => ({ ...current, width }))}
+            />
+          </aside>
+          <button
+            type="button"
+            className={styles.backdrop}
+            tabIndex={-1}
+            aria-label="Close the file tree"
+            onClick={closeDrawer}
+          />
+          <div ref={main} className={styles.main} inert={!wide && drawerOpen}>
+            {props.children}
+          </div>
+        </div>
+        <GoToFile
+          scope={props.scope}
+          ref={props.at.ref}
+          sha={props.at.sha}
+          open={finding}
+          onClose={() => setFinding(false)}
+        />
       </div>
-      <GoToFile
-        scope={props.scope}
-        ref={props.at.ref}
-        sha={props.at.sha}
-        open={finding}
-        onClose={() => setFinding(false)}
-      />
-    </div>
+    </CodeOpenerProvider>
   );
+}
+
+/** A folder or a file opened below the pane's top goes back to the page's top, as a page would. */
+function revealTop(element: HTMLElement | null): void {
+  if (element !== null && element.getBoundingClientRect().top < 0) window.scrollTo({ top: 0 });
 }
 
 type Pane = 'stalk' | 'files';

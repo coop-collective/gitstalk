@@ -12,13 +12,16 @@ import type { GlyphKind } from './glyph';
 import { Glyph } from './glyph';
 import styles from './repo-tabs.module.css';
 
+/** What the switcher shows of a pushed bean: only this is sent to the browser. */
+export type RefBean = Pick<Change, 'bean' | 'state'>;
+
 export function RefSwitcher(props: {
   readonly base: string;
   readonly view: CodeView;
   readonly path: string;
   readonly current: RefChoice;
   /** Pushed beans, open ones first. */
-  readonly beans: readonly Change[];
+  readonly beans: readonly RefBean[];
 }) {
   const href = (ref: RefChoice) => codeHref(props.base, props.view, props.path, ref);
   const isCurrent = (ref: RefChoice) => refLabel(ref) === refLabel(props.current);
@@ -101,7 +104,7 @@ export function glyphOfState(state: Change['state']): GlyphKind {
   }
 }
 
-function glyphOfRef(ref: RefChoice, beans: readonly Change[]): GlyphKind {
+function glyphOfRef(ref: RefChoice, beans: readonly RefBean[]): GlyphKind {
   if (ref.kind === 'commit') return 'stalk';
   if (ref.kind !== 'bean') return ref.kind;
   const bean = beans.find((candidate) => candidate.bean === ref.name);

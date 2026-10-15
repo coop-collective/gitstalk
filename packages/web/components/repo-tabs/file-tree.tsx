@@ -9,7 +9,8 @@
  *
  * Every row is a link, so without script a file opens and a folder opens its own page (which
  * the server renders with the tree open down to it). With script, a click on a folder opens
- * it in place and a click on a file is a client navigation: the tree stays as it was.
+ * it in place and a click (or Enter) on a file opens it in the workspace without a page render
+ * (`code-opener.tsx`): the tree stays as it was.
  */
 import { useRouter } from 'next/navigation';
 import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
@@ -31,8 +32,8 @@ import { codeHref } from '../../src/code/tree';
 import type { TreeMemory } from '../../src/code/tree-layout';
 import { memoryKey, readMemory } from '../../src/code/tree-layout';
 import { FileIcon } from '../home/marks';
-import { IntentLink as Link } from '../shell/intent-link';
 import { LinkPending } from '../shell/link-pending';
+import { CodeLink, useCodeOpener } from './code-opener';
 import { cssVars } from './css-vars';
 import styles from './file-tree.module.css';
 import { readStored, writeStored } from './tree-storage';
@@ -215,11 +216,14 @@ function useTreeKeys(input: {
   readonly selected: string | null;
 }): (event: KeyboardEvent<HTMLUListElement>) => void {
   const router = useRouter();
+  const opener = useCodeOpener();
   const typed = useRef({ text: '', at: 0 });
   const moved = useFocusAfterMove();
   const { rows, state } = input;
-  const open = (path: string) =>
-    router.push(codeHref(input.scope.base, 'blob', path, input.at.ref));
+  const open = (path: string) => {
+    if (opener === null) router.push(codeHref(input.scope.base, 'blob', path, input.at.ref));
+    else opener.go({ view: 'blob', path });
+  };
   return (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     const current = tabbableRow(rows, state.focused, input.selected);
@@ -383,8 +387,9 @@ function TreeItem(props: {
         if (event.target === event.currentTarget) props.onFocus();
       }}
     >
-      <Link
+      <CodeLink
         href={props.href}
+        to={{ view: isFolder ? 'tree' : 'blob', path: row.entry.path }}
         tabIndex={-1}
         className={styles.row}
         style={cssVars({ '--level': row.level })}
@@ -399,7 +404,7 @@ function TreeItem(props: {
         <span className={styles.name}>{row.entry.name}</span>
         <RowNote state={row.folder} failed={props.failed} />
         <LinkPending />
-      </Link>
+      </CodeLink>
     </li>
   );
 }

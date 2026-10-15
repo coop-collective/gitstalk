@@ -62,13 +62,14 @@ Read path for a class A object: run the access check, which makes the `ReadGrant
 
 `qk.repo(uid, owner, repo)` has `all`, `events()`, `pushed()`, `bean(name)`, `run(id)`, and now `jobLog(run, job)`, `runs(filter)`, `diff(base, head)`, `tree(sha)`, `file(sha, path)` and `tail(seq)` (the events after a seq, for the head watcher). `bean(name)` stays the bean's diff on day one.
 
-The Code tab's file tree adds `folder(sha, path)` (one folder's entries, read when the reader expands it) and `paths(sha)` (every path, for Go to file), both immutable (`staleTime: Infinity`, persisted in sessionStorage for every visibility since 2026-10-15, §5.3). Their routes, `/api/repos/<owner>/<repo>/code/folder` and `/code/paths`, read the tree at the sha through the same edge object cache as the pages (public: shared layers; private: the private KV namespace, §3) and answer `immutable` for a public repository and `no-store` otherwise. The page itself sends the root and the folders on the way to the open path, cut from the tree it already read, so opening a file makes no extra request.
+The Code tab's file tree adds `folder(sha, path)` (one folder's entries, read when the reader expands it) and `paths(sha)` (every path, for Go to file), both immutable (`staleTime: Infinity`, persisted in sessionStorage for every visibility since 2026-10-15, §5.3). Their routes, `/api/repos/<owner>/<repo>/code/folder` and `/code/paths`, read the tree at the sha through the same edge object cache as the pages (public: shared layers; private: the private KV namespace, §3) and answer `immutable` for a public repository and `no-store` otherwise. The page itself sends the root and the folders on the way to the open path, cut from the tree it already read, so opening a file makes no extra request. Since 2026-10-16 the tab also reads `file(sha, path)` through `/code/file` (the same access check, edge caches and headers), for folders and files opened in the browser (§14).
 
 ### 5.2 Freshness policy (`src/query/policy.ts`)
 
 | Class | `staleTime` | `gcTime` | `meta.persist` |
 |---|---|---|---|
 | `immutable` | `Infinity` | 60 min | true when a repository's visibility is given (public, private or internal; sessionStorage only, §5.3) |
+| `immutableBlob` | `Infinity` | 10 min | false: a file's contents (`file(sha, path)`, §14); one file can fill most of sessionStorage, and a persist over the quota drops the whole persisted cache |
 | `appendOnly` | `Infinity` live, 15 s otherwise | 10 min | false |
 | `mutable` | 30 s | 10 min | false |
 | `perViewer` | 30 s | 10 min | false |
@@ -143,14 +144,14 @@ Stored Cache API copies carry their own headers (`public, max-age=604800`, no `S
 - An isolate memo of the access check (anonymous viewers and public records only, about 5 s). It needs the owner to accept a 5 s window after a public-to-private flip.
 - A KV heads snapshot for signed-out readers of public repositories, written by the gateway's `repo-events` consumer on `bean.landed`, `stalk.promoted` and `bean.reverted`; not for signed-in viewers (read-after-write).
 - A gateway `repoSnapshot(run, ref, path)` RPC (the Code tab's four or five RPCs in one).
-- Client-side `tree` and `file` queries (the keys exist); moving `BeanDiff` to `diff(base, head)`.
+- A client-side `tree` query (the key exists; `file` is done, §14); moving `BeanDiff` to `diff(base, head)`.
 - Edge-caching finished job logs, public or private (the key format has room; the Actions control plane reads them, not the engine).
 - Taking the KV miss off the critical path of a cold read (racing it with the gateway would double gateway reads, the cost this layer exists to save), and a cap on KV writes per crawl.
 - A canvas drawing for `green.demote` (the race reducer ignores it; the race feed has a line).
 - One SSE for `RunStatus` polling and the job log; one repository SSE shared across tabs (BroadcastChannel).
 - ~~A per-tab `loading.tsx` that keeps the owner, the name and the current tab.~~ Done differently (§13.3): the header is the repository layout's, so every skeleton sits under the real header.
 - Reusing a hover prefetch for the navigation that follows it (vinext fetches a dynamic page twice: the prefetch and the navigation, §13.3).
-- A revisit after the router's 30 s shows a tab's skeleton: moving the server-rendered tabs' reads (Code's tree and files, History, the runs list) to client queries would remove it (§13.2). The Code tab has no skeleton any more (`packages/web/README.md`, Status before streaming): a folder or file opened keeps the open page until the next arrives, but each still waits for a server render; reading the open file through a client query (immutable at its sha) would make that wait a cache hit.
+- A revisit after the router's 30 s shows a tab's skeleton: moving the server-rendered tabs' reads (Code's tree and files, History, the runs list) to client queries would remove it (§13.2). The Code tab has no skeleton any more (`packages/web/README.md`, Status before streaming): a folder or file opened keeps the open page until the next arrives, and since 2026-10-16 a folder or file opened from inside the tab is not a server render at all (§14). A revisit of the Code tab from another tab is still one.
 
 ## 10. Where this differs from the plan it came from
 
@@ -231,7 +232,7 @@ Audit of `app/[owner]/[repo]/**` (what each view's data goes through on a revisi
 | View | Data | Browser cache |
 |---|---|---|
 | Header and tabs | access check | Drawn once by the repository layout, kept mounted across every tab and settings section (13.3) |
-| Code (tree, blob, README) | server render; objects through the edge caches (public shared, private KV) | Router cache (30 s, `staleTimes.dynamic`); `HeadWatcher` keeps the line fresh (`tail(seq)` query) |
+| Code (tree, blob, README) | server render; objects through the edge caches (public shared, private KV). A folder or file opened from inside the tab: `folder(sha, path)` and `file(sha, path)` (§14) | Router cache (30 s, `staleTimes.dynamic`); `HeadWatcher` keeps the line fresh (`tail(seq)` query); opened folders and files from TanStack Query (immutable; files memory only) |
 | Code: file tree, Go to file | `useTreeFolders` (`folder(sha, path)`), `GoToFile` (`paths(sha)`); routes read through the edge caches | TanStack Query, immutable, persisted for every visibility; the page seeds the root and the open path's folders |
 | Changes | `useChangesFeed`: events (append-only), pushed (mutable) | TanStack Query, live feed; no refetch on remount |
 | A bean | `BeanDiff` / `StreamedBeanDiff` (hydrated) | TanStack Query, immutable while its landing stands; persisted for every visibility |
@@ -271,3 +272,26 @@ Request counts per step (all requests / RSC fetches / documents; the same for bo
 | Total | 28 / 10 / 0 | 27 / 8 / 0 |
 
 Two RSC fetches on a first visit are the hover prefetch (`IntentLink`) and the navigation; vinext does not reuse a dynamic page's prefetch for the navigation (deferred, §9). A real reload can still happen after a deploy: a tab holding the old build that asks for a chunk the new build no longer serves reloads once (`ChunkReloadGuard`), and Settings pulls the most chunks a tab has not loaded yet.
+
+## 14. Opening folders and files without a server render (2026-10-16)
+
+Branch `code-client-file`, after PR #26 (no skeleton between Code pages). Each folder or file opened in the Code tab was a full server render: `codeData` read the whole event log, the pushed beans, the line's log, the tree and the file, the stalk pane read `askData`, and vinext fetched the page twice when a hover had prefetched it (§13.3).
+
+**How it works now.**
+
+- The workspace (`code-workspace.tsx`) holds an opener (`code-opener.tsx`). A plain click on a tree row, a folder listing row, a path crumb, a Markdown file's Source/Rendered link, Enter in the tree or a Go to file match calls `history.pushState` with the location's real URL (`/<owner>/<repo>/blob/<path>?ref=…`, `/tree/<path>`, `?plain=1`). The links are `CodeLink`s: next/link with `prefetch={false}` and an `onNavigate` that cancels the router's navigation, so a modified click and a page without script follow the `href` as before.
+- vinext 1.1 patches the History API as Next.js does since 14.1 (`node_modules/vinext/dist/shims/navigation.js`): an outside `pushState` is marked external, carries the current router tree's snapshot id, commits the URL (`usePathname` and `useSearchParams` follow) and makes no request. On `popstate`, an entry of the same tree only commits the URL (`shouldCommitPopstateUrlWithoutNavigation`, `app-browser-popstate.js`); the page's own entry matches the rendered route, so back to it commits too. Back to an external entry after a real navigation restores the tree snapshot or, if it is gone, renders that URL on the server. Either way the workspace reads the URL, so it shows the right place.
+- The bar, the main pane and the tree read the open location from the URL (`src/code/code-location.ts`, `locationOfUrl`). The location the server rendered shows its render; any other at the same ref is drawn in the browser (`code-main.tsx`) from `folder(sha, path)` (shared with the tree, so a folder already expanded opens with no request) and `file(sha, path)` (new route `/api/repos/<owner>/<repo>/code/file?sha=&path=`, `answerFile` in `src/code/file-tree-api.ts`: the pages' access check, `EngineReads.file` through the edge object cache or the private KV namespace, `immutable` for a public repository and `no-store` otherwise; a 404 is never kept). The sha is always the page's, so everything opened in place is from the same commit as the tree.
+- A hover or focus on a `CodeLink` reads ahead: the file, or the folder and then its README. These are sha-keyed JSON reads, so a prefetch is used by the click that follows (unlike a dynamic page's prefetch). The document title follows the open location (`codeTitle`, the pages' own format).
+- The same components draw both (`BlobView`, `FolderView`, `MarkdownView`, `highlight.ts`): they have no server-only imports and no dependency, so the client renders exactly what the server does.
+
+**What is still a server render.** A hard load or no script; a modified click (a new tab); the ref switcher (another ref is another page); another tab; a README's relative links (plain anchors, a document load); the head watcher's `router.refresh()` when the line moves, which renders the URL now open at the new commit, after which the server's render shows again. A file the browser could not read (not a 404) offers a link to its page.
+
+**Privacy.** No new reach: the file route uses the same `viewerTreeAccess` as the folder route (a repository the viewer may not read is a 404, before any read), private reads only through the `ReadGrant` of that check, and its answers follow §6. File contents are never persisted (`immutableBlob`), so they leave memory with the tab or after 10 minutes unused; the folders and paths keep §5.3's rule.
+
+**Bundle.** The bar and main pane are client components now (they follow the URL), so the highlighter, the Markdown renderer and the views ship to the browser. Measured with `vite build` (client chunks, bytes / gzip): before, `code-workspace` 27,383 / 9,931; after, `code-workspace` 24,112 / 8,814 plus `code-main` 18,494 / 6,259, so the Code tab's own chunks grow by 15.2 KB / 5.1 KB gzip; all client JS together grows by 25.0 KB / 9.2 KB gzip (1,279,955 / 410,583 to 1,304,935 / 419,768). The RSC payload of a file page carries the file's text once instead of a span tree per highlighted token, and the bar's ref switcher gets only each bean's name and state.
+
+**Tests.** `src/code/code-location.test.ts` (URLs to locations and back, decoding, refs, titles); `src/code/file-tree-api.test.ts` (the file route: answer, headers by visibility, 400s before any read, 404s never kept, 503); `src/query/policy.test.ts` (`immutableBlob`); `components/repo-tabs/code-main.test.tsx` (the server's render on its own URL, a file and a folder with its README drawn from the cache at the page's commit, the tree and the bar following the URL, the opening state, another ref keeps the server's render, Source and Rendered, `go` writing the URL at the browsed ref and no entry for the open location).
+
+**Not verified here.** The browser behaviour end to end (vinext's History API handling was read in its source, not exercised in a browser, as the app needs the gateway Worker); the focus after opening from the main listing (the clicked link is replaced, so focus returns to the document, as after a router navigation).
+
