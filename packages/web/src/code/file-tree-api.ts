@@ -1,13 +1,14 @@
 /**
  * The file tree's JSON routes, without bindings: `answerFolder` (one folder's entries, when the
  * reader expands it) and `answerPaths` (every path, for Go to file). Both read the tree at a
- * commit sha through the request's engine reads, which for a public repository go through the
- * edge object cache (`cached-reads.ts`), so expanding folders costs no gateway call once the
- * tree is cached. The access check is the pages' own (`viewer-tree-access.ts`): a repository
+ * commit sha through the request's engine reads, which go through the edge object cache
+ * (`cached-reads.ts`: the shared layers for a public repository, the private KV namespace for a
+ * private one), so expanding folders costs no gateway call once the tree is cached. The access check is the pages' own (`viewer-tree-access.ts`): a repository
  * the viewer may not read is a 404, the same as a missing one.
  *
  * Content addressed by a sha never changes: a public repository's answers are `immutable` for
- * this browser; a private or internal one's are never kept (docs/claude-opus/35-caching.md).
+ * this browser; a private or internal one's are never kept by the HTTP cache (the query cache
+ * holds them for the tab, docs/claude-opus/35-caching.md).
  */
 import { Sha } from '@gitstalk/shared-race/ids';
 

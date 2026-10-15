@@ -62,7 +62,7 @@ Read path for a class A object: run the access check, which makes the `ReadGrant
 
 `qk.repo(uid, owner, repo)` has `all`, `events()`, `pushed()`, `bean(name)`, `run(id)`, and now `jobLog(run, job)`, `runs(filter)`, `diff(base, head)`, `tree(sha)`, `file(sha, path)` and `tail(seq)` (the events after a seq, for the head watcher). `bean(name)` stays the bean's diff on day one.
 
-The Code tab's file tree adds `folder(sha, path)` (one folder's entries, read when the reader expands it) and `paths(sha)` (every path, for Go to file), both immutable (`staleTime: Infinity`, persisted for a public repository). Their routes, `/api/repos/<owner>/<repo>/code/folder` and `/code/paths`, read the tree at the sha through the same edge object cache as the pages and answer `immutable` for a public repository and `no-store` otherwise. The page itself sends the root and the folders on the way to the open path, cut from the tree it already read, so opening a file makes no extra request.
+The Code tab's file tree adds `folder(sha, path)` (one folder's entries, read when the reader expands it) and `paths(sha)` (every path, for Go to file), both immutable (`staleTime: Infinity`, persisted in sessionStorage for every visibility since 2026-10-15, §5.3). Their routes, `/api/repos/<owner>/<repo>/code/folder` and `/code/paths`, read the tree at the sha through the same edge object cache as the pages (public: shared layers; private: the private KV namespace, §3) and answer `immutable` for a public repository and `no-store` otherwise. The page itself sends the root and the folders on the way to the open path, cut from the tree it already read, so opening a file makes no extra request.
 
 ### 5.2 Freshness policy (`src/query/policy.ts`)
 
@@ -232,6 +232,7 @@ Audit of `app/[owner]/[repo]/**` (what each view's data goes through on a revisi
 |---|---|---|
 | Header and tabs | access check | Drawn once by the repository layout, kept mounted across every tab and settings section (13.3) |
 | Code (tree, blob, README) | server render; objects through the edge caches (public shared, private KV) | Router cache (30 s, `staleTimes.dynamic`); `HeadWatcher` keeps the line fresh (`tail(seq)` query) |
+| Code: file tree, Go to file | `useTreeFolders` (`folder(sha, path)`), `GoToFile` (`paths(sha)`); routes read through the edge caches | TanStack Query, immutable, persisted for every visibility; the page seeds the root and the open path's folders |
 | Changes | `useChangesFeed`: events (append-only), pushed (mutable) | TanStack Query, live feed; no refetch on remount |
 | A bean | `BeanDiff` / `StreamedBeanDiff` (hydrated) | TanStack Query, immutable while its landing stands; persisted for every visibility |
 | History | server render | Router cache; `HeadWatcher` |

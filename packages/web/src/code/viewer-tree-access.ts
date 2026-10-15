@@ -31,7 +31,6 @@ export async function viewerTreeAccess(context: TreeRouteContext): Promise<TreeA
   return {
     kind: 'found',
     visibility: record.visibility,
-    reads:
-      engine === null ? null : engineReads(env.GATEWAY, engine, cachedReadsFor(grant, engine)),
+    reads: engine === null ? null : engineReads(env.GATEWAY, engine, cachedReadsFor(grant, engine)),
   };
 }
