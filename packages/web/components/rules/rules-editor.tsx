@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
-import { POLICY_SCHEMA_URL, readApprovalPolicy } from '@gitstalk/shared-race/policy-file';
+import { STARTER_POLICY, readApprovalPolicy } from '@gitstalk/shared-race/policy-file';
 
 import { saveKeys } from '../../src/automations/automation-save';
 import type { BeanStatus } from '../../src/automations/editor-client';
@@ -18,12 +18,6 @@ import { YamlPane } from '../automations/yaml-pane';
 import styles from '../automations/builder.module.css';
 
 const POLL_MS = 2000;
-const STARTER = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
-classes:
-  - name: comment-only
-    match: { syntax: comments-and-whitespace }
-    route: auto
-`;
 
 export type RulesEditorProps = {
   readonly repo: { readonly owner: string; readonly name: string; readonly base: string };
@@ -49,7 +43,7 @@ type Phase =
     };
 
 export function RulesEditor(props: RulesEditorProps) {
-  const initial = props.opened.text ?? STARTER;
+  const initial = props.opened.text ?? STARTER_POLICY;
   const [text, setText] = useState(initial);
   const [phase, setPhase] = useState<Phase>({ kind: 'editing' });
   const [keyOf] = useState(() => saveKeys());
@@ -102,6 +96,12 @@ export function RulesEditor(props: RulesEditorProps) {
           {props.refusal}
         </p>
       )}
+      {props.opened.text === null ? (
+        <p className={styles.banner}>
+          This repository has no rules yet, so every bean lands on its tests. Below are the
+          recommended starter rules; nothing changes until they are saved.
+        </p>
+      ) : null}
       <YamlPane
         path={props.path}
         text={text}

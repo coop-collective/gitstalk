@@ -44,9 +44,23 @@ The method-level contract (bounds, error codes) for the run and repository read 
 
 ## Read index hit rate
 
-Each engine's `RunDO` reads git objects from Artifacts through one cache tier, the read index (`src/repo/object-cache.ts`): commits, trees and blobs kept by id in its SQLite, plus a 5 s memo of ref heads that a landing clears. Every read through it counts as a hit or a miss, by kind (`commit`, `tree`, `blob`) and for the ref memo apart (`src/repo/cache-stats.ts`). Reads that bypass it (a `log` page, a ref given as a commit id, `hasBlob`) are not counted. The counts are kept in memory on the infra meter (`src/run/infra-meter.ts`) and stored with its existing writes (every stored step, `summary()`, and otherwise at most every 5 s), so counting costs no SQLite write of its own.
+Each engine's `RunDO` reads git objects from Artifacts through one cache tier, the read index (`src/repo/object-cache.ts`): commits, trees and blobs kept by id in its SQLite (blobs up to 1 MB), plus a 5 s memo of ref heads that a landing clears. Git objects never change under their id, so nothing in it is ever stale.
 
-They are reported as `cache` with `hits`, `misses` and `hit_rate` (null before any read; `objects` is the three kinds together, `ref_memo` the memo) in `runView` (RPC and `GET /v1/runs/:run`) and in `summary.json`'s `infra`. Measured so far only in a local test (fake Artifacts, five landings with `-o wait`, no reads besides the engine's own warm-ups): objects 4 hits of 6 reads, ref memo 0 of 6, because each landing clears the memo before its warm-up reads the line. No production number yet.
+Who reads through it:
+
+- **The engine's jobs**, through `src/repo/read-through-port.ts` (since 2026-10-14): the approval gate's merge diff and policy file, a repository's `.gitstalk/checks.toml` at each checked commit, culprit diffs, conflict line ranges and file reads, whenever they name a commit id. A branch read and every write go to Artifacts as before. Each such call is still metered as one Artifacts operation, as the port call it replaces was.
+- **The warm-up** after every landing (`warmLine` in `src/adapters/repo-explorer.ts`): it walks the new line head's trees and fetches every blob it does not hold, so the explorer and the next job find them.
+- **The explorer** (the web's code view, MCP reads) and server-side commits.
+
+Every read counts as a hit or a miss, by kind (`commit`, `tree`, `blob`) and for the ref memo apart (`src/repo/cache-stats.ts`), and by purpose: `demand` (a reader asked) or `prefetch` (the warm-up). The warm-up fetches each new object exactly once by design, so its misses can never be hits of their own; they are reported apart and kept out of the hit rates. Reads that bypass the index (a `log` page, a ref given as a commit id) are not counted. The counts are kept in memory on the infra meter (`src/run/infra-meter.ts`) and stored with its existing writes, so counting costs no SQLite write of its own.
+
+They are reported as `cache` in `runView` (RPC and `GET /v1/runs/:run`) and in `summary.json`'s `infra`: `hits`, `misses` and `hit_rate` (null before any read) for `objects` (the three kinds together), each kind and `ref_memo`, for demand reads at the top level and for the warm-up under `cache.prefetch` (a hit there is an object already held).
+
+Measured:
+
+- **Staging, before (2026-10-14, `research/race/runs/stg-scion-*fastify-16-s*`, six runs):** objects 0.65 to 0.67, trees about 0.89, blobs 0 (573 to 578 misses a run), ref memo 0 (54 to 59 misses). Every one of those reads was the warm-up's: in a headless load test nobody else read through the index, because the jobs read Artifacts directly. The warm-up's re-walk of unchanged trees made the tree rate look good, and its first fetch of each blob made the blob rate 0.
+- **Offline replay, after** (`src/repo/read-index-replay.test.ts`: the 38 fastify beans' recorded paths on a 407-file tree, each landing's merge diff read by the gate, then warmed): with the gate reading through the index, its 638 object reads cost 319 Artifacts reads (blob demand hit rate 0.50: every stalk side was warmed, every bean side is new), the warm-up then finds the bean's side held (prefetch misses 703 to 422), and the run's Artifacts object reads fall from 1,380 to 780. The replay's warm-up alone (143 tree and 560 blob fetches, 39 ref reads) matches staging's shape (173 to 176, 573 to 578, 54 to 59). A staging run with the change has not been made; it should show demand hit rates where there were none, and `prefetch.blob.misses` lower by the gate's bean-side blobs.
+- **Not done:** a per-colo Cache API tier keyed by object id (folded into the separate repository caching work, owner's decision 2026-10-14), which would let `RepoDerivedDO` (a separate object, which reads the same landed blobs again through its own handle) and the explorer share fetches across Durable Objects; and keeping the ref memo across landings by setting it to the landed commit (compare-and-swap) instead of clearing it, which would turn the warm-up's one `log` per landing into a hit. Both are projected, not measured.
 
 ## Layout
 

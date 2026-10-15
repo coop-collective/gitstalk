@@ -33,7 +33,7 @@ export default async function RulesSettingsPage(props: { readonly params: Reposi
       settings={settings}
       current="rules"
       title="Approval rules"
-      lede="Which changes land on their own, which Clef triages, and which wait for a person. Classes are computed by code from each bean's paths and syntax."
+      lede="Which changes land on their own, which Clef triages, and which wait for a person. Classes are computed by code from each bean's paths and syntax; a class matching { otherwise: true } takes every change no other class matched."
     >
       <SettingsSection
         id="rules"

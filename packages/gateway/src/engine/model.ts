@@ -226,8 +226,13 @@ export type CheckResult = {
    */
   readonly mappedTree?: string;
   /**
-   * The approval rules hold the bean for a person (`approval/approval-gate.ts`): this red is the
-   * hold, not a failure, and the `preland.check` event carries it as `held`.
+   * The approval rules held the bean for a person (`approval/approval-gate.ts`): a red that says
+   * nothing failed. A continuous engine spends no rework round on it (`v2-landing.ts`).
+   */
+  readonly awaitsApproval?: true;
+  /**
+   * The hold itself (classes, deciding class, who decided); the `preland.check` event carries it
+   * as `held`.
    */
   readonly held?: CheckHold;
 };

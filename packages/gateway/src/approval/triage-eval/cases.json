@@ -1,0 +1,946 @@
+[
+  {
+    "id": "t001",
+    "source": "fastify t001 (bug)",
+    "title": "fix: handle web stream payload in HEAD route",
+    "files": ["lib/head-route.js", "test/route.6.test.js", "test/route.7.test.js"],
+    "size": {
+      "linesAdded": 31,
+      "linesRemoved": 1,
+      "testShare": 0.69,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.67"],
+      "s11": ["auto 0.67"],
+      "s13": ["auto 0.67"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t002",
+    "source": "fastify t002 (bug)",
+    "title": "fix: consistent error handling for custom validators in async validation contexts",
+    "files": ["lib/validation.js", "test/validation-error-handling.test.js"],
+    "size": {
+      "linesAdded": 10,
+      "linesRemoved": 2,
+      "testShare": 0.17,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.74"],
+      "s11": ["auto 0.74"],
+      "s13": ["auto 0.74"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t003",
+    "source": "fastify t003 (feature)",
+    "title": "feat: speed up loading with custom compiler",
+    "files": ["lib/schema-controller.js"],
+    "size": {
+      "linesAdded": 2,
+      "linesRemoved": 2,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.74"],
+      "s11": ["auto 0.74"],
+      "s13": ["auto 0.74"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t004",
+    "source": "fastify t004 (bug)",
+    "title": "fix: set status code before publishing diagnostics error channel",
+    "files": [
+      "lib/error-handler.js",
+      "lib/error-status.js",
+      "lib/handle-request.js",
+      "lib/wrap-thenable.js"
+    ],
+    "size": {
+      "linesAdded": 25,
+      "linesRemoved": 6,
+      "testShare": 0,
+      "newFiles": 1,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.74"],
+      "s11": ["auto 0.74"],
+      "s13": ["auto 0.74"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t005",
+    "source": "fastify t005 (bug)",
+    "title": "fix(ts): Align routerOptions defaultRoute types with runtime",
+    "files": [
+      "build/build-validation.js",
+      "docs/Reference/Server.md",
+      "fastify.d.ts",
+      "lib/config-validator.js",
+      "test/issue-4959.test.js",
+      "test/types/instance.test-d.ts"
+    ],
+    "size": {
+      "linesAdded": 89,
+      "linesRemoved": 57,
+      "testShare": 0.6,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.77"],
+      "s11": ["auto 0.77"],
+      "s13": ["auto 0.77"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t006",
+    "source": "fastify t006 (feature)",
+    "title": "feat: implement conditional request logging",
+    "files": [
+      "README.md",
+      "build/build-validation.js",
+      "docs/Guides/Ecosystem.md",
+      "docs/Guides/Migration-Guide-V4.md",
+      "docs/Guides/Testing.md",
+      "docs/Reference/Decorators.md",
+      "docs/Reference/Encapsulation.md",
+      "docs/Reference/Plugins.md",
+      "docs/Reference/Principles.md",
+      "docs/Reference/Reply.md",
+      "docs/Reference/Server.md",
+      "docs/Reference/TypeScript.md",
+      "fastify.d.ts",
+      "fastify.js",
+      "lib/config-validator.js",
+      "lib/four-oh-four.js",
+      "lib/route.js",
+      "test/logger/logging.test.js",
+      "test/types/fastify.test-d.ts",
+      "test/types/instance.test-d.ts",
+      "types/instance.d.ts"
+    ],
+    "size": {
+      "linesAdded": 296,
+      "linesRemoved": 249,
+      "testShare": 0.08,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.51", "auto 0.51", "auto 0.51"],
+      "s11": ["auto 0.51", "auto 0.51"],
+      "s13": ["auto 0.51", "auto 0.51"]
+    },
+    "label": "card",
+    "why": "large: 296+/249- across many files, changes logging behaviour"
+  },
+  {
+    "id": "t007",
+    "source": "fastify t007 (chore)",
+    "title": "chore: Updated content-type header parsing",
+    "files": [
+      "lib/content-type-parser.js",
+      "lib/content-type.js",
+      "lib/handle-request.js",
+      "test/content-parser.test.js",
+      "test/content-type.test.js",
+      "test/custom-parser.0.test.js",
+      "test/custom-parser.1.test.js",
+      "test/custom-parser.3.test.js",
+      "test/schema-validation.test.js"
+    ],
+    "size": {
+      "linesAdded": 286,
+      "linesRemoved": 200,
+      "testShare": 0.51,
+      "newFiles": 1,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.60", "auto 0.59", "auto 0.59", "auto 0.59"],
+      "s11": ["auto 0.60", "auto 0.59", "auto 0.59", "auto 0.59"],
+      "s13": ["auto 0.60", "auto 0.59", "auto 0.59", "auto 0.59"]
+    },
+    "label": "card",
+    "why": "large rewrite of content-type parsing (input handling), 286+/200-"
+  },
+  {
+    "id": "t008",
+    "source": "fastify t008 (bug)",
+    "title": "fix: avoid mutating shared routerOptions across instances",
+    "files": ["lib/route.js"],
+    "size": {
+      "linesAdded": 3,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.67", "auto 0.67"],
+      "s11": ["auto 0.67"],
+      "s13": ["auto 0.67", "auto 0.67", "auto 0.67"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t009",
+    "source": "fastify t009 (feature)",
+    "title": "feat: First-class support for handler-level timeouts",
+    "files": [
+      "build/build-validation.js",
+      "docs/Reference/Errors.md",
+      "docs/Reference/Hooks.md",
+      "docs/Reference/Lifecycle.md",
+      "docs/Reference/Request.md",
+      "docs/Reference/Routes.md",
+      "docs/Reference/Server.md",
+      "fastify.d.ts",
+      "fastify.js",
+      "lib/config-validator.js",
+      "lib/context.js",
+      "lib/errors.js",
+      "lib/reply.js",
+      "lib/request.js",
+      "lib/route.js",
+      "lib/symbols.js",
+      "test/internals/errors.test.js",
+      "test/internals/initial-config.test.js",
+      "test/types/fastify.test-d.ts",
+      "test/types/request.test-d.ts",
+      "types/errors.d.ts",
+      "types/request.d.ts",
+      "types/route.d.ts"
+    ],
+    "size": {
+      "linesAdded": 539,
+      "linesRemoved": 305,
+      "testShare": 0.01,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.65", "auto 0.63", "auto 0.63", "auto 0.63"],
+      "s11": ["auto 0.65", "auto 0.63", "auto 0.63", "auto 0.63"],
+      "s13": ["auto 0.65", "auto 0.63", "auto 0.63", "auto 0.59", "auto 0.59"]
+    },
+    "label": "card",
+    "why": "large new feature (handler timeouts), 539+/305- across docs, lib and types"
+  },
+  {
+    "id": "t010",
+    "source": "fastify t010 (bug)",
+    "title": "fix: remove format placeholder from FST_ERR_CTP_INVALID_MEDIA_TYPE message",
+    "files": [
+      "lib/content-type-parser.js",
+      "lib/errors.js",
+      "test/content-parser.test.js",
+      "test/internals/errors.test.js"
+    ],
+    "size": {
+      "linesAdded": 4,
+      "linesRemoved": 4,
+      "testShare": 0.5,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.71"],
+      "s11": ["auto 0.71"],
+      "s13": ["auto 0.71"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t011",
+    "source": "fastify t011 (chore)",
+    "title": "chore: Fix port parsing",
+    "files": ["lib/request.js"],
+    "size": {
+      "linesAdded": 6,
+      "linesRemoved": 12,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.83"],
+      "s11": ["auto 0.83"],
+      "s13": ["auto 0.83"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t012",
+    "source": "fastify t012 (bug)",
+    "title": "fix: restore trustProxy function for number and string types, add null check for socketAddr",
+    "files": ["lib/request.js", "test/server.test.js", "test/trust-proxy.test.js"],
+    "size": {
+      "linesAdded": 93,
+      "linesRemoved": 7,
+      "testShare": 0.87,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.61", "auto 0.61"],
+      "s11": ["auto 0.61", "auto 0.61"],
+      "s13": ["auto 0.61", "auto 0.61"]
+    },
+    "label": "card",
+    "why": "changes trustProxy, which decides which client addresses are trusted"
+  },
+  {
+    "id": "t013",
+    "source": "fastify t013 (feature)",
+    "title": "feat: add request.mediaType",
+    "files": [
+      "docs/Reference/Request.md",
+      "lib/handle-request.js",
+      "lib/request.js",
+      "lib/symbols.js",
+      "lib/validation.js",
+      "test/schema-validation.test.js",
+      "types/request.d.ts"
+    ],
+    "size": {
+      "linesAdded": 45,
+      "linesRemoved": 17,
+      "testShare": 0.37,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": [
+        "auto 0.62",
+        "auto 0.62",
+        "auto 0.65",
+        "card 0.51",
+        "auto 0.73",
+        "auto 0.73",
+        "auto 0.73"
+      ],
+      "s11": ["auto 0.62", "card 0.51", "auto 0.73", "auto 0.70"],
+      "s13": ["auto 0.62", "card 0.51", "auto 0.73", "card 0.51", "auto 0.62", "auto 0.73"]
+    },
+    "label": "auto",
+    "why": "backwards-compatible addition of request.mediaType, with tests and types"
+  },
+  {
+    "id": "t014",
+    "source": "fastify t014 (bug)",
+    "title": "fix: prevent duplicate res.end in sendTrailer with sync callbacks",
+    "files": ["lib/reply.js"],
+    "size": {
+      "linesAdded": 3,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.77"],
+      "s11": ["auto 0.77"],
+      "s13": ["auto 0.77"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t015",
+    "source": "fastify t015 (bug)",
+    "title": "fix: error.code not present on some routing errors",
+    "files": ["lib/route.js"],
+    "size": {
+      "linesAdded": 2,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.58"],
+      "s11": ["auto 0.58", "auto 0.58"],
+      "s13": ["auto 0.58"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t016",
+    "source": "fastify t016 (bug)",
+    "title": "fix: correct isCustomSerializerCompiler flag check",
+    "files": ["lib/schema-controller.js", "test/internals/schema-controller-perf.test.js"],
+    "size": {
+      "linesAdded": 2,
+      "linesRemoved": 1,
+      "testShare": 0.33,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.71", "auto 0.71"],
+      "s11": ["auto 0.71", "auto 0.71"],
+      "s13": ["auto 0.71"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t017",
+    "source": "fastify t017 (bug)",
+    "title": "fix: validate invalid route logLevel at registration",
+    "files": [
+      "docs/Reference/Errors.md",
+      "lib/errors.js",
+      "lib/route.js",
+      "test/internals/errors.test.js",
+      "test/logger/options.test.js",
+      "types/errors.d.ts"
+    ],
+    "size": {
+      "linesAdded": 59,
+      "linesRemoved": 2,
+      "testShare": 0.67,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.78", "auto 0.78", "auto 0.78"],
+      "s11": ["auto 0.78", "auto 0.78"],
+      "s13": ["auto 0.78", "auto 0.78", "auto 0.58"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t018",
+    "source": "fastify t018 (bug)",
+    "title": "fix: use ContentType parser for response schema lookup",
+    "files": ["lib/schemas.js"],
+    "size": {
+      "linesAdded": 13,
+      "linesRemoved": 12,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.75", "auto 0.75"],
+      "s11": ["auto 0.75", "auto 0.75", "auto 0.75"],
+      "s13": ["auto 0.75", "auto 0.75", "auto 0.75"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t019",
+    "source": "fastify t019 (bug)",
+    "title": "fix: do not trust forwarded host/proto when socket is missing",
+    "files": [
+      "lib/request.js",
+      "test/client-timeout.test.js",
+      "test/close.test.js",
+      "test/constrained-routes.test.js",
+      "test/hooks.test.js",
+      "test/http-methods/get.test.js",
+      "test/http-methods/lock.test.js",
+      "test/http-methods/propfind.test.js",
+      "test/http-methods/proppatch.test.js",
+      "test/https/https.test.js",
+      "test/internals/reply.test.js",
+      "test/internals/request.test.js",
+      "test/max-requests-per-socket.test.js",
+      "test/request-error.test.js",
+      "test/schema-examples.test.js",
+      "test/schema-feature.test.js",
+      "test/schema-serialization.test.js",
+      "test/schema-special-usage.test.js",
+      "test/schema-validation.test.js",
+      "test/skip-reply-send.test.js",
+      "test/trust-proxy.test.js",
+      "test/types/logger.test-d.ts",
+      "test/types/register.test-d.ts",
+      "test/types/reply.test-d.ts",
+      "test/types/request.test-d.ts",
+      "test/types/route.test-d.ts",
+      "types/logger.d.ts"
+    ],
+    "size": {
+      "linesAdded": 151,
+      "linesRemoved": 170,
+      "testShare": 0.97,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.69", "auto 0.69", "auto 0.72"],
+      "s11": ["auto 0.69"],
+      "s13": ["auto 0.69"]
+    },
+    "label": "card",
+    "why": "security fix: stops trusting forwarded host/proto headers"
+  },
+  {
+    "id": "t020",
+    "source": "fastify t020 (bug)",
+    "title": "fix: enable diagnostics tracking for async error handlers",
+    "files": ["lib/error-handler.js", "lib/handle-request.js", "lib/symbols.js"],
+    "size": {
+      "linesAdded": 9,
+      "linesRemoved": 5,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.73", "auto 0.73", "auto 0.72"],
+      "s11": ["auto 0.73", "auto 0.73"],
+      "s13": ["auto 0.73", "auto 0.73", "auto 0.54"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t021",
+    "source": "fastify t021 (bug)",
+    "title": "fix: ignore duplicate trailer completions",
+    "files": ["lib/reply.js"],
+    "size": {
+      "linesAdded": 3,
+      "linesRemoved": 2,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.73"],
+      "s11": ["auto 0.73"],
+      "s13": ["auto 0.73"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t022",
+    "source": "fastify t022 (bug)",
+    "title": "fix: chunk large HTTP/2 buffer replies",
+    "files": ["docs/Reference/Reply.md", "lib/reply.js", "test/http2/plain.test.js"],
+    "size": {
+      "linesAdded": 53,
+      "linesRemoved": 3,
+      "testShare": 0.02,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.83"],
+      "s11": ["auto 0.83"],
+      "s13": ["auto 0.83"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t023",
+    "source": "fastify t023 (bug)",
+    "title": "fix: clear socket._meta after response to prevent keep-alive leaks",
+    "files": ["lib/reply.js"],
+    "size": {
+      "linesAdded": 7,
+      "linesRemoved": 0,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.79", "auto 0.79"],
+      "s11": ["auto 0.79", "auto 0.79", "auto 0.79"],
+      "s13": ["auto 0.79"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t024",
+    "source": "fastify t024 (bug)",
+    "title": "fix: avoid double slash when joining nested prefixes",
+    "files": ["lib/plugin-override.js"],
+    "size": {
+      "linesAdded": 2,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.66"],
+      "s11": ["auto 0.66"],
+      "s13": ["auto 0.66"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t025",
+    "source": "fastify t025 (bug)",
+    "title": "fix: hasRequestDecorator/hasReplyDecorator misses constructor-assigned built-in properties",
+    "files": ["lib/decorate.js", "lib/reply.js", "lib/request.js"],
+    "size": {
+      "linesAdded": 14,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.81"],
+      "s11": ["auto 0.81"],
+      "s13": ["auto 0.81", "auto 0.81"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t026",
+    "source": "fastify t026 (bug)",
+    "title": "fix: derive request.port from request.host",
+    "files": ["lib/request.js", "test/internals/request.test.js", "test/trust-proxy.test.js"],
+    "size": {
+      "linesAdded": 43,
+      "linesRemoved": 39,
+      "testShare": 0.96,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.67"],
+      "s11": ["auto 0.67"],
+      "s13": ["auto 0.67"]
+    },
+    "label": "either",
+    "why": "changes how request.port is derived (public behaviour), with tests"
+  },
+  {
+    "id": "t027",
+    "source": "fastify t027 (bug)",
+    "title": "fix: normalize method in findRoute",
+    "files": ["lib/route.js"],
+    "size": {
+      "linesAdded": 1,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.64"],
+      "s11": ["auto 0.64", "auto 0.64"],
+      "s13": ["auto 0.64"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t028",
+    "source": "fastify t028 (bug)",
+    "title": "fix(validation): correctly update falsy values from validator",
+    "files": ["lib/validation.js"],
+    "size": {
+      "linesAdded": 1,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.81"],
+      "s11": ["auto 0.81"],
+      "s13": ["auto 0.81"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t029",
+    "source": "fastify t029 (bug)",
+    "title": "fix: uncatchable throws in writeHead when using async hook",
+    "files": ["lib/hooks.js", "test/reply-error.test.js"],
+    "size": {
+      "linesAdded": 5,
+      "linesRemoved": 47,
+      "testShare": 0.88,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.71"],
+      "s11": ["auto 0.71"],
+      "s13": ["auto 0.71"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t030",
+    "source": "fastify t030 (bug)",
+    "title": "fix: clear trailer state when removing all trailers",
+    "files": ["lib/reply.js", "test/reply-trailers.test.js"],
+    "size": {
+      "linesAdded": 11,
+      "linesRemoved": 7,
+      "testShare": 0.44,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.66"],
+      "s11": ["auto 0.66"],
+      "s13": ["auto 0.66"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t031",
+    "source": "fastify t031 (bug)",
+    "title": "fix: recognize constructor-assigned built-in properties as decorator …",
+    "files": ["lib/decorate.js"],
+    "size": {
+      "linesAdded": 1,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.85"],
+      "s11": ["auto 0.85", "auto 0.85"],
+      "s13": ["auto 0.85", "auto 0.85"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t032",
+    "source": "fastify t032 (bug)",
+    "title": "fix: reset lastIndex before testing global/sticky content-type RegExp parsers",
+    "files": ["lib/content-type-parser.js"],
+    "size": {
+      "linesAdded": 4,
+      "linesRemoved": 0,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.79"],
+      "s11": ["auto 0.79"],
+      "s13": ["auto 0.79"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t034",
+    "source": "fastify t034 (bug)",
+    "title": "fix: report canonical route url for hidden prefix slash route",
+    "files": ["lib/route.js"],
+    "size": {
+      "linesAdded": 2,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.65"],
+      "s11": ["auto 0.65"],
+      "s13": ["auto 0.65"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t035",
+    "source": "fastify t035 (bug)",
+    "title": "fix: callNotFound should run not-found preHandler regardless of registration order",
+    "files": ["lib/four-oh-four.js", "test/404s.test.js"],
+    "size": {
+      "linesAdded": 42,
+      "linesRemoved": 2,
+      "testShare": 0.8,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.81"],
+      "s11": ["auto 0.81"],
+      "s13": ["auto 0.81"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t036",
+    "source": "fastify t036 (perf)",
+    "title": "perf: read the merged headers once in the trust proxy getters",
+    "files": ["lib/request.js"],
+    "size": {
+      "linesAdded": 9,
+      "linesRemoved": 5,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.82", "auto 0.82"],
+      "s11": ["auto 0.82", "auto 0.82"],
+      "s13": ["auto 0.82", "auto 0.82"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t037",
+    "source": "fastify t037 (perf)",
+    "title": "perf: decode string bodies once instead of per chunk",
+    "files": ["lib/content-type-parser.js"],
+    "size": {
+      "linesAdded": 21,
+      "linesRemoved": 12,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.82", "auto 0.82"],
+      "s11": ["auto 0.82"],
+      "s13": ["auto 0.82"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "t038",
+    "source": "fastify t038 (bug)",
+    "title": "fix: omit absent compileSerializationSchema metadata instead of passing null",
+    "files": ["lib/reply.js"],
+    "size": {
+      "linesAdded": 1,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "recorded": {
+      "s7": ["auto 0.75"],
+      "s11": ["auto 0.75"],
+      "s13": ["auto 0.75"]
+    },
+    "label": "auto",
+    "why": "small, contained change with tests or a one-line fix"
+  },
+  {
+    "id": "s-auth-session",
+    "source": "synthetic",
+    "title": "fix: refresh the session cookie on privilege change",
+    "files": ["lib/auth/session.js", "test/auth/session.test.js"],
+    "size": {
+      "linesAdded": 38,
+      "linesRemoved": 9,
+      "testShare": 0.55,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "label": "card",
+    "why": "authentication and sessions",
+    "recorded": null
+  },
+  {
+    "id": "s-migration-drop",
+    "source": "synthetic",
+    "title": "chore: drop the users.legacy_email column",
+    "files": ["lib/db/migrations/0042-drop-legacy-email.js", "lib/db/users.js"],
+    "size": {
+      "linesAdded": 24,
+      "linesRemoved": 31,
+      "testShare": 0,
+      "newFiles": 1,
+      "deletedFiles": 0
+    },
+    "label": "card",
+    "why": "migrates and deletes data",
+    "recorded": null
+  },
+  {
+    "id": "s-remove-api",
+    "source": "synthetic",
+    "title": "refactor: remove reply.sendFile in favour of reply.send",
+    "files": ["lib/reply.js", "types/reply.d.ts", "docs/Reference/Reply.md", "test/reply.test.js"],
+    "size": {
+      "linesAdded": 12,
+      "linesRemoved": 96,
+      "testShare": 0.3,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "label": "card",
+    "why": "removes a public method",
+    "recorded": null
+  },
+  {
+    "id": "s-dependency",
+    "source": "synthetic",
+    "title": "chore: switch the JSON schema compiler to a new major version",
+    "files": ["package.json", "lib/schema-controller.js"],
+    "size": {
+      "linesAdded": 6,
+      "linesRemoved": 4,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "label": "card",
+    "why": "dependency change with runtime effect",
+    "recorded": null
+  },
+  {
+    "id": "s-typo",
+    "source": "synthetic",
+    "title": "fix: typo in an error message",
+    "files": ["lib/errors.js"],
+    "size": {
+      "linesAdded": 1,
+      "linesRemoved": 1,
+      "testShare": 0,
+      "newFiles": 0,
+      "deletedFiles": 0
+    },
+    "label": "auto",
+    "why": "one-line message fix",
+    "recorded": null
+  }
+]

@@ -149,28 +149,37 @@ export function repoExplorer(
         }
         return texts;
       }),
-    warm: (ref) =>
-      open(async (handle) => {
-        const resolved = await required(handle, ref);
-        const blobs: string[] = [];
-        await walkFiles(handle, resolved.tree, {
-          prefix: '',
-          limit: MAX_LISTED_FILES,
-          visit: (_path, hash) => blobs.push(hash),
-        });
-        for (let start = 0; start < blobs.length; start += READ_CONCURRENCY) {
-          const batch = blobs.slice(start, start + READ_CONCURRENCY);
-          // oxlint-disable-next-line no-await-in-loop -- batches bound the reads in flight
-          await Promise.all(
-            batch.map(async (hash) => {
-              // A blob the cache already holds needs no read (and no body loaded to find out).
-              if (handle.hasBlob?.(hash) !== true) await handle.readBlob(hash);
-            }),
-          );
-        }
-        return { commit: resolved.commit, files: blobs.length };
-      }),
+    warm: (ref) => open((handle) => warmLine(handle, ref)),
   };
+}
+
+/**
+ * Reads every tree and blob at `ref` through `handle` (filling its cache, when it has one).
+ * Blobs go through `prefetchBlob` when the reader has it, so a blob already held is skipped
+ * without loading its body.
+ */
+export async function warmLine(
+  handle: RepoReader,
+  ref: string,
+): Promise<{ readonly commit: string; readonly files: number }> {
+  const resolved = await required(handle, ref);
+  const blobs: string[] = [];
+  await walkFiles(handle, resolved.tree, {
+    prefix: '',
+    limit: MAX_LISTED_FILES,
+    visit: (_path, hash) => blobs.push(hash),
+  });
+  for (let start = 0; start < blobs.length; start += READ_CONCURRENCY) {
+    const batch = blobs.slice(start, start + READ_CONCURRENCY);
+    // oxlint-disable-next-line no-await-in-loop -- batches bound the reads in flight
+    await Promise.all(
+      batch.map(async (hash) => {
+        if (handle.prefetchBlob === undefined) await handle.readBlob(hash);
+        else await handle.prefetchBlob(hash);
+      }),
+    );
+  }
+  return { commit: resolved.commit, files: blobs.length };
 }
 
 /** A reader whose calls open the repo first (once). */

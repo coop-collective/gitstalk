@@ -40,11 +40,11 @@ import type { LandingTree } from '../checks/check-store';
 import { guardRed } from '../checks/repository-checks';
 import { REMOTE_PREFIX as P } from '../push/push-messages';
 import type { Approval } from './approval-store';
+import type { TriageSubject } from './triage-question';
+import { changeSize, triageQuestion } from './triage-question';
 
 /** Classes whose beans the triage rule lets through when Clef does not answer. */
 const LOW_RISK: ReadonlySet<string> = new Set(['comment-only', 'docs-only', 'tests-only']);
-/** Paths a triage question lists. */
-const TRIAGE_PATHS = 40;
 /**
  * Clef holds a bean for a person only when it is this sure. In the staging benchmark
  * (`research/race/runs/stg-scion-policy-*`) a coin-flip `card` (p=0.51) stalled the same bean on
@@ -108,19 +108,21 @@ export async function judgeLanding(
   };
   if (resolution.kind === 'missing') return withoutPolicy(host, landing, subject);
   const policy = policyFor(resolution);
-  const classification = classifyChange(
-    policy,
-    await changedFilesOf(host, landing, policy),
-    host.origin(landing.task),
-  );
+  const diffRead = await changedFilesOf(host, landing, policy);
+  const classification = classifyChange(policy, diffRead.files, host.origin(landing.task));
   const broken = brokenWriterLimits(classification, subject.principal);
-  const fingerprint = fingerprintOf(classification, landing, read.sha);
+  const fingerprint = fingerprintOf(classification, {
+    policy: read.file,
+    revision: subject.revision,
+    files: landing.files,
+  });
   if (broken.length > 0) {
     const refused = `${subject.principal} may not change class ${broken.map((limit) => limit.class).join(', ')}`;
     const receipt = receiptOf(subject, classification, {
       route: classification.route,
       by: 'policy',
       probability: null,
+      latencyMs: null,
       refused,
       approval: { state: 'not-needed', actor: null },
     });
@@ -135,7 +137,8 @@ export async function judgeLanding(
     classification,
     fingerprint,
     task: landing.task,
-    files: landing.files,
+    triage: () =>
+      triageSubject(host, { landing, policy, classification, changes: diffRead.changes }),
   });
   const receipt = receiptOf(subject, classification, {
     ...routed,
@@ -157,7 +160,7 @@ function approvalOf(host: ApprovalHost, route: Route, subject: Subject): RouteRe
     ? { state: 'awaiting', actor: null }
     : { state: 'approved', actor: approval.actor };
 }
-type Routed = Pick<RouteReceipt, 'route' | 'by' | 'probability'>;
+type Routed = Pick<RouteReceipt, 'route' | 'by' | 'probability' | 'latencyMs'>;
 
 /** No policy on the stalk: every bean is `auto`, as before the rules existed. */
 function withoutPolicy(host: ApprovalHost, landing: LandingTree, subject: Subject): Judgement {
@@ -169,6 +172,7 @@ function withoutPolicy(host: ApprovalHost, landing: LandingTree, subject: Subjec
     class: null,
     by: 'policy',
     probability: null,
+    latencyMs: null,
     reviewers: [],
     refused: null,
     approval: { state: 'not-needed', actor: null },
@@ -181,26 +185,33 @@ function policyFor(resolution: Exclude<PolicyResolution, { kind: 'missing' }>): 
   return resolution.kind === 'valid' ? resolution.policy : EMPTY_POLICY;
 }
 
+type DiffRead = {
+  readonly files: readonly { path: string; commentOnly: boolean }[];
+  /** The merge's diff, when it was read; null when paths decided alone. */
+  readonly changes: readonly FileChange[] | null;
+};
+
 /**
  * The bean's changed files, each marked comment-only or not. File contents are read (one
- * Artifacts diff of the merge) only when the policy routes comment-only changes and every
- * changed file is in a dialect the lexer judges; otherwise paths decide alone.
+ * diff of the merge, through the engine's read index) only when the policy routes
+ * comment-only changes and every changed file is in a dialect the lexer judges; otherwise
+ * paths decide alone.
  */
 async function changedFilesOf(
   host: ApprovalHost,
   landing: LandingTree,
   policy: ApprovalPolicy,
-): Promise<readonly { path: string; commentOnly: boolean }[]> {
+): Promise<DiffRead> {
   const plain = landing.files.map((path) => ({ path, commentOnly: false }));
   const judgeable =
     asksForSyntax(policy) &&
     landing.files.length > 0 &&
     landing.files.every((path) => dialectOf(path) !== null);
-  if (!judgeable) return plain;
+  if (!judgeable) return { files: plain, changes: null };
   const changes = await host.changedFiles({ from: landing.onto, to: landing.sha });
-  if (changes === null) return plain;
+  if (changes === null) return { files: plain, changes: null };
   const byPath = new Map(changes.map((change) => [change.path, change]));
-  return landing.files.map((path) => {
+  const files = landing.files.map((path) => {
     const change = byPath.get(path);
     const commentOnly =
       change !== undefined &&
@@ -208,6 +219,36 @@ async function changedFilesOf(
       isCommentOnlyChange(path, change.before, change.after);
     return { path, commentOnly };
   });
+  return { files, changes };
+}
+
+/**
+ * What Clef reads about a bean it triages: the classes, the deciding class's description,
+ * the paths and the diff's size (read now if the comment-only check did not read it).
+ */
+async function triageSubject(
+  host: ApprovalHost,
+  input: {
+    readonly landing: LandingTree;
+    readonly policy: ApprovalPolicy;
+    readonly classification: Classification;
+    readonly changes: readonly FileChange[] | null;
+  },
+): Promise<TriageSubject> {
+  const { landing, classification } = input;
+  const changes =
+    input.changes ??
+    (landing.files.length === 0
+      ? null
+      : await host.changedFiles({ from: landing.onto, to: landing.sha }));
+  const decided = input.policy.classes.find((entry) => entry.name === classification.decidedBy);
+  return {
+    classes: classification.classes,
+    decidedBy: classification.decidedBy,
+    description: decided?.description ?? null,
+    files: landing.files,
+    size: changeSize(changes),
+  };
 }
 
 /** The route: the class's own, or triage's answer (reused while the change is the same). */
@@ -217,12 +258,13 @@ async function routeOf(
     readonly classification: Classification;
     readonly fingerprint: string;
     readonly task: string;
-    readonly files: readonly string[];
+    /** What Clef reads, gathered only when it is asked. */
+    readonly triage: () => Promise<TriageSubject>;
   },
 ): Promise<Routed> {
   const { classification } = input;
   if (classification.route !== 'triage')
-    return { route: classification.route, by: 'policy', probability: null };
+    return { route: classification.route, by: 'policy', probability: null, latencyMs: null };
   const previous = host.previous(input.task);
   if (
     previous !== null &&
@@ -233,32 +275,26 @@ async function routeOf(
       route: previous.receipt.route,
       by: previous.receipt.by,
       probability: previous.receipt.probability,
+      latencyMs: null,
     };
   const fallback: Route = classification.classes.some((name) => LOW_RISK.has(name))
     ? 'auto'
     : 'card';
   const answer = await askChoice(host.model, {
     id: 'route',
-    state: {
-      classes: classification.classes,
-      class: classification.decidedBy,
-      files: input.files.slice(0, TRIAGE_PATHS),
-      file_count: input.files.length,
-    },
-    instructions:
-      'Route this change to a source repository: auto lands it after its tests pass; card asks a person to approve it first.',
-    criteria: {
-      auto: 'The change is low risk: it cannot change behaviour a person must check (comments, docs, tests, a small isolated fix).',
-      card: 'The change can alter sensitive behaviour (security, data, money, public interfaces, configuration), so a person should approve it.',
-    },
+    ...triageQuestion(await input.triage()),
     fallback,
   });
   const chosen = answer.value.choice === 'auto' ? 'auto' : 'card';
-  if (answer.kind === 'fell-back') return { route: chosen, by: 'rules', probability: null };
+  const latencyMs = host.model === null ? null : answer.ms;
+  if (answer.kind === 'fell-back')
+    return { route: chosen, by: 'rules', probability: null, latencyMs };
   const probability = answer.value.probabilities[chosen] ?? answer.confidence;
-  if (chosen === 'card' && probability !== null && probability < CARD_MIN_PROBABILITY)
-    return { route: 'auto', by: 'clef', probability: answer.value.probabilities['auto'] ?? null };
-  return { route: chosen, by: 'clef', probability };
+  if (chosen === 'card' && probability !== null && probability < CARD_MIN_PROBABILITY) {
+    const auto = answer.value.probabilities['auto'] ?? null;
+    return { route: 'auto', by: 'clef', probability: auto, latencyMs };
+  }
+  return { route: chosen, by: 'clef', probability, latencyMs };
 }
 
 function receiptOf(
@@ -306,7 +342,7 @@ function awaitingRed(receipt: RouteReceipt): CheckResult {
       'check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.',
     ],
   });
-  return { ...red, held };
+  return { ...red, awaitsApproval: true, held };
 }
 
 function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly string[] {
@@ -323,13 +359,26 @@ function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly 
   return lines;
 }
 
-/** What a triage depends on: the classes, the files and the policy commit. */
+/**
+ * What a triage depends on: the classes, the policy file's text and the bean's own change (its
+ * pushed revision; in a race, which has no pushes, its files). Never the stalk commit the bean
+ * merges onto: a re-check of the same change on a newer stalk reuses the answer instead of
+ * asking Clef again. (The staging benchmark asked 60 to 66 times for 38 beans, and the same
+ * push of one bean got auto, auto, auto and card as its merge base moved.)
+ */
 function fingerprintOf(
   classification: Classification,
-  landing: LandingTree,
-  policySha: string | null,
+  change: {
+    readonly policy: ConfigFile | null;
+    readonly revision: string | null;
+    readonly files: readonly string[];
+  },
 ): string {
-  const text = JSON.stringify([classification.classes, landing.files.toSorted(), policySha]);
+  const text = JSON.stringify([
+    classification.classes,
+    change.policy === null ? null : [change.policy.path, change.policy.text],
+    change.revision ?? change.files.toSorted(),
+  ]);
   let hash = 0x811c9dc5;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);

@@ -115,9 +115,11 @@ import { buildSummary } from '../engine/summary';
 import { runView } from '../engine/view';
 import { readConfig } from '../config';
 import { GatewayError, UpstreamError } from '../errors';
-import type { ObjectStore, ReadCache, RefMemo } from '../repo/object-cache';
+import type { ObjectStore, ReadCache, RefMemo, RepoReader } from '../repo/object-cache';
 import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
+import type { ReadPurpose } from '../repo/cache-stats';
+import { readThroughPort } from '../repo/read-through-port';
 import type { Logger } from '../log';
 import { createLogger } from '../log';
 import type { RunnerPort } from '../runner/runner-client';
@@ -317,6 +319,8 @@ export class RunDO extends DurableObject<Env> {
   readonly #commitQueue = keyQueue();
   readonly #log: Logger;
   readonly #artifacts: ArtifactsPort;
+  /** `#artifacts` with reads by commit id through the read index: what jobs read with. */
+  readonly #indexedArtifacts: ArtifactsPort;
   /**
    * Whether this object drives a person's repository (REPOS namespace) rather than a race
    * (ARTIFACTS namespace). Known from storage on wake, or from `openRepoEngine`.
@@ -371,6 +375,9 @@ export class RunDO extends DurableObject<Env> {
     this.#artifacts = meteredArtifacts(
       selectedArtifactsPort(() => (this.#drivesRepository ? repositories : races)),
       () => this.#setMeter(countArtifactsOps(this.#meter, 1)),
+    );
+    this.#indexedArtifacts = readThroughPort(this.#artifacts, (repo, use) =>
+      this.#readIndexed(repo, use),
     );
     this.#runner = runnerPort((instance) =>
       meteredRunner(instance, env.RUNNER.getByName(instance), (call) => this.#recordRunner(call)),
@@ -1564,13 +1571,24 @@ export class RunDO extends DurableObject<Env> {
   }
 
   /** The read index for a cached reader, its hits and misses counted on the meter. */
-  #readCache(): ReadCache {
+  #readCache(purpose: ReadPurpose = 'demand'): ReadCache {
     return {
       store: this.#objects,
       refs: this.#refs,
       now: Date.now,
       count: (read) => this.#setMeter(recordCacheRead(this.#meter, read)),
+      purpose,
     };
+  }
+
+  /**
+   * Opens the run repo with a reader over the read index (`#indexedArtifacts`). Metered as one
+   * Artifacts operation per call, as the port it stands in for is.
+   */
+  #readIndexed<T>(repo: string, use: (reader: RepoReader) => Promise<T>): Promise<T> {
+    this.#setMeter(countArtifactsOps(this.#meter, 1));
+    const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
+    return withRepo(binding, repo, (handle) => use(cachedReader(handle, this.#readCache())));
   }
 
   #recordRunner(call: RunnerCall): void {
@@ -1690,9 +1708,9 @@ export class RunDO extends DurableObject<Env> {
   }
 
   /** The run repo's explorer, reading through the read index. */
-  #explorer(repo: string): RepoExplorer {
+  #explorer(repo: string, purpose: ReadPurpose = 'demand'): RepoExplorer {
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache()));
+    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache(purpose)));
   }
 
   /** A read of the run repo for the web app: expected failures become values. */
@@ -1745,7 +1763,7 @@ export class RunDO extends DurableObject<Env> {
     if (loaded === null) return;
     const { config, repos } = loaded.stored;
     try {
-      await this.#explorer(repos.repo.name).warm(
+      await this.#explorer(repos.repo.name, 'prefetch').warm(
         config.policy === 'queue' ? STALK_BRANCH : SPROUT_BRANCH,
       );
     } catch (error: unknown) {
@@ -1813,7 +1831,7 @@ export class RunDO extends DurableObject<Env> {
     try {
       outcome = await executeJob(spec, {
         run,
-        artifacts: this.#artifacts,
+        artifacts: this.#indexedArtifacts,
         runner: this.#runner,
         tokens: this.#tokens,
         log,
@@ -1830,7 +1848,7 @@ export class RunDO extends DurableObject<Env> {
           ? {
               approval: approvalJobHost({
                 sql: this.ctx.storage.sql,
-                artifacts: this.#artifacts,
+                artifacts: this.#indexedArtifacts,
                 repo: loaded.stored.repos.repo.name,
                 engine: config.continuous ? 'continuous' : 'race',
                 ai: optionalAi(this.env),
@@ -1856,9 +1874,10 @@ export class RunDO extends DurableObject<Env> {
     const sql = this.ctx.storage.sql;
     return {
       readChecks: async (sha) => {
-        if ((await this.#artifacts.commitMessage(repo, sha)) === null)
+        const reads = this.#indexedArtifacts;
+        if ((await reads.commitMessage(repo, sha)) === null)
           throw new UpstreamError(`commit ${sha} is not readable yet`, true);
-        return readChecksFile((path) => this.#artifacts.readFile(repo, sha, path));
+        return readChecksFile((path) => reads.readFile(repo, sha, path));
       },
       saveLandingTree: (tree) => saveLandingTree(sql, tree, Date.now()),
       landingTree: (sha) => readLandingTree(sql, sha),

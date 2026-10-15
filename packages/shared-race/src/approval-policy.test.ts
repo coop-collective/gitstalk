@@ -116,3 +116,85 @@ describe('classifyChange', () => {
     expect(classifyChange(EMPTY_POLICY, code('.gitstalk/backlog.md')).route).toBe('auto');
   });
 });
+
+describe('the fallback class', () => {
+  const FALLBACK = `${SPEC}  - name: rest
+    match: { otherwise: true }
+    route: card
+    reviewers: ["@lead"]
+`;
+  const read = policy(FALLBACK);
+  const withoutFallback: ApprovalPolicy = {
+    ...read,
+    classes: read.classes.filter((entry) => entry.match.kind !== 'otherwise'),
+  };
+  const anyPath = fc.constantFrom(
+    'src/app.ts',
+    'src/api/a.ts',
+    'src/auth/x.ts',
+    'src/db/migrations/1.sql',
+    'README.md',
+    'test/a.test.ts',
+    'pnpm-lock.yaml',
+    '.gitstalk/policy.yml',
+    '.gitstalk/backlog.md',
+  );
+  const anyChange = fc.array(fc.record({ path: anyPath, commentOnly: fc.boolean() }), {
+    maxLength: 5,
+  });
+  const anyOrigin = fc.constantFrom<'agent' | 'decider'>('agent', 'decider');
+
+  it('applies when no other class matched', () => {
+    expect(classifyChange(read, code('src/app.ts'))).toMatchObject({
+      route: 'card',
+      decidedBy: 'rest',
+      classes: ['rest'],
+      reviewers: ['@lead'],
+    });
+  });
+
+  it('never applies when another class matched', () => {
+    fc.assert(
+      fc.property(anyChange, anyOrigin, (files, origin) => {
+        const plain = classifyChange(withoutFallback, files, origin);
+        const result = classifyChange(read, files, origin);
+        const otherMatched = plain.decidedBy !== null;
+        if (otherMatched) expect(result).toEqual(plain);
+        else expect([null, 'rest']).toContain(result.decidedBy);
+      }),
+    );
+  });
+
+  it('applies to every change no class matched with a file outside the configuration directory', () => {
+    fc.assert(
+      fc.property(anyChange, (files) => {
+        const plain = classifyChange(withoutFallback, files, 'decider');
+        const result = classifyChange(read, files, 'decider');
+        const isOutsideConfig = files.some((file) => !file.path.startsWith('.gitstalk/'));
+        if (plain.decidedBy === null && isOutsideConfig)
+          expect(result).toMatchObject({ route: 'card', decidedBy: 'rest' });
+      }),
+    );
+  });
+
+  it('never wins over an agent’s policy change', () => {
+    fc.assert(
+      fc.property(anyChange, (files) => {
+        const result = classifyChange(read, [...files, ...code('.gitstalk/policy.yml')]);
+        expect(result).toMatchObject({ route: 'card', decidedBy: 'policy-change' });
+      }),
+    );
+  });
+
+  it('leaves a decider’s own policy save and the backlog’s ticks to land', () => {
+    expect(classifyChange(read, code('.gitstalk/policy.yml'), 'decider')).toMatchObject({
+      route: 'auto',
+      decidedBy: null,
+    });
+    expect(classifyChange(read, code('.gitstalk/backlog.md')).route).toBe('auto');
+  });
+
+  it('routes nothing for an empty change', () => {
+    expect(classifyChange(read, [])).toMatchObject({ route: 'auto', decidedBy: null });
+  });
+});

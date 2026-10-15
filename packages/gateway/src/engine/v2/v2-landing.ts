@@ -1202,12 +1202,26 @@ function landed(step: V2Step, flow: LandingFlow, landing: { sha: Sha; files: str
 }
 
 /**
+ * A continuous engine's bean the approval rules hold waits for a person, not for a fix: the
+ * hold spends no rework round, since its author's next push or the approval re-submits it. A
+ * race keeps counting, because nobody pushes there and the rounds are what end a bean nobody
+ * approves.
+ */
+function isHeldForApproval(step: V2Step, failure: Failure): boolean {
+  return (
+    step.ctx.env.config.continuous === true &&
+    failure.kind === 'red' &&
+    failure.red.awaitsApproval === true
+  );
+}
+
+/**
  * `land`'s loop after an attempt that did not land: back to the author, or drop. The v2.5
  * bounds (`v2-bounds`) come first: no reset of the rounds gets past them.
  */
 function attemptFailed(step: V2Step, flow: LandingFlow, failure: Failure): void {
   const { ctx, state } = step;
-  flow.rounds += 1;
+  if (!isHeldForApproval(step, failure)) flow.rounds += 1;
   const bound = boundedEnd(step, flow.task, {
     kind: failure.kind,
     files: failure.kind === 'red' ? (failure.red.failingFiles ?? []) : failure.files,
