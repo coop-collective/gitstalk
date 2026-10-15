@@ -9,7 +9,7 @@ Code: `packages/shared-race/src/policy-file.ts` (file format, parse, JSON Schema
 ```yaml
 # yaml-language-server: $schema=https://gitstalk.dev/schemas/policy.json
 groups:
-  security: ["@alice", "@bob"]
+  security: ['@alice', '@bob']
 classes:
   - name: comment-only
     match: { syntax: comments-and-whitespace }
@@ -18,15 +18,15 @@ classes:
     match: { class: docs-only }
     route: auto
   - name: migration
-    match: { paths: ["src/db/migrations/**"] }
+    match: { paths: ['src/db/migrations/**'] }
     route: card
-    reviewers: ["@data"]
+    reviewers: ['@data']
   - name: protected
-    match: { paths: ["src/auth/**"] }
+    match: { paths: ['src/auth/**'] }
     route: card
-    writers: ["@security"]
+    writers: ['@security']
   - name: api
-    match: { paths: ["src/api/**"] }
+    match: { paths: ['src/api/**'] }
     route: triage
   - name: everything-else
     match: { otherwise: true }
@@ -79,7 +79,7 @@ Two beans can each pass their tests, merge with no conflict and still break toge
 - **What Clef reads, in addition** (`approval/triage-question.ts`): `intent`, the bean's own (its first push's commit message, `PushBean.intent`), and `message`, its latest push's whole commit message without `Intent-checked:` trailers when it says more than the intent (at most 600 characters). And `landed_since_fork`, the beans that landed on the sprout after the bean's fork point (`TaskState.pushedBase`, else its base), newest first, at most 8 (`approval/landed-since-fork.ts`), each with its intent, message, files, `shared_files` and how the two changes connect (`approval/bean-links.ts`, read from the two diffs, the landed bean's being its sprout commit against that commit's parent):
   - `this_imports_theirs` / `theirs_imports_this`: `from -> to`, a file one bean changed imports a file the other changed (relative imports, resolved like `repo/import-closure.ts`);
   - `they_changed_this_uses` / `this_changed_they_use`: names (a function, class, constant or type) around one bean's changed lines that appear on the other's new lines.
-  Only beans the bean's author has not marked as checked are listed. A repository engine only: a race has no pushed intents and lists none. With no such beans, the question is exactly the one above, so the recorded evaluation (`triage-eval/requests.jsonl`) is unchanged. The links are a heuristic (code files by extension, declarations by pattern): they point Clef at a contract, they never decide.
+    Only beans the bean's author has not marked as checked are listed. A repository engine only: a race has no pushed intents and lists none. With no such beans, the question is exactly the one above, so the recorded evaluation (`triage-eval/requests.jsonl`) is unchanged. The links are a heuristic: one module per language family in `approval/imports/` (the `Language` interface in `language.ts`, registered by extension in `languages.ts`) reads a file's imports and the name a line declares from its text alone, never a build system. Built for JavaScript and TypeScript, Python, Ruby, Java, Kotlin, C#, Swift, Go, Rust, C and C++, and PHP: relative imports exactly, module or namespace imports by path suffix, same-package or same-module files by a type or file name used (Java, Kotlin, Go, C#, Swift), and header to source pairing (C and C++). Each module's header lists its gaps. They point Clef at a contract; they never decide.
 - **One yes-or-no `clash.<n>` question per landed bean,** in the same call as `route` (`askQuestions`), for at most 4 beans, the most connected first (a link counts twice a shared file, then newest). Each asks whether this bean and that one disagree about something both rely on (a unit, a format, a meaning, a return value or a constant), so each passes its own tests while together they break; overlap alone is not a clash. `route` keeps its two choices, `auto` and `card`. Deciding: a `card` Clef is sure of (at least `CARD_MIN_PROBABILITY`, 0.65) wins, and a person decides; else every clash at least `RECHECK_MIN_PROBABILITY` (0.5) is a recheck against those beans; else the bean lands on its tests. When the call fails or Clef is not bound, the rule decides as before (`auto` or `card`), never `recheck`. (The first build, 2026-10-15, offered `recheck` as a third route choice and read intents only; on staging it chose recheck for the shipping-fee pair at p 0.71. A narrow question per pair, with links and messages, is meant to answer more surely.)
 - **Measured (Clef Flash, 2026-10-15; answers were identical across repeats).** The shipping-fee pair's clash question: 0.42 from intents alone, **0.66 with the links**, 0.51 with code snippets added (worse; not built). Compatible pairs with the same links ("Document that price() returns cents", "Round price() to whole cents") 0.09 to 0.11, an unrelated bean 0.08. A shorter wording raised the clash to 0.70 but a control to 0.32, so the deployed wording separates better. Hence the threshold 0.5, not the card's 0.65: a wrong recheck costs the author agent a look, not a person's time. One pair and three controls are not a calibration: add labelled pairs to `triage-eval/` before trusting the number.
 - **Recheck goes to the author, not to a person.** The gate answers an ordinary red (`guardRed`, one failing "test" `recheck against beans that landed after it forked` in `.gitstalk/policy.yml`, not `awaitsApproval`), so the bean goes back to its author like any red and spends a rework round. The red lists each landed bean with its intent, shared files and links (`imports: …`, `it changed, you use: price`), and says what to do: rebase, read them, fix the bean if they disagree, and push again with a trailer naming what was checked, `Intent-checked: price-dollars` (comma or space separated; `bean/` prefixes allowed). A bean the head's trailers name is no longer listed, so Clef asks only about beans the author has not looked at; a bean that lands after the author's check is new and can be asked about. The bean's tests still decide once it is pushed, and Clef can still pick `card` for a real risk.
