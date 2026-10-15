@@ -14,21 +14,41 @@ import type { EventsTail } from '@gitstalk/shared-ask/ask/plan-context';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { RepositoryRecord } from '../repositories/registry-client';
 
+/**
+ * What of a repository's record decides whether its reads are shared, and under which epoch:
+ * its visibility, and `updated_at`, which the registry moves on every change to the record
+ * (visibility, name, owner, archive, settings).
+ */
+export type CacheScope = Pick<RepositoryRecord, 'visibility' | 'updated_at'>;
+
 /** A public repository's engine: the only key the shared caches accept. */
 export class PublicEngine {
   readonly engine: RunId;
+  /**
+   * The record's cache epoch (docs/claude-opus/35-caching.md §4.6): part of every edge object
+   * key, so any change to the record (a visibility flip, a transfer, a takedown edit by an
+   * operator) leaves every copy cached before it unreachable in every layer.
+   */
+  readonly epoch: string;
 
-  private constructor(engine: RunId) {
+  private constructor(engine: RunId, epoch: string) {
     this.engine = engine;
+    this.epoch = epoch;
   }
 
   /**
    * The engine of a record the viewer's access check returned, when every viewer may read
    * it; null for a private or internal repository, which is never cached.
    */
-  static of(record: Pick<RepositoryRecord, 'visibility'>, engine: RunId): PublicEngine | null {
-    return record.visibility === 'public' ? new PublicEngine(engine) : null;
+  static of(record: CacheScope, engine: RunId): PublicEngine | null {
+    return record.visibility === 'public' ? new PublicEngine(engine, epochOf(record)) : null;
   }
+}
+
+/** `updated_at` as a key segment: its letters and digits (`20261014T120000000Z`). */
+function epochOf(record: CacheScope): string {
+  const compact = record.updated_at.replace(/[^0-9A-Za-z]/g, '');
+  return compact === '' ? '0' : compact;
 }
 
 export type EventCacheLimits = {

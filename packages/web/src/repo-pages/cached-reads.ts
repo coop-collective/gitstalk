@@ -10,11 +10,11 @@ import { env } from 'cloudflare:workers';
 
 import type { RunId } from '@gitstalk/shared-race/ids';
 
-import type { RepositoryRecord } from '../repositories/registry-client';
 import { publicObjects } from '../edge/public-objects';
 import { FILE_CODEC, TREE_CODEC } from '../edge/stored-objects';
 import type { SharedReads } from './engine-reads';
 import { engineReads, readFile } from './engine-reads';
+import type { CacheScope } from './event-cache';
 import { createEventCache, PublicEngine } from './event-cache';
 
 /**
@@ -28,10 +28,7 @@ const PUBLIC_EVENT_LOGS = createEventCache({ maxEngines: 32, maxEvents: 40_000 }
  * The shared reads of a repository whose record the viewer's access check returned: null for a
  * private or internal repository, which reads everything fresh on every request.
  */
-export function sharedReadsFor(
-  record: Pick<RepositoryRecord, 'visibility'>,
-  engine: RunId,
-): SharedReads | null {
+export function sharedReadsFor(record: CacheScope, engine: RunId): SharedReads | null {
   const shared = PublicEngine.of(record, engine);
   if (shared === null) return null;
   return {

@@ -124,6 +124,18 @@ const GreenPromote = event('green.promote', {
   trunk_idx: z.number().int().optional(),
   tasks: z.array(TaskId),
 });
+/**
+ * A confirmed red audit of the stalk: it goes back to `sha` (the newest commit a full suite
+ * passed) and the beans promoted since (`tasks`) are landed again.
+ */
+const GreenDemote = event('green.demote', {
+  sha: Sha,
+  trunk_idx: z.number().int().optional(),
+  from_idx: z.number().int().optional(),
+  audit_sha: Sha.optional(),
+  failing: z.array(z.string()).default([]),
+  tasks: z.array(TaskId).default([]),
+});
 const MergeConflict = event('merge.conflict', { task: NullableTask, files: Paths });
 const ReworkStart = event('rework.start', {
   task: NullableTask,
@@ -328,6 +340,7 @@ export const RaceEvent = z.discriminatedUnion('type', [
   CiEnd,
   Land,
   GreenPromote,
+  GreenDemote,
   MergeConflict,
   ReworkStart,
   RaceEnd,

@@ -5,7 +5,7 @@
  */
 import type { User } from '../auth/user';
 import { lookupRepository } from '../repositories/flows';
-import type { RegistryClient } from '../repositories/registry-client';
+import type { RegistryClient, RepositoryRecord } from '../repositories/registry-client';
 import type { ChangeReads, RepoAccess } from './changes-api';
 
 export type RepoAccessInput = {
@@ -15,7 +15,7 @@ export type RepoAccessInput = {
   readonly viewer: User | null;
   readonly registry: RegistryClient;
   /** The engine's reads, or null when the record's engine id is unusable. */
-  readonly readsFor: (engineId: string) => ChangeReads | null;
+  readonly readsFor: (record: RepositoryRecord) => ChangeReads | null;
 };
 
 export async function repoAccess(input: RepoAccessInput): Promise<RepoAccess> {
@@ -26,5 +26,6 @@ export async function repoAccess(input: RepoAccessInput): Promise<RepoAccess> {
     input.registry,
   );
   if (found.kind === 'not-found') return { kind: 'not-found' };
-  return { kind: 'found', reads: input.readsFor(found.record.engine_id) };
+  const { record } = found;
+  return { kind: 'found', visibility: record.visibility, reads: input.readsFor(record) };
 }

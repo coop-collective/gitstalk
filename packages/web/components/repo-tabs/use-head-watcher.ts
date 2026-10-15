@@ -13,6 +13,9 @@
  * Every event in the tail is newer than the page, so the whole tail is checked on every change:
  * a page restored from the router cache (with an older seq) refreshes at once if its heads
  * moved meanwhile. A refresh renders a newer seq, which starts a new tail, so it cannot loop.
+ *
+ * A refresh after a head move waits a random 0–1.5 s, so the viewers of a busy public
+ * repository do not all render it again in the same instant after each landing.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -23,13 +26,10 @@ import type { RepoScope } from '../../src/changes/change-feed';
 import { changeFeedPaths, isEventsAnswer, parseEventBatch } from '../../src/changes/change-feed';
 import { fetchJson } from '../../src/query/fetch-json';
 import type { LineHeads, Refresh } from '../../src/query/invalidation';
-import { staleKeysFor } from '../../src/query/invalidation';
+import { refreshDelay, staleKeysFor } from '../../src/query/invalidation';
 import { qk } from '../../src/query/keys';
 import { freshness } from '../../src/query/policy';
-import { useLiveFeed } from '../../src/query/use-live-feed';
-
-/** History's refresh for activity that moves no head waits this long, to batch a burst. */
-export const ACTIVITY_REFRESH_MS = 2000;
+import { FOLLOWED_BY_FEED, useLiveFeed } from '../../src/query/use-live-feed';
 
 export type HeadWatch = {
   readonly scope: RepoScope;
@@ -70,6 +70,7 @@ export function useHeadWatcher(watch: HeadWatch): void {
     // Nothing has happened since the render until the feed says so.
     initialData: [],
     ...freshness('appendOnly', { live: feed.status === 'live' }),
+    ...FOLLOWED_BY_FEED,
   });
   const activity = watch.activity === true;
   const refresh = useMemo(
@@ -85,15 +86,12 @@ export function useHeadWatcher(watch: HeadWatch): void {
   useRefresh(refresh);
 }
 
-/** Renders the page again when asked: at once, or after `ACTIVITY_REFRESH_MS`. */
+/** Renders the page again when asked, after `refreshDelay`. */
 function useRefresh(refresh: Refresh): void {
   const router = useRouter();
   useEffect(() => {
     if (refresh === 'none') return undefined;
-    const timer = setTimeout(
-      () => startTransition(() => router.refresh()),
-      refresh === 'now' ? 0 : ACTIVITY_REFRESH_MS,
-    );
+    const timer = setTimeout(() => startTransition(() => router.refresh()), refreshDelay(refresh));
     return () => clearTimeout(timer);
   }, [refresh, router]);
 }

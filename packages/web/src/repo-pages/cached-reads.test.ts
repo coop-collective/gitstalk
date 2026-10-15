@@ -52,6 +52,7 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 const SHA = Sha.parse('c'.repeat(40));
+const UPDATED_AT = '2026-10-14T12:00:00.000Z';
 let engines = 0;
 /** A fresh engine per test: the isolate layer is module state, shared across tests. */
 const freshEngine = () => RunId.parse(`enginepublic${(engines += 1)}`);
@@ -67,12 +68,18 @@ beforeEach(() => {
 
 describe('which repositories share reads', () => {
   it('shares nothing for a private or an internal repository', () => {
-    expect(sharedReadsFor({ visibility: 'private' }, freshEngine())).toBeNull();
-    expect(sharedReadsFor({ visibility: 'internal' }, freshEngine())).toBeNull();
+    expect(
+      sharedReadsFor({ visibility: 'private', updated_at: UPDATED_AT }, freshEngine()),
+    ).toBeNull();
+    expect(
+      sharedReadsFor({ visibility: 'internal', updated_at: UPDATED_AT }, freshEngine()),
+    ).toBeNull();
   });
 
   it('shares a public repository’s reads', () => {
-    expect(sharedReadsFor({ visibility: 'public' }, freshEngine())).not.toBeNull();
+    expect(
+      sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine()),
+    ).not.toBeNull();
   });
 });
 
@@ -80,13 +87,19 @@ describe('reads at a commit', () => {
   it('reads a tree from the gateway once, then from this isolate on a later request', async () => {
     const engine = freshEngine();
     // Two requests: each builds its shared reads from the record, as `repositoryTab` does.
-    const first = await sharedReadsFor({ visibility: 'public' }, engine)?.tree(SHA);
-    const second = await sharedReadsFor({ visibility: 'public' }, engine)?.tree(SHA);
+    const first = await sharedReadsFor(
+      { visibility: 'public', updated_at: UPDATED_AT },
+      engine,
+    )?.tree(SHA);
+    const second = await sharedReadsFor(
+      { visibility: 'public', updated_at: UPDATED_AT },
+      engine,
+    )?.tree(SHA);
     expect(first).toEqual({ ref: SHA, sha: SHA, files: [{ path: 'a.ts', size: 0 }] });
     expect(second).toEqual(first);
     expect(platform.calls).toEqual([{ method: 'repoTree', args: [engine, SHA, '', true] }]);
     await Promise.all(platform.pending);
-    expect([...platform.stored.keys()]).toEqual([`v1:${engine}:tree:${SHA}`]);
+    expect([...platform.stored.keys()]).toEqual([`v1:${engine}:20261014T120000000Z:tree:${SHA}`]);
   });
 
   it('answers a file the commit does not have as null, and does not keep it', async () => {
@@ -94,7 +107,7 @@ describe('reads at a commit', () => {
       ok: false,
       error: { code: 'not_found', status: 404, message: 'missing' },
     });
-    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
+    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
     expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
     expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
     expect(platform.calls.map((call) => call.method)).toEqual(['repoFile', 'repoFile']);
@@ -107,14 +120,14 @@ describe('reads at a commit', () => {
       ok: false,
       error: { code: 'unavailable', status: 503, message: 'busy' },
     });
-    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
+    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
     await expect(shared?.file(SHA, 'a.ts')).rejects.toThrow(/busy/);
     await Promise.all(platform.pending);
     expect(platform.stored.size).toBe(0);
   });
 
   it('keeps a file a public repository has, by commit and path', async () => {
-    const shared = sharedReadsFor({ visibility: 'public' }, freshEngine());
+    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
     expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
     expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
     expect(platform.calls).toHaveLength(1);
@@ -135,8 +148,12 @@ describe('a public repository’s event log', () => {
       return Promise.resolve({ events, last: 2 });
     };
     // Two requests: each builds its shared reads from the record, as `repositoryTab` does.
-    await sharedReadsFor({ visibility: 'public' }, engine)?.events(readTail);
-    await sharedReadsFor({ visibility: 'public' }, engine)?.events(readTail);
+    await sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, engine)?.events(
+      readTail,
+    );
+    await sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, engine)?.events(
+      readTail,
+    );
     expect(afters).toEqual([0, 1]);
   });
 });

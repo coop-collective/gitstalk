@@ -3,7 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import { parseRaceEvents } from '@gitstalk/shared-ask/race/race-events';
 
-import { headMoves, staleKeysFor } from './invalidation';
+import { LINE_MOVE_TYPES } from '@gitstalk/shared-race/events';
+
+import {
+  ACTIVITY_REFRESH_MS,
+  HEAD_REFRESH_JITTER_MS,
+  headMoves,
+  refreshDelay,
+  staleKeysFor,
+} from './invalidation';
 import { qk } from './keys';
 
 const keys = qk.repo('u1', 'acme', 'web');
@@ -49,8 +57,48 @@ const ciEnd = (sha: string) => ({
   slot: 0,
 });
 const raceSetup = { type: 'race.setup', policy: 'v2' };
+const demote = (sha: string, tasks: readonly string[] = []) => ({
+  type: 'green.demote',
+  sha,
+  trunk_idx: 1,
+  from_idx: 3,
+  audit_sha: SHA_C,
+  audit_idx: 3,
+  failing: ['a.test.ts'],
+  tasks,
+});
+const decisionRequest = (task: string) => ({
+  type: 'decision.request',
+  card: 'D001',
+  task,
+  against: ['other'],
+  specs: {},
+  failing: [],
+  attempts: 1,
+});
+
+describe('the stalk moving back', () => {
+  it('refreshes Code on the stalk and History when an audit demotes the stalk', () => {
+    const heads = { stalk: SHA_B, sprout: null };
+    expect(staleKeysFor(events(demote(SHA_A)), keys, { heads }).refresh).toBe('now');
+    expect(headMoves(events(demote(SHA_A)))).toEqual([{ line: 'stalk', sha: SHA_A }]);
+  });
+
+  it('invalidates the pushed beans the demotion lands again', () => {
+    expect(staleKeysFor(events(demote(SHA_A, ['fix'])), keys).invalidate).toEqual([keys.pushed()]);
+  });
+
+  it('follows every line move the gateway knows but the start', () => {
+    const watched = LINE_MOVE_TYPES.filter((type) => type !== 'race.start');
+    expect(watched).toEqual(['land', 'revert', 'sprout.reset', 'green.promote', 'green.demote']);
+  });
+});
 
 describe('what fresh events make stale', () => {
+  it('invalidates the pushed beans when a bean waits for a decision', () => {
+    expect(staleKeysFor(events(decisionRequest('fix')), keys).invalidate).toEqual([keys.pushed()]);
+  });
+
   it('invalidates the pushed beans when a bean moves', () => {
     expect(staleKeysFor(events(commit('fix', SHA_A)), keys).invalidate).toEqual([keys.pushed()]);
   });
@@ -127,5 +175,17 @@ describe('head moves', () => {
       requeued: [],
     };
     expect(headMoves(events(reset))).toEqual([{ line: 'sprout', sha: SHA_C }]);
+  });
+});
+
+describe('when a refresh happens', () => {
+  it('spreads refreshes after a head move over the jitter window', () => {
+    expect(refreshDelay('now', () => 0)).toBe(0);
+    expect(refreshDelay('now', () => 0.5)).toBe(HEAD_REFRESH_JITTER_MS / 2);
+    expect(refreshDelay('now', () => 0.9999)).toBeLessThan(HEAD_REFRESH_JITTER_MS);
+  });
+
+  it('batches validation activity', () => {
+    expect(refreshDelay('debounced', () => 0)).toBe(ACTIVITY_REFRESH_MS);
   });
 });

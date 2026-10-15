@@ -10,7 +10,8 @@
  * 4. `gateway`: the read itself (the gateway's own SQLite object cache sits behind it).
  *
  * A hit fills the layers above it; a gateway read fills all three, with `waitUntil` for the
- * colo and KV writes. Only a successful read is stored: a "not found" (null) is answered but
+ * colo and KV writes. Concurrent reads of one key in an isolate share one read through the
+ * layers (the burst after a landing, when every open page re-renders at once). Only a successful read is stored: a "not found" (null) is answered but
  * never kept, and a failed read throws. A layer that fails (a full KV, a broken cache) is
  * logged and read as a miss; the page never fails because of the cache.
  *
@@ -77,6 +78,7 @@ export type EdgeObjectCache = {
 
 export function createEdgeObjectCache(deps: EdgeObjectCacheDeps): EdgeObjectCache {
   const isolate = lruByBytes(deps.isolateBytes);
+  const flights = new Map<string, Promise<unknown>>();
   const counts = { isolate: 0, colo: 0, kv: 0, misses: 0, writes: 0 };
   const now = deps.now ?? Date.now;
   const layers = storedLayers(deps, () => {
@@ -92,7 +94,10 @@ export function createEdgeObjectCache(deps: EdgeObjectCacheDeps): EdgeObjectCach
       if (codec.kind !== object.kind)
         throw new TypeError(`a ${codec.kind} codec cannot read a ${object.kind}`);
       const started = now();
-      const answer = await readThrough({ engine, object, codec, load, isolate, layers });
+      const keys = await layers.keys(engine, object);
+      const answer = await coalesced(flights, keys.colo, codec, () =>
+        readThrough({ keys, codec, load, isolate, layers }),
+      );
       if (answer.layer === 'gateway') counts.misses += 1;
       else counts[answer.layer] += 1;
       log.info('edge.read', {
@@ -109,17 +114,46 @@ export function createEdgeObjectCache(deps: EdgeObjectCacheDeps): EdgeObjectCach
 
 type Isolate = ReturnType<typeof lruByBytes>;
 type Layers = ReturnType<typeof storedLayers>;
+type Keys = { readonly colo: string; readonly kv: string };
+
+/**
+ * One read per key at a time in this isolate: a read that finds another in flight waits for
+ * it and takes its value (answered as an isolate hit). A follower whose leader found nothing
+ * or failed reads for itself, so a passing failure is never shared.
+ */
+async function coalesced<T>(
+  flights: Map<string, Promise<unknown>>,
+  key: string,
+  codec: EdgeCodec<NonNullable<T>>,
+  read: () => Promise<EdgeAnswer<T>>,
+): Promise<EdgeAnswer<T>> {
+  const pending = flights.get(key);
+  if (pending !== undefined) {
+    const value = await pending;
+    if (codec.holds(value)) return { value, layer: 'isolate' };
+  }
+  const started = read();
+  // The leader's own caller sees its failure; followers see null and read for themselves.
+  const flight = started.then(
+    (answer) => answer.value,
+    () => null,
+  );
+  flights.set(key, flight);
+  try {
+    return await started;
+  } finally {
+    if (flights.get(key) === flight) flights.delete(key);
+  }
+}
 
 async function readThrough<T>(input: {
-  readonly engine: PublicEngine;
-  readonly object: EdgeObject;
+  readonly keys: Keys;
   readonly codec: EdgeCodec<NonNullable<T>>;
   readonly load: () => Promise<T>;
   readonly isolate: Isolate;
   readonly layers: Layers;
 }): Promise<EdgeAnswer<T>> {
-  const { engine, object, codec, isolate, layers } = input;
-  const keys = await layers.keys(engine, object);
+  const { keys, codec, isolate, layers } = input;
   const held = isolate.get(keys.colo);
   if (held !== undefined && codec.holds(held)) return { value: held, layer: 'isolate' };
   const fromColo = await layers.readColo(keys.colo, codec);
@@ -169,10 +203,13 @@ function storedLayers(deps: EdgeObjectCacheDeps, wrote: () => void) {
     wrote();
   };
   return {
-    keys: async (engine: PublicEngine, object: EdgeObject) => ({
-      colo: coloKey(deps.origin(), engine, object),
-      kv: await kvKey(engine, object),
-    }),
+    keys: async (engine: PublicEngine, object: EdgeObject): Promise<Keys> => {
+      const [colo, kv] = await Promise.all([
+        coloKey(deps.origin(), engine, object),
+        kvKey(engine, object),
+      ]);
+      return { colo, kv };
+    },
     readColo: <T>(key: string, codec: EdgeCodec<T>) => guarded('colo', readColo(key, codec)),
     readKv: <T>(key: string, codec: EdgeCodec<T>) => guarded('kv', readKv(key, codec)),
     /** Writes the copy to the named layers after the response; a failed write is logged. */

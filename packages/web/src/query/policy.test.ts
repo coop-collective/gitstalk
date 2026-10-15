@@ -27,28 +27,24 @@ describe('the freshness policy', () => {
     });
   });
 
-  it.each(['immutable', 'appendOnly'] as const)(
-    'persists %s data of a public repository only',
-    (kind) => {
-      const persisted = (visibility?: Visibility) =>
-        freshness(kind, visibility === undefined ? {} : { visibility }).meta['persist'];
-      expect(persisted('public')).toBe(true);
-      expect(persisted('private')).toBe(false);
-      expect(persisted('internal')).toBe(false);
-      expect(persisted()).toBe(false);
-    },
-  );
+  it('persists immutable data of a public repository only', () => {
+    const persisted = (visibility?: Visibility) =>
+      freshness('immutable', visibility === undefined ? {} : { visibility }).meta['persist'];
+    expect(persisted('public')).toBe(true);
+    expect(persisted('private')).toBe(false);
+    expect(persisted('internal')).toBe(false);
+    expect(persisted()).toBe(false);
+  });
 
-  it('never persists repository state that moves, or the viewer’s own data', () => {
-    for (const kind of ['mutable', 'perViewer'] as const)
+  it('never persists the event log, repository state that moves, or the viewer’s own data', () => {
+    const kinds: readonly FreshnessClass[] = ['appendOnly', 'mutable', 'perViewer'];
+    for (const kind of kinds)
       expect(freshness(kind, { visibility: 'public' }).meta['persist']).toBeUndefined();
   });
 
   it('keeps a persisted query in memory at least as long as its stored copy lives', () => {
-    const kinds: readonly FreshnessClass[] = ['immutable', 'appendOnly'];
-    for (const kind of kinds)
-      expect(freshness(kind, { visibility: 'public' }).gcTime).toBeGreaterThanOrEqual(
-        PERSIST_MAX_AGE_MS,
-      );
+    expect(freshness('immutable', { visibility: 'public' }).gcTime).toBeGreaterThanOrEqual(
+      PERSIST_MAX_AGE_MS,
+    );
   });
 });

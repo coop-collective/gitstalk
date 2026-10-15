@@ -1,7 +1,9 @@
 /**
  * Signing out (`POST /auth/signout`): a same-origin form from a live session with its CSRF
  * token; this browser's session row is revoked (or every one, `everywhere=1`), the session
- * cookie is cleared and the browser lands on the sign-in page. The ports keep it testable.
+ * cookie is cleared, the browser's HTTP cache for this origin is emptied (`Clear-Site-Data`, so
+ * no answer kept while signed in is reused after) and the browser lands on the sign-in page.
+ * The ports keep it testable.
  */
 import { SESSION_COOKIE, clearCookie } from '@gitstalk/shared-identity/cookies';
 import type { WebSession } from '@gitstalk/shared-identity/sessions';
@@ -18,6 +20,12 @@ export type SignOutPorts = {
   ) => Promise<void>;
 };
 
+/**
+ * Only the HTTP cache (and the back/forward cache): `"cookies"` would also drop other sign-ins
+ * on this site, and `"storage"` the per-tab conveniences; the session cookie is cleared on its own.
+ */
+const CLEAR_CACHE = '"cache"';
+
 export async function signOut(
   request: Request,
   ports: SignOutPorts,
@@ -33,5 +41,7 @@ export async function signOut(
     { action: everywhere ? 'session.signout_all' : 'session.signout', userId: session.user.id },
     now,
   );
-  return seeOther(request, SIGNED_OUT_PATH, [clearCookie(SESSION_COOKIE)]);
+  const response = seeOther(request, SIGNED_OUT_PATH, [clearCookie(SESSION_COOKIE)]);
+  response.headers.set('clear-site-data', CLEAR_CACHE);
+  return response;
 }

@@ -39,8 +39,9 @@ export async function platformAdminOf(request: Request): Promise<User | null> {
  * What the run routes (`/api/runs/<run>/…`) serve of this engine to the requester. A
  * repository's engine is a run too, and its canvas, Ask page and decision cards stream through
  * these routes, so anyone who may read the repository gets it, with the repository's
- * visibility (which decides whether its objects may be edge-cached); a benchmark race is the
- * admin area's. Everyone else is refused (answer them with a 404).
+ * visibility and cache epoch (which decide whether, and under which keys, its objects may be
+ * edge-cached); a benchmark race is the admin area's. Everyone else is refused (answer them
+ * with a 404).
  */
 export async function runAccess(request: Request, run: string): Promise<RunAccess> {
   const user = await getUser(request);
@@ -49,8 +50,10 @@ export async function runAccess(request: Request, run: string): Promise<RunAcces
     viewer: user?.id ?? null,
     action: 'read',
   });
-  if (verdict.kind === 'repository')
-    return { kind: 'repository', visibility: verdict.repository.visibility };
+  if (verdict.kind === 'repository') {
+    const { visibility, updated_at } = verdict.repository;
+    return { kind: 'repository', repository: { visibility, updated_at } };
+  }
   if (verdict.kind === 'race' && isPlatformAdmin(user, configuredPlatformAdmins()))
     return { kind: 'race' };
   return { kind: 'refused' };

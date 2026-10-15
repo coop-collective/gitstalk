@@ -9,8 +9,11 @@ import { EDGE_CACHE_NAME } from './cache-keys';
 import type { EdgeObjectCache } from './object-cache';
 import { createEdgeObjectCache } from './object-cache';
 
-/** Beside the event logs (tens of MB at most) in a 128 MB isolate. */
-const ISOLATE_BYTES = 16 * 1024 * 1024;
+/**
+ * Bytes of JSON the isolate layer holds. It holds the parsed objects, which take several times
+ * their JSON in heap, beside the event logs (tens of MB at most) in a 128 MB isolate.
+ */
+const ISOLATE_BYTES = 4 * 1024 * 1024;
 
 export const publicObjects: EdgeObjectCache = createEdgeObjectCache({
   origin: () => env.WEB_URL,

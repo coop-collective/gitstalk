@@ -2,12 +2,15 @@
  * A job's log over HTTP, for the log route: Server-Sent Events while the job runs (`lines`
  * with the new lines and the last line's number as the event id, `job` with the steps'
  * states, `end` once every line is in, `failed` when the control plane refuses), resumed from
- * `Last-Event-ID` or `?after=`; or, with `?download=1`, the whole log as plain text (kept by
- * the browser for good once the job has finished; the stream is never kept). The caller has
- * already checked who may read the repository.
+ * `Last-Event-ID` or `?after=`; or, with `?download=1`, the whole log as plain text. A public
+ * repository's finished, complete log is kept by the browser for good; anything else (a
+ * running job, a log whose last lines are not stored yet, any private or internal
+ * repository's log) is never kept, and neither is the stream. The caller has already checked
+ * who may read the repository.
  */
-import { IMMUTABLE, NO_STORE, cacheControl } from '../edge/http-cache';
+import { IMMUTABLE, NO_STORE, byVisibility, cacheControl } from '../edge/http-cache';
 import { log } from '../log';
+import type { Visibility } from '../query/policy';
 import type { ActionsClient } from './actions-client';
 import { plainLog } from './log-view';
 import { isLive, stateOf } from './run-view';
@@ -18,16 +21,24 @@ const FOLLOW_MS = 4 * 60_000;
 
 export type LogTiming = { readonly pollMs: number; readonly followMs: number };
 
+/** The job whose log is asked for, and its repository's visibility. */
+export type LogTarget = {
+  readonly run: string;
+  readonly job: string;
+  readonly visibility: Visibility;
+};
+
 export function jobLogResponse(
   request: Request,
   client: ActionsClient,
-  where: { readonly run: string; readonly job: string },
+  target: LogTarget,
   timing: LogTiming = { pollMs: POLL_MS, followMs: FOLLOW_MS },
 ): Promise<Response> | Response {
   const url = new URL(request.url);
-  if (url.searchParams.get('download') === '1') return download(client, where);
+  if (url.searchParams.get('download') === '1') return download(client, target);
   const after = resumeAfter(request, url);
-  const options = { client, ...where, after, signal: request.signal, timing };
+  const { run, job } = target;
+  const options = { client, run, job, after, signal: request.signal, timing };
   const stream = client.follow === null ? pollLog(options) : relayLog(options, client.follow);
   return new Response(stream, {
     headers: {
@@ -38,10 +49,7 @@ export function jobLogResponse(
   });
 }
 
-async function download(
-  client: ActionsClient,
-  where: { readonly run: string; readonly job: string },
-): Promise<Response> {
+async function download(client: ActionsClient, where: LogTarget): Promise<Response> {
   const [detail, page] = await Promise.all([
     client.run(where.run),
     client.log(where.run, where.job, 0),
@@ -54,8 +62,13 @@ async function download(
     /[^\w.-]+/g,
     '-',
   );
-  // A finished job's log never changes: the browser may keep it for good. A running one grows.
-  const rule = isLive(stateOf(job)) ? NO_STORE : IMMUTABLE;
+  // A finished job's log never changes once every line is stored (the state and the lines
+  // are read together, so a just-finished job's page can still miss its last lines).
+  const isFinal = !isLive(stateOf(job)) && page.value.complete;
+  const rule = byVisibility(where.visibility, {
+    public: isFinal ? IMMUTABLE : NO_STORE,
+    restricted: NO_STORE,
+  });
   return new Response(plainLog(job.steps, page.value.lines), {
     headers: {
       'content-type': 'text/plain; charset=utf-8',

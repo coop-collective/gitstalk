@@ -61,7 +61,12 @@ describe('the job log route', () => {
       },
     };
     const request = new Request('https://web.test/log?after=0');
-    const response = await jobLogResponse(request, ticking, { run: run.id, job: 'test' }, TIMING);
+    const response = await jobLogResponse(
+      request,
+      ticking,
+      { run: run.id, job: 'test', visibility: 'public' },
+      TIMING,
+    );
     expect(response.headers.get('content-type')).toContain('text/event-stream');
     const events = parseSse(await response.text());
     expect(events.at(-1)?.event).toBe('end');
@@ -79,7 +84,7 @@ describe('the job log route', () => {
     const response = await jobLogResponse(
       request,
       actions.client(),
-      { run: run.id, job: 'lint' },
+      { run: run.id, job: 'lint', visibility: 'public' },
       TIMING,
     );
     const first = parseSse(await response.text()).find((event) => event.event === 'lines');
@@ -96,7 +101,7 @@ describe('the job log route', () => {
     const response = await jobLogResponse(
       request,
       actions.client(),
-      { run: run.id, job: 'test' },
+      { run: run.id, job: 'test', visibility: 'public' },
       TIMING,
     );
     expect(response.headers.get('content-disposition')).toMatch(
@@ -113,7 +118,7 @@ describe('the job log route', () => {
       jobLogResponse(
         new Request('https://web.test/log?download=1'),
         actions.client(),
-        { run: run.id, job: 'test' },
+        { run: run.id, job: 'test', visibility: 'public' },
         TIMING,
       );
     expect((await download()).headers.get('cache-control')).toBe('no-store');
@@ -123,13 +128,49 @@ describe('the job log route', () => {
     );
   });
 
+  it.each(['private', 'internal'] as const)(
+    'never lets the browser keep a %s repository’s download, even a finished one',
+    async (visibility) => {
+      const { actions, run } = await runningCiRun();
+      actions.advance(10 * 60_000);
+      const response = await jobLogResponse(
+        new Request('https://web.test/log?download=1'),
+        actions.client(),
+        { run: run.id, job: 'test', visibility },
+        TIMING,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+    },
+  );
+
+  it('never lets the browser keep a finished job’s log whose last lines are not stored yet', async () => {
+    const { actions, run } = await runningCiRun();
+    actions.advance(10 * 60_000);
+    const client = actions.client();
+    const partial = {
+      ...client,
+      log: async (...args: Parameters<typeof client.log>) => {
+        const page = await client.log(...args);
+        return page.ok ? { ...page, value: { ...page.value, complete: false } } : page;
+      },
+    };
+    const response = await jobLogResponse(
+      new Request('https://web.test/log?download=1'),
+      partial,
+      { run: run.id, job: 'test', visibility: 'public' },
+      TIMING,
+    );
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
   it('never lets the browser keep the live stream', async () => {
     const { actions, run } = await runningCiRun();
     const controller = new AbortController();
     const response = await jobLogResponse(
       new Request('https://web.test/log', { signal: controller.signal }),
       actions.client(),
-      { run: run.id, job: 'test' },
+      { run: run.id, job: 'test', visibility: 'public' },
       TIMING,
     );
     expect(response.headers.get('cache-control')).toBe('no-store');
@@ -143,7 +184,7 @@ describe('the job log route', () => {
     const response = await jobLogResponse(
       request,
       actions.client(),
-      { run: run.id, job: 'nope' },
+      { run: run.id, job: 'nope', visibility: 'public' },
       TIMING,
     );
     expect(response.status).toBe(404);

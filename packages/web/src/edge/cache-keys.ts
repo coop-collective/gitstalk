@@ -33,14 +33,18 @@ export type EdgeObject =
 export type EdgeObjectKind = EdgeObject['kind'];
 
 /** The Cache API key (a URL on this deployment's own origin) of an object. */
-export function coloKey(origin: string, engine: PublicEngine, object: EdgeObject): string {
-  const base = `${EDGE_PATH_PREFIX}${EDGE_CACHE_VERSION}/${engine.engine}`;
-  return new URL(`${base}/${coloPath(object)}`, origin).toString();
+export async function coloKey(
+  origin: string,
+  engine: PublicEngine,
+  object: EdgeObject,
+): Promise<string> {
+  const base = `${EDGE_PATH_PREFIX}${EDGE_CACHE_VERSION}/${engine.engine}/${engine.epoch}`;
+  return new URL(`${base}/${await coloPath(object)}`, origin).toString();
 }
 
 /** The KV key of an object. */
 export async function kvKey(engine: PublicEngine, object: EdgeObject): Promise<string> {
-  const prefix = `${EDGE_CACHE_VERSION}:${engine.engine}`;
+  const prefix = `${EDGE_CACHE_VERSION}:${engine.engine}:${engine.epoch}`;
   switch (object.kind) {
     case 'tree':
       return `${prefix}:tree:${object.sha}`;
@@ -58,12 +62,12 @@ export function isEdgePath(pathname: string): boolean {
   return pathname.startsWith(EDGE_PATH_PREFIX) || pathname === EDGE_PATH_PREFIX.slice(0, -1);
 }
 
-function coloPath(object: EdgeObject): string {
+async function coloPath(object: EdgeObject): Promise<string> {
   switch (object.kind) {
     case 'tree':
       return `tree/${object.sha}`;
     case 'file':
-      return `file/${object.sha}/${encodeURIComponent(object.path)}`;
+      return `file/${object.sha}/${await sha256Hex(object.path)}`;
     case 'diff':
       return `diff/${object.base}..${object.head}`;
     default:

@@ -44,6 +44,11 @@ export type EngineReads = {
   readonly engine: RunId;
   readonly source: ForgeSource;
   events(): Promise<readonly RaceEvent[]>;
+  /**
+   * The events after seq `after`: for a public repository, those of its shared log; otherwise
+   * only that tail is read from the gateway (the whole log only when `after` is 0).
+   */
+  eventsAfter(after: number): Promise<readonly RaceEvent[]>;
   pushed(): Promise<readonly PushedBean[]>;
   /** The ref a choice browses: a line by name, a bean by its pushed head; null for an unknown bean. */
   resolve(ref: RefChoice): Promise<RefName | null>;
@@ -97,15 +102,21 @@ export function engineReads(
   const logs = once<readonly LogCommit[]>();
   const diffs = once<RepoDiff | null>();
   const readPushed = () => pushed('', () => readPushedBeans(binding, engine));
+  const readEvents = () =>
+    events('', async () =>
+      shared === null
+        ? (await eventsAfter(source, engine, 0)).events
+        : shared.events((after) => eventsAfter(source, engine, after)),
+    );
   return {
     engine,
     source,
-    events: () =>
-      events('', async () =>
-        shared === null
-          ? (await eventsAfter(source, engine, 0)).events
-          : shared.events((after) => eventsAfter(source, engine, after)),
-      ),
+    events: readEvents,
+    eventsAfter: async (after) => {
+      if (shared !== null || after === 0)
+        return (await readEvents()).filter((event) => event.seq > after);
+      return (await eventsAfter(source, engine, after)).events;
+    },
     pushed: readPushed,
     resolve: async (ref) => {
       if (ref.kind === 'commit') return Sha.safeParse(ref.sha).data ?? null;

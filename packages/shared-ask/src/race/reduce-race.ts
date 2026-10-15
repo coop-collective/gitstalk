@@ -184,6 +184,9 @@ function applyByType(draft: Draft, event: RaceEvent): void {
       return land(draft, event);
     case 'green.promote':
       return promote(draft, event);
+    // Parsed for the web app's head watcher; the canvas does not draw a demotion yet.
+    case 'green.demote':
+      return;
     case 'ci.start':
       return startCi(draft, event);
     case 'ci.end':

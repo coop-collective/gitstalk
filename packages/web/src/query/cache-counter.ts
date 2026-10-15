@@ -1,10 +1,17 @@
 /**
  * Development-only measurement of the browser's query cache (docs/claude-opus/35-caching.md
  * §5): per kind of key, how often a query was served from the cache when a component mounted
- * and how often it went to the network. `QueryProvider` subscribes it outside production and
+ * (an observer that reads, with fresh data held, so no fetch follows) and how often it went to
+ * the network. Observers that only watch a query (`enabled: false`, no `queryFn`) are not
+ * counted: they would count one mount several times. `QueryProvider` subscribes it outside production and
  * logs a line through src/log.ts on every fetch.
  */
-import type { QueryCache, QueryCacheNotifyEvent, QueryKey } from '@tanstack/react-query';
+import type {
+  QueryCache,
+  QueryCacheNotifyEvent,
+  QueryKey,
+  QueryObserver,
+} from '@tanstack/react-query';
 
 import { log } from '../log';
 
@@ -32,14 +39,23 @@ export function createQueryCounter() {
     /** Records one notification; returns the kind's counts when it was a fetch. */
     record(event: QueryCacheNotifyEvent) {
       const kind = keyKind(event.query.queryKey);
-      if (event.type === 'observerAdded' && event.query.state.data !== undefined)
-        bump(kind, 'served');
+      if (event.type === 'observerAdded' && isServedFromCache(event.observer)) bump(kind, 'served');
       if (event.type === 'updated' && event.action.type === 'fetch')
         return { kind, ...bump(kind, 'fetched') };
       return null;
     },
     counts: (): QueryCounts => Object.fromEntries(counts),
   };
+}
+
+/** Whether a new observer reads its query and finds fresh data: no fetch will follow. */
+function isServedFromCache(observer: QueryObserver): boolean {
+  const { options } = observer;
+  const query = observer.getCurrentQuery();
+  const enabled = typeof options.enabled === 'function' ? options.enabled(query) : options.enabled;
+  if (enabled === false || options.queryFn === undefined) return false;
+  const result = observer.getCurrentResult();
+  return result.data !== undefined && !result.isStale;
 }
 
 /** Subscribes a counter to `cache`, logging each fetch with its kind's totals; returns the unsubscribe. */

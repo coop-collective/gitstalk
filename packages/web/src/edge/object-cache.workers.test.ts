@@ -18,13 +18,17 @@ import { COLO_TTL_SECONDS, createEdgeObjectCache } from './object-cache';
 import { FILE_CODEC, TREE_CODEC } from './stored-objects';
 
 const ORIGIN = 'https://gitstalk.test';
+const UPDATED_AT = '2026-10-14T12:00:00.000Z';
 const SHA = Sha.parse('d'.repeat(40));
 
 let engines = 0;
 /** A new public engine per test, so tests share no keys. */
 function publicEngine(): PublicEngine {
   engines += 1;
-  const engine = PublicEngine.of({ visibility: 'public' }, RunId.parse(`edgecache${engines}`));
+  const engine = PublicEngine.of(
+    { visibility: 'public', updated_at: UPDATED_AT },
+    RunId.parse(`edgecache${engines}`),
+  );
   if (engine === null) throw new Error('a public record names a public engine');
   return engine;
 }
@@ -87,7 +91,7 @@ describe('reading through the layers', () => {
     expect(fromColo).toEqual({ value: gateway.tree, layer: 'colo' });
 
     // Another colo: nothing in its Cache API, but KV is global.
-    await (await caches.open(EDGE_CACHE_NAME)).delete(coloKey(ORIGIN, engine, object));
+    await (await caches.open(EDGE_CACHE_NAME)).delete(await coloKey(ORIGIN, engine, object));
     const third = edgeCache(writes);
     expect((await third.read(engine, object, TREE_CODEC, gateway.load)).layer).toBe('kv');
     await writes.settle();
@@ -106,7 +110,7 @@ describe('reading through the layers', () => {
     await writes.settle();
     const stored = await (
       await caches.open(EDGE_CACHE_NAME)
-    ).match(coloKey(ORIGIN, engine, object));
+    ).match(await coloKey(ORIGIN, engine, object));
     expect(stored?.headers.get('cache-control')).toBe(`public, max-age=${COLO_TTL_SECONDS}`);
     expect(stored?.headers.get('set-cookie')).toBeNull();
     expect(stored?.headers.get('vary')).toBeNull();
@@ -134,6 +138,40 @@ describe('reading through the layers', () => {
     expect(cache.stats().writes).toBe(0);
   });
 
+  it('shares one read among concurrent reads of the same object', async () => {
+    const writes = background();
+    const engine = publicEngine();
+    const object: EdgeObject = { kind: 'tree', sha: SHA };
+    const gateway = countingTree();
+    const cache = edgeCache(writes);
+    const answers = await Promise.all(
+      Array.from({ length: 5 }, () => cache.read(engine, object, TREE_CODEC, gateway.load)),
+    );
+    await writes.settle();
+    expect(gateway.calls()).toBe(1);
+    expect(answers.map((answer) => answer.value)).toEqual(
+      Array.from({ length: 5 }, () => gateway.tree),
+    );
+    expect(answers.filter((answer) => answer.layer === 'gateway')).toHaveLength(1);
+  });
+
+  it('lets a concurrent read whose leader failed read for itself', async () => {
+    const writes = background();
+    const engine = publicEngine();
+    const object: EdgeObject = { kind: 'tree', sha: SHA };
+    const gateway = countingTree();
+    const cache = edgeCache(writes);
+    const failing = (): Promise<RepoTree> => Promise.reject(new Error('gateway down'));
+    const [leader, follower] = await Promise.allSettled([
+      cache.read(engine, object, TREE_CODEC, failing),
+      cache.read(engine, object, TREE_CODEC, gateway.load),
+    ]);
+    await writes.settle();
+    expect(leader.status).toBe('rejected');
+    expect(follower.status === 'fulfilled' ? follower.value.value : null).toEqual(gateway.tree);
+    expect(gateway.calls()).toBe(1);
+  });
+
   it('keeps nothing from a failed read', async () => {
     const writes = background();
     const engine = publicEngine();
@@ -145,7 +183,7 @@ describe('reading through the layers', () => {
     await writes.settle();
     expect(await env.OBJECTS.get(await kvKey(engine, object))).toBeNull();
     expect(
-      await (await caches.open(EDGE_CACHE_NAME)).match(coloKey(ORIGIN, engine, object)),
+      await (await caches.open(EDGE_CACHE_NAME)).match(await coloKey(ORIGIN, engine, object)),
     ).toBeUndefined();
   });
 

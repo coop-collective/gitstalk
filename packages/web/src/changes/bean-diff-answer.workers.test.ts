@@ -32,9 +32,17 @@ const POISON: RepoDiff = {
   files: [{ path: 'stolen.ts', status: 'added', additions: 9, deletions: 0, hunks: [] }],
 };
 
-const PUBLIC: RunAccess = { kind: 'repository', visibility: 'public' };
-const PRIVATE: RunAccess = { kind: 'repository', visibility: 'private' };
-const INTERNAL: RunAccess = { kind: 'repository', visibility: 'internal' };
+const UPDATED_AT = '2026-10-14T12:00:00.000Z';
+const repositoryAccess = (
+  visibility: 'public' | 'private' | 'internal',
+  updatedAt = UPDATED_AT,
+): RunAccess => ({
+  kind: 'repository',
+  repository: { visibility, updated_at: updatedAt },
+});
+const PUBLIC = repositoryAccess('public');
+const PRIVATE = repositoryAccess('private');
+const INTERNAL = repositoryAccess('internal');
 
 let runs = 0;
 const freshRun = () => RunId.parse(`beandiff${(runs += 1)}`);
@@ -76,10 +84,13 @@ const request = (ifNoneMatch?: string) =>
   });
 
 /** The keys a public engine of this id would have: what a leak would be stored under. */
-async function keysOf(run: RunId) {
-  const asPublic = PublicEngine.of({ visibility: 'public' }, run);
+async function keysOf(run: RunId, updatedAt = UPDATED_AT) {
+  const asPublic = PublicEngine.of({ visibility: 'public', updated_at: updatedAt }, run);
   if (asPublic === null) throw new Error('a public record names a public engine');
-  return { colo: coloKey(ORIGIN, asPublic, DIFF_OBJECT), kv: await kvKey(asPublic, DIFF_OBJECT) };
+  return {
+    colo: await coloKey(ORIGIN, asPublic, DIFF_OBJECT),
+    kv: await kvKey(asPublic, DIFF_OBJECT),
+  };
 }
 
 describe('a public repository’s bean diff', () => {
@@ -125,6 +136,27 @@ describe('a public repository’s bean diff', () => {
     expect(response.headers.get('etag')).toBeNull();
     expect(await response.text()).not.toContain('a.ts');
     expect(calls).toEqual({ detail: 1, diff: 1 });
+  });
+
+  it('is read again, never from the old copies, once the record changes (the purge path)', async () => {
+    const run = freshRun();
+    const { objects, settle } = harness();
+    const { source, calls } = fakeSource();
+    await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: PUBLIC },
+      { source, objects },
+    );
+    await settle();
+    // An operator's takedown edit, a transfer or a visibility flip moves `updated_at`.
+    const later = repositoryAccess('public', '2026-10-15T08:00:00.000Z');
+    const fresh = await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: later },
+      { source, objects: harness().objects },
+    );
+    expect(fresh.headers.get('server-timing')).toMatch(/^edge;desc="gateway-read";dur=/);
+    expect(calls.diff).toBe(2);
+    expect(await env.OBJECTS.get((await keysOf(run)).kv)).not.toBeNull();
+    expect((await keysOf(run, '2026-10-15T08:00:00.000Z')).kv).not.toBe((await keysOf(run)).kv);
   });
 });
 
@@ -181,18 +213,26 @@ describe('a private repository’s bean diff', () => {
 });
 
 describe('the browser headers', () => {
-  it('make a validated bean’s diff immutable, named by its commit pair', async () => {
-    const response = await answer('green', PUBLIC);
-    expect(response.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
-    expect(response.headers.get('etag')).toBe(pairTag());
-  });
-
-  it.each(['landed', 'in-flight'] as const)(
-    'let a %s bean’s diff be kept 30 s only',
+  it.each(['green', 'landed', 'in-flight'] as const)(
+    'let a public %s bean’s diff be kept only to revalidate, named by its pair',
     async (status) => {
-      const response = await answer(status, PRIVATE);
-      expect(response.headers.get('cache-control')).toBe('private, max-age=30');
+      // The URL names the bean: a demoted, reset and requeued bean gets a new pair under it.
+      const response = await answer(status, PUBLIC);
+      expect(response.headers.get('cache-control')).toBe('private, no-cache');
       expect(response.headers.get('etag')).toBe(pairTag());
+    },
+  );
+
+  it.each([
+    ['private', PRIVATE],
+    ['internal', INTERNAL],
+  ])(
+    'never let a %s repository’s diff be kept, even a validated one',
+    async (_name, restricted) => {
+      // A kept copy would outlive sign-out and revoked access.
+      const response = await answer('green', restricted);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('etag')).toBeNull();
     },
   );
 
@@ -203,15 +243,22 @@ describe('the browser headers', () => {
     expect(response.headers.get('etag')).toBeNull();
   });
 
-  it('answer 304 to a reader holding the same pair, and 404 to anyone refused', async () => {
+  it('answer 304 to a reader holding the same pair without reading the diff, and 404 to anyone refused', async () => {
     const run = freshRun();
     const { objects } = harness();
-    const { source } = fakeSource('green');
+    const { source, calls } = fakeSource('green');
     const held = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: PUBLIC },
       { source, objects },
     );
     expect(held.status).toBe(304);
+    expect(held.headers.get('etag')).toBe(pairTag());
+    expect(calls).toEqual({ detail: 1, diff: 0 });
+    const privately = await answerBeanDiff(
+      { request: request(pairTag()), run, bean: BEAN, access: PRIVATE },
+      { source, objects },
+    );
+    expect(privately.status).toBe(200);
     const refused = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: { kind: 'refused' } },
       { source, objects },
@@ -244,7 +291,7 @@ async function answer(status: BeanStatus, access: RunAccess): Promise<Response> 
 }
 
 function pairTag(): string {
-  return `"${BASE}..${HEAD}"`;
+  return `"v1.${BASE}..${HEAD}"`;
 }
 
 function beanDetail(status: BeanStatus, base: ShaType | null, head: ShaType | null) {

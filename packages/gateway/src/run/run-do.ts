@@ -14,6 +14,7 @@ import type {
   InvocationProgress,
   ProgressResponse,
 } from '@gitstalk/shared-race/driver';
+import { LINE_MOVE_TYPES } from '@gitstalk/shared-race/events';
 import type { InvocationId, RunId, Sha, SlotId, TaskId } from '@gitstalk/shared-race/ids';
 import type { RunConfig } from '@gitstalk/shared-race/run-config';
 import {
@@ -244,14 +245,7 @@ const TRACEBACK_CHARS = 4000;
  * Events after which a line has a new head (the base at the start, then landings on the
  * sprout or the stalk): the read index warms that head.
  */
-const LINE_MOVES: ReadonlySet<string> = new Set([
-  'race.start',
-  'land',
-  'revert',
-  'sprout.reset',
-  'green.promote',
-  'green.demote',
-]);
+const LINE_MOVES: ReadonlySet<string> = new Set(LINE_MOVE_TYPES);
 /** Engine event types that become repository events (`repo-events`). */
 const PUBLISHED: ReadonlySet<string> = new Set(PUBLISHED_TYPES);
 /** The infra meter is written with every stored step, and otherwise at most this often. */

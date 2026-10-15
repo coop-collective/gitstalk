@@ -7,7 +7,8 @@
  * diff). Nothing re-renders the page on the server.
  *
  * Freshness follows src/query/policy.ts: the events are append-only (never stale while the
- * feed is live, persisted for a public repository), the pushed beans are mutable.
+ * feed is live; in memory only), the pushed beans are mutable. While the feed is open a
+ * remount does not refetch the events: the feed's own catch-up brings what was missed.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
@@ -28,7 +29,7 @@ import { staleKeysFor } from '../../src/query/invalidation';
 import { qk } from '../../src/query/keys';
 import { freshness } from '../../src/query/policy';
 import type { LiveFeedStatus } from '../../src/query/use-live-feed';
-import { useLiveFeed } from '../../src/query/use-live-feed';
+import { FOLLOWED_BY_FEED, useLiveFeed } from '../../src/query/use-live-feed';
 
 export type ChangesFeed = {
   readonly events: readonly RaceEvent[];
@@ -47,23 +48,25 @@ export function useChangesFeed(scope: RepoScope, options: ChangesFeedOptions = {
   const keys = qk.repo(scope.uid, scope.owner, scope.repo);
   const paths = changeFeedPaths(scope.base);
   const queryClient = useQueryClient();
-  // Missed events may have moved any bean: read the pushed list again too. (The feed keeps
-  // the newest callback in a ref, so a new one each render does not reopen it.)
+  // A gap in the feed may have hidden a move of any bean: read the pushed list again too. (The
+  // feed keeps the newest callback in a ref, so a new one each render does not reopen it.)
   const onResync = () => {
     void queryClient.invalidateQueries({ queryKey: keys.pushed(), exact: true });
   };
+  const isFollowed = options.live ?? true;
   const feed = useLiveFeed<RaceEvent>({
     queryKey: keys.events(),
     url: paths.live,
     parseBatch: parseEventBatch,
-    enabled: options.live ?? true,
+    enabled: isFollowed,
     onResync,
   });
   const events = useQuery({
     queryKey: keys.events(),
     queryFn: async ({ signal }) =>
       (await fetchJson(paths.events, isEventsAnswer, { signal, httpCache: 'revalidate' })).events,
-    ...freshness('appendOnly', { visibility: scope.visibility, live: feed.status === 'live' }),
+    ...freshness('appendOnly', { live: feed.status === 'live' }),
+    ...(isFollowed ? FOLLOWED_BY_FEED : {}),
   });
   const pushed = useQuery({
     queryKey: keys.pushed(),

@@ -38,6 +38,19 @@ export type FeedWatch = {
 /** Whether the server-rendered page must be rendered again, and how soon. */
 export type Refresh = 'none' | 'now' | 'debounced';
 
+/** A refresh for activity that moves no head (History) waits this long, to batch a burst. */
+export const ACTIVITY_REFRESH_MS = 2000;
+/**
+ * The longest a refresh after a head move waits: each viewer waits a random share of it, so
+ * the viewers of a busy public repository do not all render it again in the same instant.
+ */
+export const HEAD_REFRESH_JITTER_MS = 1500;
+
+/** How long a refresh waits before the page is rendered again. */
+export function refreshDelay(refresh: Exclude<Refresh, 'none'>, random = Math.random): number {
+  return refresh === 'now' ? Math.floor(random() * HEAD_REFRESH_JITTER_MS) : ACTIVITY_REFRESH_MS;
+}
+
 export type StaleKeys = {
   readonly invalidate: readonly QueryKey[];
   readonly refresh: Refresh;
@@ -61,8 +74,9 @@ export function staleKeysFor(
 
 /**
  * Each line's newest head in the events, oldest first: a landing on the sprout (`trunk`) or
- * straight onto the stalk (`main`, queue mode), a promotion, a revert (a new sprout commit) and
- * a red reset of the sprout.
+ * straight onto the stalk (`main`, queue mode), a promotion or a demotion of the stalk (a red
+ * audit takes it back), a revert (a new sprout commit) and a red reset of the sprout. These
+ * are the gateway's line moves (`LINE_MOVE_TYPES`) but the start, which no page outlives.
  */
 export function headMoves(events: readonly RaceEvent[]): readonly HeadMove[] {
   const newest = new Map<Line, string>();
@@ -98,7 +112,8 @@ function movedPast(heads: LineHeads, move: HeadMove): boolean {
 
 function headMoveOf(event: RaceEvent): HeadMove | null {
   if (event.type === 'land') return landingMove(event.target, event.sha);
-  if (event.type === 'green.promote') return { line: 'stalk', sha: event.sha };
+  if (event.type === 'green.promote' || event.type === 'green.demote')
+    return { line: 'stalk', sha: event.sha };
   if (event.type === 'revert' || event.type === 'sprout.reset')
     return { line: 'sprout', sha: event.sha };
   return null;

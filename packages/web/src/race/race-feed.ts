@@ -102,6 +102,8 @@ function describe(event: RaceEvent): Draft | undefined {
         `The stalk advances${event.trunk_idx === undefined ? '' : ` to #${event.trunk_idx}`}: ${event.tasks.join(', ')}.`,
         event.tasks[0] ?? null,
       );
+    case 'green.demote':
+      return describeDemotion(event);
     case 'ci.end':
       return describeCi(event);
     case 'ticket.open':
@@ -255,6 +257,12 @@ function describe(event: RaceEvent): Draft | undefined {
     default:
       return assertNever(event);
   }
+}
+
+function describeDemotion(event: Extract<RaceEvent, { type: 'green.demote' }>): Draft {
+  const to = event.trunk_idx === undefined ? '' : ` to #${event.trunk_idx}`;
+  const again = event.tasks.length === 0 ? '' : `: ${event.tasks.join(', ')} land again`;
+  return line('bad', `A red audit takes the stalk back${to}${again}.`, event.tasks[0] ?? null);
 }
 
 function assertNever(value: never): never {

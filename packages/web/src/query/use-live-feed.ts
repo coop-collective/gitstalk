@@ -7,8 +7,12 @@
  *
  * While the feed is live the list needs no refetching, so the hook's `staleTime` is
  * `Infinity`; when it drops (or before it opens) `staleTime` is 15 s and the query's usual
- * refetch on focus takes over. A batch that skips seqs, and every reconnect, invalidate the
- * query so the snapshot is read again.
+ * refetch on focus takes over. A batch that skips seqs invalidates the query so the snapshot
+ * is read again. A reconnect does not: the browser resumes from `Last-Event-ID`, so the
+ * missed events arrive on the feed itself (and a gap among them is caught as above).
+ *
+ * The feed's catch-up on opening (`?after=<last seq held>`) is also why a query it follows
+ * should not refetch on mount (`FOLLOWED_BY_FEED`): both would fetch the same events.
  *
  * ```tsx
  * const key = qk.repo(uid, owner, repo).events();
@@ -29,6 +33,12 @@ export type LiveFeedStatus = 'idle' | 'connecting' | 'live' | 'reconnecting' | '
 /** How long the list counts as fresh while the feed is not live. */
 export const OFFLINE_STALE_TIME_MS = 15_000;
 
+/**
+ * Query options for a list a live feed follows: a remount with data held does not refetch it,
+ * as the feed reopens at the last seq held and delivers the same catch-up.
+ */
+export const FOLLOWED_BY_FEED = { refetchOnMount: false } as const;
+
 export type LiveFeedOptions<T extends Sequenced> = {
   /** The query whose data (`readonly T[]`, sorted by seq) the feed appends to. */
   readonly queryKey: QueryKey;
@@ -46,8 +56,8 @@ export type LiveFeedOptions<T extends Sequenced> = {
    */
   readonly after?: number;
   /**
-   * Called when events may have been missed (a gap in a batch, a reconnect), after the query
-   * itself was invalidated: other queries the missed events could have changed refetch here.
+   * Called when events may have been missed (a gap in a batch), after the query itself was
+   * invalidated: other queries the missed events could have changed refetch here.
    */
   readonly onResync?: () => void;
 };
@@ -89,14 +99,9 @@ export function useLiveFeed<T extends Sequenced>(options: LiveFeedOptions<T>): L
       const batch = parseBatch(parseData(message.data));
       if (batch !== null && applyBatch(queryClient, queryKey, batch) === 'gap') resync();
     };
-    let dropped = false;
-    source.addEventListener('open', () => {
-      setStatus('live');
-      // Events may have been missed while disconnected: read the snapshot again.
-      if (dropped) resync();
-    });
+    // A reconnect resumes from Last-Event-ID: no snapshot read on reopening.
+    source.addEventListener('open', () => setStatus('live'));
     source.addEventListener('error', () => {
-      dropped = true;
       setStatus(source.readyState === EventSource.CLOSED ? 'ended' : 'reconnecting');
     });
     source.addEventListener(eventName, onBatch);

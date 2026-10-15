@@ -148,7 +148,7 @@ describe('stale while revalidate', () => {
 });
 
 describe('what reaches storage', () => {
-  it('persists a public repository’s immutable data, and nothing private or mutable', async () => {
+  it('persists a public repository’s immutable data, and nothing private, append-only or mutable', async () => {
     const client = makeQueryClient();
     const subscriptions = [
       observe(client, ['public-diff'], { kind: 'immutable', visibility: 'public' }, answer('a')),
@@ -160,10 +160,7 @@ describe('what reaches storage', () => {
       subscriptions.map(({ observer }) => observer.refetch().then(() => undefined)),
     );
     const stored = dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery });
-    expect(stored.queries.map((query) => query.queryKey)).toEqual([
-      ['public-diff'],
-      ['public-events'],
-    ]);
+    expect(stored.queries.map((query) => query.queryKey)).toEqual([['public-diff']]);
     for (const { unsubscribe } of subscriptions) unsubscribe();
   });
 });

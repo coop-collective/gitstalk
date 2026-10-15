@@ -7,9 +7,10 @@ import {
   cacheControl,
   isNotModified,
   jsonAnswer,
+  byVisibility,
+  eventsEtag,
   pairEtag,
   problem,
-  seqEtag,
   serverTiming,
 } from './http-cache';
 
@@ -37,19 +38,38 @@ describe('Cache-Control', () => {
   });
 });
 
+describe('rules by visibility', () => {
+  it('keep a public repository’s rule and never keep anyone else’s', () => {
+    const rules = { public: IMMUTABLE, restricted: NO_STORE };
+    expect(byVisibility('public', rules)).toBe(IMMUTABLE);
+    expect(byVisibility('private', rules)).toBe(NO_STORE);
+    expect(byVisibility('internal', rules)).toBe(NO_STORE);
+  });
+});
+
 describe('ETags', () => {
-  it('name a diff by its commit pair, and an event list by its last seq', () => {
-    expect(pairEtag('a1', 'b2')).toBe('"a1..b2"');
-    expect(seqEtag(42)).toBe('W/"seq-42"');
+  const last = { seq: 42, ts: '2026-10-14T12:00:00.000Z' };
+  const tag = eventsEtag('engine01', 0, last);
+
+  it('name a diff by its version and commit pair, and events by engine and last event', () => {
+    expect(pairEtag('a1', 'b2')).toBe('"v1.a1..b2"');
+    expect(tag).toBe('W/"v1.engine01.42.2026-10-14T12:00:00.000Z"');
+    expect(eventsEtag('engine01', 7, undefined)).toBe('W/"v1.engine01.7.none"');
+  });
+
+  it('differ by engine, and by the last event’s time at the same seq (a reset log)', () => {
+    expect(eventsEtag('engine02', 0, last)).not.toBe(tag);
+    expect(eventsEtag('engine01', 0, { ...last, ts: '2026-10-15T00:00:00.000Z' })).not.toBe(tag);
   });
 
   it('match If-None-Match weakly, in a list, or as *', () => {
-    expect(isNotModified(get('W/"seq-42"'), seqEtag(42))).toBe(true);
-    expect(isNotModified(get('"seq-42"'), seqEtag(42))).toBe(true);
-    expect(isNotModified(get('"x", W/"seq-42"'), seqEtag(42))).toBe(true);
-    expect(isNotModified(get('*'), seqEtag(42))).toBe(true);
-    expect(isNotModified(get('W/"seq-41"'), seqEtag(42))).toBe(false);
-    expect(isNotModified(get(), seqEtag(42))).toBe(false);
+    const strong = tag.slice(2);
+    expect(isNotModified(get(tag), tag)).toBe(true);
+    expect(isNotModified(get(strong), tag)).toBe(true);
+    expect(isNotModified(get(`"x", ${tag}`), tag)).toBe(true);
+    expect(isNotModified(get('*'), tag)).toBe(true);
+    expect(isNotModified(get(eventsEtag('engine01', 0, { ...last, seq: 41 })), tag)).toBe(false);
+    expect(isNotModified(get(), tag)).toBe(false);
   });
 });
 

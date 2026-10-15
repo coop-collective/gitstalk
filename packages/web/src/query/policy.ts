@@ -10,12 +10,14 @@
  * - `immutable`: content addressed by a sha (a tree, a file, the diff of a landed bean, a
  *   finished run). Never stale; an event can still invalidate it.
  * - `appendOnly`: the engine's event log. Never stale while its live feed is open (the feed
- *   appends to it), 15 s otherwise.
+ *   appends to it), 15 s otherwise. Kept in memory only: the feed changes it every second
+ *   while live, a persisted copy would be re-serialised whole each time, and every page that
+ *   shows it hydrates a fresher server copy anyway.
  * - `mutable`: repository state that moves (heads, the pushed list, an open bean's diff).
  * - `perViewer`: the viewer's own data (sessions, settings). Never persisted.
  *
- * Only a public repository's immutable and append-only data is persisted (sessionStorage, this
- * tab, this build and this viewer): a private or internal repository never leaves memory.
+ * Only a public repository's immutable data is persisted (sessionStorage, this tab, this build
+ * and this viewer): a private or internal repository never leaves memory.
  */
 import type { QueryMeta } from '@tanstack/react-query';
 
@@ -48,10 +50,11 @@ export function freshness(kind: FreshnessClass, input: FreshnessInput = {}): Fre
     case 'immutable':
       return kept(Number.POSITIVE_INFINITY, input.visibility);
     case 'appendOnly':
-      return kept(
-        input.live === true ? Number.POSITIVE_INFINITY : OFFLINE_STALE_TIME_MS,
-        input.visibility,
-      );
+      return {
+        staleTime: input.live === true ? Number.POSITIVE_INFINITY : OFFLINE_STALE_TIME_MS,
+        gcTime: DEFAULT_GC_TIME_MS,
+        meta: {},
+      };
     case 'mutable':
     case 'perViewer':
       return { staleTime: DEFAULT_STALE_TIME_MS, gcTime: DEFAULT_GC_TIME_MS, meta: {} };

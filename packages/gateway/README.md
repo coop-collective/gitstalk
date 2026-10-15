@@ -55,8 +55,10 @@ repository, private ones included: objects by id in each engine's SQLite, and th
 landing clears. The web app adds its own tiers in front of it for **public repositories only**
 (`packages/web` README, Caching; design in
 [docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
-the colo's Cache API and a global KV namespace, keyed by engine and commit sha, and the browser
-caches with TanStack Query.
+the colo's Cache API and a global KV namespace, keyed by engine, the record's `updated_at` (so
+any registry update purges them) and commit sha, and the browser caches with TanStack Query.
+The line-move event types the read index warms on (`LINE_MOVE_TYPES`,
+`@gitstalk/shared-race/events`) are the ones the web's head watcher refreshes on.
 
 The gateway does not authorise RPC calls (`repoTree`, `repoFile`, `repoLog`, `repoDiff` trust the
 engine id; the service binding is the trust boundary), so it never decides what may be cached

@@ -3,7 +3,12 @@ import { env } from 'cloudflare:workers';
 import { isLive, stateOf } from '../../../../../../../../src/actions/run-view';
 import { getUser } from '../../../../../../../../src/auth/user';
 import type { CacheRule } from '../../../../../../../../src/edge/http-cache';
-import { NO_STORE, cacheControl, problem } from '../../../../../../../../src/edge/http-cache';
+import {
+  NO_STORE,
+  byVisibility,
+  cacheControl,
+  problem,
+} from '../../../../../../../../src/edge/http-cache';
 import { lookupRepository } from '../../../../../../../../src/repositories/flows';
 import { registryClient } from '../../../../../../../../src/repositories/registry-client';
 import { actionsSessionFor } from '../../../../../../../../src/server/actions-source';
@@ -21,7 +26,9 @@ const FINISHED_RUN: CacheRule = { kind: 'fresh-for', seconds: 3600 };
 /**
  * `GET …/actions/runs/:run`: the run as the run page's `RunDetail` JSON, for the page's status
  * poll. One control-plane call, behind the repository's read rule (the same 404 as its pages).
- * A running run is never kept by the browser; a finished one for an hour.
+ * A public repository's finished run is kept by the browser for an hour; a running one, and
+ * any private or internal repository's run, is never kept (a copy would outlive the viewer's
+ * access).
  */
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { owner, repo, run } = await context.params;
@@ -39,6 +46,9 @@ export async function GET(request: Request, context: Context): Promise<Response>
   const detail = await session.client.run(decodeURIComponent(run));
   if (!detail.ok) return problem(404, 'no such run');
   // A finished run is final but for a rerun (a new attempt): the browser may keep it an hour.
-  const rule = isLive(stateOf(detail.value)) ? NO_STORE : FINISHED_RUN;
+  const rule = byVisibility(found.record.visibility, {
+    public: isLive(stateOf(detail.value)) ? NO_STORE : FINISHED_RUN,
+    restricted: NO_STORE,
+  });
   return Response.json(detail.value, { headers: { 'cache-control': cacheControl(rule) } });
 }

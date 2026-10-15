@@ -1,9 +1,12 @@
 /**
- * `repoAccess` for this request: the signed-in viewer and the GATEWAY binding. Server-only.
+ * `repoAccess` for this request: the signed-in viewer and the GATEWAY binding. A public
+ * repository's reads share the isolate's caches (`sharedReadsFor`), as its pages do; a private
+ * or internal one reads fresh. Server-only.
  */
 import { env } from 'cloudflare:workers';
 
 import { currentUser } from '../auth/user';
+import { sharedReadsFor } from '../repo-pages/cached-reads';
 import { engineOf, engineReads } from '../repo-pages/engine-reads';
 import { registryClient } from '../repositories/registry-client';
 import type { RepoAccess } from './changes-api';
@@ -20,9 +23,11 @@ export async function viewerRepoAccess(context: RepoRouteContext): Promise<RepoA
     repo,
     viewer,
     registry: registryClient(env.GATEWAY),
-    readsFor: (engineId) => {
-      const engine = engineOf(engineId);
-      return engine === null ? null : engineReads(env.GATEWAY, engine);
+    readsFor: (record) => {
+      const engine = engineOf(record.engine_id);
+      return engine === null
+        ? null
+        : engineReads(env.GATEWAY, engine, sharedReadsFor(record, engine));
     },
   });
 }

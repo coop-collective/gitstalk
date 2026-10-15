@@ -37,6 +37,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
   return jobLogResponse(request, session.client, {
     run: decodeURIComponent(run),
     job: decodeURIComponent(job),
+    visibility: found.record.visibility,
   });
 }
 

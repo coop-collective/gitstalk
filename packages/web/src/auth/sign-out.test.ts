@@ -53,6 +53,12 @@ describe('signing out', () => {
     expect(calls).toEqual({ revoked: ['hash-1'], revokedAll: [], audited: ['session.signout'] });
   });
 
+  it('empties the browser’s HTTP cache, so nothing kept while signed in is reused after', async () => {
+    const { ports: signOutPorts } = ports(SESSION);
+    const response = await signOut(post({ csrf: 'csrf-1' }), signOutPorts, 1);
+    expect(response.headers.get('clear-site-data')).toBe('"cache"');
+  });
+
   it('signs out every browser with everywhere=1', async () => {
     const { ports: signOutPorts, calls } = ports(SESSION);
     await signOut(post({ csrf: 'csrf-1', everywhere: '1' }), signOutPorts, 1);
