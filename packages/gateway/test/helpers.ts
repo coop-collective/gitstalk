@@ -1,5 +1,16 @@
-import { SELF } from 'cloudflare:test';
-import { expect } from 'vitest';
+import {
+  SELF,
+  createExecutionContext,
+  createScheduledController,
+  env,
+  waitOnExecutionContext,
+} from 'cloudflare:test';
+import { expect, vi } from 'vitest';
+
+import type { RunListItem } from '@gitstalk/shared-race/rpc';
+
+import Gateway from '../src/index';
+import { StoredRunListItem } from '../src/run/run-list';
 
 export const ADMIN = 'test-admin-token-0123456789abcdef0123456789';
 export const ORIGIN = 'https://gateway.test';
@@ -71,6 +82,28 @@ export async function createRun(config: Record<string, unknown> = {}): Promise<C
   if (response.status !== 201)
     throw new Error(`create failed: ${response.status} ${await response.text()}`);
   return json<CreatedRun>(response);
+}
+
+/** A run's row in the run list (D1 `runs`) once its RunDO's background write has landed. */
+export async function listedRun(run: string): Promise<RunListItem> {
+  return vi.waitFor(
+    async () => {
+      const row = await env.FORGE.prepare('SELECT body FROM runs WHERE run = ?')
+        .bind(run)
+        .first<{ body: string }>();
+      if (row === null) throw new Error(`run ${run} is not listed yet`);
+      return StoredRunListItem.parse(JSON.parse(row.body));
+    },
+    { timeout: 10_000, interval: 20 },
+  );
+}
+
+/** Fires the gateway's cron trigger (`scheduled()`) as if at `scheduledTime`. */
+export async function fireCron(scheduledTime: number): Promise<void> {
+  const ctx = createExecutionContext();
+  const gateway = new Gateway(ctx, env);
+  await gateway.scheduled(createScheduledController({ scheduledTime, cron: '17 * * * *' }));
+  await waitOnExecutionContext(ctx);
 }
 
 export function slotToken(run: CreatedRun, slot: string): string {

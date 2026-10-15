@@ -132,11 +132,12 @@ pnpm check                            # at the root, before you report work as d
 
 All names below come from `wrangler.jsonc`; values are never committed.
 
-- **Durable Objects:** `RUNS` (`RunDO`), `RUN_INDEX` (`RunIndex`), `RUN_STREAMS` (`RunStreamDO`), `DERIVED` (`RepoDerivedDO`), `RUNNER` (`Runner`, a container class), `RUNNER_CAPACITY` (`RunnerCapacity`), `ACTIONS_REPOS` (`ActionsRepoDO`), `ACTIONS_RUNS` (`ActionsRunDO`).
+- **Durable Objects:** `RUNS` (`RunDO`), `RUN_INDEX` (`RunIndex`, deprecated: read only by the one-time backfill into D1, deleted next release), `RUN_STREAMS` (`RunStreamDO`), `DERIVED` (`RepoDerivedDO`), `RUNNER` (`Runner`, a container class), `RUNNER_CAPACITY` (`RunnerCapacity`), `ACTIONS_REPOS` (`ActionsRepoDO`), `ACTIONS_RUNS` (`ActionsRunDO`).
 - **Container:** `Runner`, image `./container/Dockerfile`, build context the repository root, `standard-4`, `max_instances` 48 (must equal `RUNNER_MAX_INSTANCES`).
 - **Artifacts:** `REPOS` (namespace `gitstalk-repos`, people's repositories), `ARTIFACTS` (`gitstalk-race`, benchmark run repositories).
-- **D1:** `FORGE` (`gitstalk-forge`, migrations in `migrations/`), `IDENTITY_DB` (`gitstalk-identity`, schema in `packages/shared-identity/migrations`).
+- **D1:** `FORGE` (`gitstalk-forge`, migrations in `migrations/`; it also holds the run list, `runs`, and the kill switch, `gateway_flags`), `IDENTITY_DB` (`gitstalk-identity`, schema in `packages/shared-identity/migrations`).
 - **Queue:** `REPO_EVENTS`, producer and consumer of `gitstalk-repo-events`.
+- **Cron trigger:** `17 * * * *`, the spend guards' hourly sweep of race repos (`scheduled()`, `src/run/scheduled-sweep.ts`). Nothing to provision.
 - **R2:** `ACTIONS_LOGS` (`gitstalk-actions-logs`). **Analytics Engine:** `PRODUCT_EVENTS`. **Workers AI:** `AI`.
 - **Service:** `ACTIONS_EXECUTOR` (`gitstalk-actions-executor`).
 - **Vars:** `LOG_LEVEL`, `ARTIFACTS_NAMESPACE`, `RUN_TOKEN_TTL_SECONDS`, `ARTIFACTS_TOKEN_TTL_SECONDS`, `WEB_URL`, `PUBLIC_URL`, `RUNNER_MAX_INSTANCES`, `ACTIONS_EXECUTOR_MODE` (`service` or `stub`), `ACTIONS_MAX_INSTANCES`, `ACTIONS_MONTHLY_MINUTES`, `ACTIONS_JOB_TIMEOUT_MINUTES`, `ACTIONS_CONCURRENT_JOBS`, `AUTOMATIONS_AI_GATEWAY`, `AUTOMATIONS_MONTHLY_USD`.
@@ -147,7 +148,7 @@ All names below come from `wrangler.jsonc`; values are never committed.
 
 ## Benchmark runs (admin only)
 
-The gateway also hosts the benchmark machinery used to compare Gitstalk with a merge queue: `/v1/runs` (create, seed, start, stop, events, decision cards, the driver's long-poll API), `/v1/admin` (halt switch, sweep, capacity) and the live page at `/runs/:run`. All of it requires `ADMIN_TOKEN` or tokens it issues. The engine's settings, the driver contract and the benchmark notes are in [31-gateway-engine-internals.md](../../docs/claude-opus/31-gateway-engine-internals.md); the tooling is in [research/README.md](../../research/README.md) and [research/race/](../../research/race/).
+The gateway also hosts the benchmark machinery used to compare Gitstalk with a merge queue: `/v1/runs` (create, seed, start, stop, events, decision cards, the driver's long-poll API), `/v1/admin` (halt switch, sweep, capacity, the one-time RunIndex backfill) and the live page at `/runs/:run`. All of it requires `ADMIN_TOKEN` or tokens it issues. The engine's settings, the driver contract and the benchmark notes are in [31-gateway-engine-internals.md](../../docs/claude-opus/31-gateway-engine-internals.md); the tooling is in [research/README.md](../../research/README.md) and [research/race/](../../research/race/).
 
 ## Contributing
 

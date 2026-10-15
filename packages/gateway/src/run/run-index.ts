@@ -1,212 +1,71 @@
 /**
- * RunIndex: one Durable Object (`runs`) that lists every run for the web app (`listRuns`).
- * Each RunDO upserts its row when its phase or task counts change; rows are validated when
- * read back.
- *
- * It also holds the gateway-wide spend guards: the kill switch (`halt`: no new runs, every
- * run in flight stopped) and the hourly sweep that deletes the Artifacts repos of any run
- * that began more than a day ago, and of orphaned `race-*` repos, so nothing outlives a day
- * even when a run's own reap failed or it kept its repo.
+ * RunIndex, deprecated (owner, 2026-10-15): the run list, the kill switch and the hourly sweep
+ * moved to the forge D1 (`run-list.ts`, `gateway-flags.ts`) and a cron trigger
+ * (`spend-guards.ts`). Nothing writes here any more. The class stays one release, read only,
+ * so the backfill (`run-index-backfill.ts`) can copy its rows and its halt into D1; the next
+ * release deletes it (an `exports` tombstone, `state: "deleted"`: the `deleted_classes`
+ * migration; docs/claude-opus/31, "Retiring RunIndex").
  */
 import { DurableObject } from 'cloudflare:workers';
-import { z } from 'zod';
 
-import { RunId } from '@gitstalk/shared-race/ids';
 import type { RunListItem } from '@gitstalk/shared-race/rpc';
-import { PolicyName, RunPreset } from '@gitstalk/shared-race/run-config';
 
-import { artifactsPort } from '../adapters/artifacts';
-import { readConfig } from '../config';
-import type { Logger } from '../log';
-import { createLogger } from '../log';
-import { runOfRepo } from './run-names';
+import { Halt } from './gateway-flags';
+import { parsedItem } from './run-list';
 
 /** The index's one instance. */
 export const RUN_INDEX_NAME = 'runs';
-/** Runs `listRuns` returns at most. */
-export const MAX_LISTED_RUNS = 200;
-/** How often the sweep runs while run repos remain. */
-export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
-/** Repos of runs that began longer ago than this are deleted by the sweep. */
-export const REPO_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-/** RunDOs a sweep or a halt calls at once. */
-const RUN_CALL_CONCURRENCY = 4;
+/** Rows one `dump` page returns at most. */
+export const MAX_DUMPED_ROWS = 500;
 const HALT_KEY = 'halt';
 
-const Count = z.number().int().min(0);
-
-const StoredItem = z.object({
-  run: z.string(),
-  policy: PolicyName,
-  preset: RunPreset.nullable().default(null),
-  phase: z.enum(['created', 'running', 'finishing', 'done']),
-  aborted: z.string().nullable(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  agents: Count,
-  tasks: z.object({
-    total: Count,
-    pending: Count,
-    running: Count,
-    queued: Count,
-    testing: Count,
-    rework: Count,
-    landed: Count,
-    green: Count,
-    dropped: Count,
-    // Rows written before parking have none.
-    parked: Count.default(0),
-  }),
-  spent_usd: z.number(),
-});
-
-/** The kill switch, when on. */
-export type Halt = { readonly reason: string; readonly at: string };
-
-export type HaltReport = Halt & { readonly stopped: readonly string[] };
-
-export type SweepReport = {
-  readonly runs: number;
-  readonly deleted: readonly string[];
-  readonly skipped: readonly string[];
-  readonly failed: readonly { readonly run: string; readonly error: string }[];
+/** One page of the index, in run order. */
+export type RunIndexDump = {
+  readonly rows: readonly RunListItem[];
+  /** The page's last run, to pass as `after` for the next page; null on the last page. */
+  readonly next: string | null;
+  /** Rows on this page that no longer validated (not copied). */
+  readonly invalid: number;
 };
 
 export class RunIndex extends DurableObject<Env> {
-  readonly #log: Logger;
-
-  constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
-    this.#log = createLogger(readConfig(env).logLevel, { component: 'run-index' });
-    ctx.storage.sql.exec(
-      `CREATE TABLE IF NOT EXISTS runs (
-         run TEXT PRIMARY KEY,
-         created_at TEXT NOT NULL,
-         body TEXT NOT NULL
-       )`,
-    );
-  }
-
-  /** Records a run's row (newest values win) and makes sure the sweep is scheduled. */
-  async upsert(item: RunListItem): Promise<void> {
-    this.ctx.storage.sql.exec(
-      `INSERT INTO runs (run, created_at, body) VALUES (?, ?, ?)
-       ON CONFLICT(run) DO UPDATE SET body = excluded.body`,
-      item.run,
-      item.created_at,
-      JSON.stringify(item),
-    );
-    if ((await this.ctx.storage.getAlarm()) === null)
-      await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);
-  }
-
-  /** The newest runs first. */
-  async list(limit: number): Promise<RunListItem[]> {
-    const bounded = Math.max(1, Math.min(MAX_LISTED_RUNS, Math.trunc(limit)));
-    const rows = this.ctx.storage.sql
-      .exec<{ body: string }>('SELECT body FROM runs ORDER BY created_at DESC LIMIT ?', bounded)
-      .toArray();
-    return rows.flatMap((row) => {
-      const parsed = StoredItem.safeParse(JSON.parse(row.body));
-      return parsed.success ? [parsed.data] : [];
-    });
-  }
-
-  /** The kill switch's state: null when runs may be created. */
-  async halted(): Promise<Halt | null> {
-    return this.ctx.storage.kv.get<Halt>(HALT_KEY) ?? null;
-  }
-
-  /** Turns the kill switch on: refuses new runs and stops every run not yet done. */
-  async halt(reason: string): Promise<HaltReport> {
-    const halt: Halt = { reason, at: new Date().toISOString() };
-    this.ctx.storage.kv.put(HALT_KEY, halt);
-    const open = this.ctx.storage.sql
-      .exec<{ run: string }>(
-        `SELECT run FROM runs WHERE json_extract(body, '$.phase') IN ('created', 'running')`,
+  /** Rows after run `after` (null: from the start), in run order, validated. */
+  async dump(after: string | null, limit: number = MAX_DUMPED_ROWS): Promise<RunIndexDump> {
+    if (!this.#hasRuns()) return { rows: [], next: null, invalid: 0 };
+    const bounded = Math.max(1, Math.min(MAX_DUMPED_ROWS, Math.trunc(limit)));
+    const page = this.ctx.storage.sql
+      .exec<{ run: string; body: string }>(
+        'SELECT run, body FROM runs WHERE run > ? ORDER BY run LIMIT ?',
+        after ?? '',
+        bounded,
       )
-      .toArray()
-      .flatMap((row) => {
-        const run = RunId.safeParse(row.run);
-        return run.success ? [run.data] : [];
-      });
-    const stopped = await inBatches(open, async (run) => {
-      const result = await this.env.RUNS.getByName(run).stop(`halted: ${reason}`);
-      return result.ok ? [run] : [];
-    });
-    this.#log.warn('runs halted', { reason, stopped: stopped.length });
-    return { ...halt, stopped };
-  }
-
-  /** Turns the kill switch off. */
-  async resume(): Promise<void> {
-    this.ctx.storage.kv.delete(HALT_KEY);
-    this.#log.info('runs resumed');
-  }
-
-  override async alarm(): Promise<void> {
-    const report = await this.sweep(Date.now() - REPO_MAX_AGE_MS);
-    if (report.runs > report.deleted.length)
-      await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);
-  }
-
-  /**
-   * Deletes the repos of every run that began before `startedBeforeMs` and is not racing,
-   * and of `race-*` repos no run knows. Each run's own RunDO decides and deletes, from the
-   * one listing of the namespace made here (each run gets only its own repo names).
-   */
-  async sweep(startedBeforeMs: number): Promise<SweepReport> {
-    const repos = await artifactsPort(this.env.ARTIFACTS).listRepos(
-      (name) => runOfRepo(name) !== null,
-    );
-    const reposByRun = Map.groupBy(
-      repos.flatMap((name) => {
-        const run = runOfRepo(name);
-        return run === null ? [] : [{ run, name }];
-      }),
-      (entry) => entry.run,
-    );
-    const runs = [...reposByRun.keys()];
-    const outcomes = await inBatches(runs, async (run) => {
-      const listed = (reposByRun.get(run) ?? []).map((entry) => entry.name);
-      const result = await this.env.RUNS.getByName(run).sweep(run, startedBeforeMs, listed);
-      return [{ run, result }];
-    });
-    const report: SweepReport = {
-      runs: runs.length,
-      deleted: outcomes.flatMap(({ run, result }) =>
-        result.ok && result.value !== null && result.value.failed.length === 0 ? [run] : [],
-      ),
-      skipped: outcomes.flatMap(({ run, result }) =>
-        result.ok && result.value === null ? [run] : [],
-      ),
-      failed: outcomes.flatMap(({ run, result }) => {
-        if (!result.ok) return [{ run, error: result.error.message }];
-        const failed = result.value?.failed ?? [];
-        return failed.length > 0 ? [{ run, error: failed.map((f) => f.error).join('; ') }] : [];
-      }),
+      .toArray();
+    const rows = page.flatMap((row) => parsedItem(row.body));
+    const last = page.at(-1);
+    return {
+      rows,
+      next: page.length === bounded && last !== undefined ? last.run : null,
+      invalid: page.length - rows.length,
     };
-    this.#log.info('run repos swept', {
-      runs: report.runs,
-      deleted: report.deleted.length,
-      skipped: report.skipped.length,
-      failed: report.failed.length,
-    });
-    return report;
   }
-}
 
-/** Maps `items` a few at a time (each call wakes a RunDO) and flattens the results. */
-async function inBatches<T, R>(
-  items: readonly T[],
-  map: (item: T) => Promise<readonly R[]>,
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let start = 0; start < items.length; start += RUN_CALL_CONCURRENCY) {
-    const batch = items.slice(start, start + RUN_CALL_CONCURRENCY);
-    // oxlint-disable-next-line no-await-in-loop -- batches bound the RunDOs woken at once
-    const mapped = await Promise.all(batch.map(map));
-    results.push(...mapped.flat());
+  /** The kill switch as RunIndex last held it: null when runs could be created. */
+  async halted(): Promise<Halt | null> {
+    const parsed = Halt.safeParse(this.ctx.storage.kv.get(HALT_KEY));
+    return parsed.success ? parsed.data : null;
   }
-  return results;
+
+  /** A sweep alarm set before the move: the cron trigger sweeps now, so it lapses. */
+  override async alarm(): Promise<void> {}
+
+  /** Whether the old `runs` table exists; reading never creates it. */
+  #hasRuns(): boolean {
+    return (
+      this.ctx.storage.sql
+        .exec<{ name: string }>(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runs'`,
+        )
+        .toArray().length > 0
+    );
+  }
 }

@@ -45,10 +45,15 @@
   // Locally they come from .dev.vars (see .dev.vars.example); remotely from `wrangler secret put`.
   // ACTIONS_SECRETS_KEY: 32 random bytes, base64; encrypts Actions secrets at rest (AES-GCM).
   "secrets": { "required": ["ADMIN_TOKEN", "RUN_TOKEN_SECRET", "ACTIONS_SECRETS_KEY"] },
+  // The spend guards' hourly repo sweep (src/run/scheduled-sweep.ts): deletes race repos of
+  // runs that began more than a day ago, and orphaned race repos. Nothing to provision.
+  "triggers": { "crons": ["17 * * * *"] },
   // Durable Object classes exported from src/index.ts. `exports` replaces `migrations`.
   "exports": {
     "RunDO": { "type": "durable-object", "storage": "sqlite" },
-    // One instance ("runs") listing every run for the web app.
+    // Deprecated (2026-10-15): the run list and the kill switch moved to the FORGE D1 (`runs`,
+    // `gateway_flags`) and the sweep to the cron below. Kept, read only, for one release so the
+    // backfill can copy its rows; the next release deletes the class.
     "RunIndex": { "type": "durable-object", "storage": "sqlite" },
     "Runner": { "type": "durable-object", "storage": "sqlite" },
     // stream_diffs: one per run, beside its RunDO (docs/claude-17-streaming-diffs.md).

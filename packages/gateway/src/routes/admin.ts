@@ -226,7 +226,7 @@ export const readRoutes = new Hono<AppEnv>()
 
 /** The kill switch refuses new runs and starts (`POST /v1/admin/halt`). */
 async function refuseWhenHalted(deps: Deps): Promise<void> {
-  const halt = await deps.runIndex().halted();
+  const halt = await deps.guards.halted();
   if (halt !== null)
     throw new GatewayError(`runs are halted since ${halt.at}: ${halt.reason}`, 'halted', 503);
 }

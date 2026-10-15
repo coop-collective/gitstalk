@@ -39,6 +39,7 @@ import type {
   RepoTree,
   RpcResult,
   RunEventsPage,
+  RunListCursor,
   RunListItem,
   RunView,
   TestCoverage,
@@ -173,6 +174,7 @@ import { repoCreateRpc, repositoriesRpc } from './repos/repositories-rpc';
 import type { CreatedRepository, RepoCreateRequest } from '@gitstalk/shared-race/repo-create';
 import { cleanupPortsFrom, repositoryCleanup } from './repos/repository-cleanup';
 import { createDeps } from './deps';
+import { runScheduledSweep } from './run/scheduled-sweep';
 import type { GatewayRpcSurface } from './rpc/gateway-rpc';
 import { gatewayRpc } from './rpc/gateway-rpc';
 import { collaborationRpc } from './rpc/collaboration-rpc';
@@ -217,6 +219,11 @@ export default class Gateway
 {
   override async fetch(request: Request): Promise<Response> {
     return withHsts(request, await app.fetch(request, this.env, this.ctx));
+  }
+
+  /** The hourly cron trigger (`triggers.crons`): the spend guards' repo sweep. */
+  override async scheduled(controller: ScheduledController): Promise<void> {
+    await runScheduledSweep(this.env, controller.scheduledTime);
   }
 
   /** `repo-events`: repository engines' events into the D1 indexes. */
@@ -283,8 +290,8 @@ export default class Gateway
     });
   }
 
-  listRuns(limit?: number): Promise<readonly RunListItem[]> {
-    return this.#rpc().listRuns(limit);
+  listRuns(limit?: number, before?: RunListCursor): Promise<readonly RunListItem[]> {
+    return this.#rpc().listRuns(limit, before);
   }
 
   runView(run: string): Promise<RpcResult<RunView>> {

@@ -213,7 +213,7 @@ import {
   decisionRecords,
   parseLogged,
 } from './run-explorer';
-import { RUN_INDEX_NAME } from './run-index';
+import { recordRun } from './run-list';
 import {
   clearObjectCache,
   hasRun,
@@ -1723,7 +1723,11 @@ export class RunDO extends DurableObject<Env> {
     }
   }
 
-  /** Tells the run index when the run's phase or task counts changed. */
+  /**
+   * Writes the run's row in the run list (forge D1 `runs`) when its phase or task counts
+   * changed. Best effort, in the background: the step never waits for it, and a failed write
+   * is logged and made again at the next change.
+   */
   #updateIndex(): void {
     const loaded = this.#loaded;
     if (loaded === null) return;
@@ -1731,11 +1735,11 @@ export class RunDO extends DurableObject<Env> {
     const key = JSON.stringify(item);
     if (key === this.#indexed) return;
     this.#indexed = key;
-    const index = this.env.RUN_INDEX.getByName(RUN_INDEX_NAME);
+    const run = item.run;
     this.ctx.waitUntil(
-      index
-        .upsert({ ...item, updated_at: new Date().toISOString() })
-        .catch((error: unknown) => this.#log.warn('run index update failed', { error })),
+      recordRun(this.env.FORGE, { ...item, updated_at: new Date().toISOString() }).catch(
+        (error: unknown) => this.#log.warn('run list update failed', { run, error }),
+      ),
     );
   }
 

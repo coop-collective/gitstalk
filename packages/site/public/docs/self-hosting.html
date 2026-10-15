@@ -342,7 +342,9 @@ cp -r environments/example environments/staging</code></pre>
             <code>gitstalk-gateway-staging</code>. An empty suffix keeps the base names. A kill
             switch for benchmark races: <code>POST /v1/admin/halt</code> with the admin token
             refuses new race runs and starts (<code>DELETE</code> on the same path resumes them). It
-            does not stop repositories.
+            does not stop repositories. The gateway also has an hourly cron trigger that deletes
+            race repositories older than a day; it is part of the gateway's config and needs nothing
+            provisioned.
           </p>
 
           <h3 id="env-file">The environment file</h3>
