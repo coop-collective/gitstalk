@@ -1,79 +1,33 @@
 /**
- * The registry RPC (`RepositoriesRpc`): create provisions the Artifacts repo (empty with a
- * README, a template, or an import), puts its first commit on the stalk and the sprout, opens
- * the engine and only then lists the repository. A failure on the way removes what was made,
- * so the name is free again.
+ * The registry RPC (`RepositoriesRpc`): create (through `repository-creation.ts`, the one
+ * creation path), list, read, update, delete, archive and transfer repositories.
  */
-import type { IdentityEnv } from '@gitstalk/shared-identity/identity-env';
 import { recordOrgAudit } from '@gitstalk/shared-identity/org-audit';
 import type { RepositoryOwnerRef } from '@gitstalk/shared-identity/orgs';
-import {
-  findOrgByHandle,
-  mayCreateRepository,
-  mayInOrg,
-  orgRole,
-  orgsOf,
-  ownerByHandle,
-  ownerOf,
-} from '@gitstalk/shared-identity/orgs';
+import { mayInOrg, orgRole, orgsOf, ownerByHandle, ownerOf } from '@gitstalk/shared-identity/orgs';
 import { findUserById } from '@gitstalk/shared-identity/users';
+import type { RepoCreateRpc } from '@gitstalk/shared-race/repo-create';
 import type { RpcError, RpcResult } from '@gitstalk/shared-race/rpc';
-import type {
-  RepoOrigin,
-  RepoOwner,
-  RepositoriesRpc,
-  RepositoryRecord,
-} from '@gitstalk/shared-race/repos';
-import {
-  CreateRepositoryInput,
-  RepoOwner as RepoOwnerSchema,
-  UpdateRepositoryInput,
-} from '@gitstalk/shared-race/repos';
+import type { RepositoriesRpc, RepositoryRecord } from '@gitstalk/shared-race/repos';
+import { UpdateRepositoryInput } from '@gitstalk/shared-race/repos';
 
-import { artifactsCode } from '../adapters/artifacts';
-import type { RepositoryStorage } from '../adapters/repository-storage';
 import { orgRepositoryRole } from '../auth/git-credential';
 import { GatewayError } from '../errors';
-import type { Logger } from '../log';
 import { accessResult, archivedError, decideAccess, viewerPrincipal } from './access';
-import type { CollaboratorStore } from './collaborators';
-import type { RepoEnginePort } from './engine-port';
-import type { Registry } from './registry';
-import type { RepositoryCleanup } from './repository-cleanup';
-import { emptyStart, templateFiles } from './templates';
+import type { RepositoriesDeps } from './repositories-deps';
+import { INTERNAL_NEEDS_ORG, createRepository, createRepositoryAs } from './repository-creation';
 
-export type RepositoriesDeps = {
-  readonly registry: Registry;
-  readonly collaborators: CollaboratorStore;
-  /** People and orgs (IDENTITY_DB): whose namespace a handle is, and org roles. */
-  readonly identity: IdentityEnv;
-  readonly storage: RepositoryStorage;
-  readonly engine: RepoEnginePort;
-  /** What a deleted repository leaves outside the registry; never throws. */
-  readonly cleanup: RepositoryCleanup;
-  readonly log: Logger;
-  readonly now: () => number;
-  readonly newId: () => string;
-  /** This deployment's web origin: a template's files link to its docs there. */
-  readonly webUrl: string;
-};
-
-/** Artifacts' answers that mean the URL is not a public git repository. */
-const IMPORT_REFUSALS: ReadonlySet<string> = new Set([
-  'REMOTE_AUTH_REQUIRED',
-  'NOT_FOUND',
-  'INVALID_URL',
-]);
-/** Why a person's repository cannot be internal. */
-const INTERNAL_NEEDS_ORG =
-  "only an organization's repository can be internal (readable by its members); choose public or private";
-const SEED_AUTHOR = { name: 'Gitstalk', email: 'seed@gitstalk.invalid' };
-const ID_LENGTH = 12;
-const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
+/** `repo_create` and `POST /api/repos` (`RepoCreateRpc`), on the gateway's default entrypoint. */
+export function repoCreateRpc(deps: RepositoriesDeps): RepoCreateRpc {
+  return {
+    createRepositoryAs: (principal, request, via) =>
+      guarded(() => createRepositoryAs(deps, principal, request, via)),
+  };
+}
 
 export function repositoriesRpc(deps: RepositoriesDeps): RepositoriesRpc {
   return {
-    createRepository: (owner, input) => guarded(() => create(deps, owner, input)),
+    createRepository: (owner, input) => guarded(() => createRepository(deps, owner, input)),
     listRepositories: (ownerId, viewer, listing) =>
       guarded(async () => {
         const records = await deps.registry.byOwner(
@@ -182,115 +136,6 @@ export function repositoriesRpc(deps: RepositoriesDeps): RepositoriesRpc {
   };
 }
 
-/** A fresh repository id: 12 of [a-z0-9], which is also a valid run id for the engine. */
-export function newRepositoryId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(ID_LENGTH));
-  return Array.from(bytes, (byte) => ID_ALPHABET[byte % ID_ALPHABET.length]).join('');
-}
-
-/** The Artifacts repo of a repository: named by id, so a rename never moves storage. */
-export function artifactsRepoName(id: string): string {
-  return `repo-${id}`;
-}
-
-async function create(
-  deps: RepositoriesDeps,
-  rawOwner: RepoOwner,
-  rawInput: CreateRepositoryInput,
-): Promise<RpcResult<RepositoryRecord>> {
-  const owner = RepoOwnerSchema.safeParse(rawOwner);
-  if (!owner.success) return invalid('the owner is not a valid user');
-  const parsed = CreateRepositoryInput.safeParse(rawInput);
-  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? 'invalid repository');
-  const input = parsed.data;
-  const namespace = await namespaceFor(deps, owner.data, input.owner);
-  if (!namespace.ok) return namespace;
-  if (input.visibility === 'internal' && namespace.value.kind !== 'org')
-    return invalid(INTERNAL_NEEDS_ORG);
-  const id = deps.newId();
-  const artifactsRepo = artifactsRepoName(id);
-  const origin: RepoOrigin = input.start;
-  const reserved = await deps.registry.reserve(
-    {
-      id,
-      owner: { id: namespace.value.id, handle: namespace.value.handle },
-      ownerKind: namespace.value.kind,
-      name: input.name,
-      description: input.description,
-      visibility: input.visibility,
-      origin,
-      artifactsRepo,
-      engineId: id,
-    },
-    deps.now(),
-  );
-  if (!reserved) return taken(namespace.value.handle, input.name);
-  try {
-    await provision(deps, {
-      artifactsRepo,
-      name: input.name,
-      description: input.description,
-      origin,
-    });
-    const { engineId } = await deps.engine.open({
-      repoName: input.name,
-      artifactsRepo,
-      owner: { id: namespace.value.id, handle: namespace.value.handle },
-    });
-    const record = await deps.registry.markReady(id, engineId, deps.now());
-    if (record === null) throw new GatewayError(`repository ${id} vanished`, 'conflict', 409);
-    deps.log.info('repository created', {
-      repo: id,
-      origin: origin.kind,
-      engine: engineId,
-      owner: namespace.value.kind,
-    });
-    if (namespace.value.kind === 'org')
-      await recordOrgAudit(
-        deps.identity,
-        {
-          orgId: namespace.value.id,
-          actor: owner.data,
-          action: 'repository.create',
-          detail: record.name,
-        },
-        deps.now(),
-      );
-    return ok(record);
-  } catch (error: unknown) {
-    await undo(deps, id, artifactsRepo);
-    throw error;
-  }
-}
-
-/**
- * Whose namespace a new repository goes in: the creator's own (no handle, or theirs), or an
- * org whose repository setting lets the creator's role create there. Outsiders get 404.
- */
-async function namespaceFor(
-  deps: RepositoriesDeps,
-  creator: RepoOwner,
-  handle: string | undefined,
-): Promise<RpcResult<RepositoryOwnerRef>> {
-  if (
-    handle === undefined ||
-    handle === '' ||
-    handle.toLowerCase() === creator.handle.toLowerCase()
-  )
-    return ok({ kind: 'user', id: creator.id, handle: creator.handle });
-  const org = await findOrgByHandle(deps.identity, handle);
-  const role = org === null ? null : await orgRole(deps.identity, org.id, creator.id);
-  if (org === null || role === null)
-    return failure({ code: 'not_found', status: 404, message: `no organization named ${handle}` });
-  if (!mayCreateRepository(role, org.repoCreation))
-    return failure({
-      code: 'forbidden',
-      status: 403,
-      message: `in ${org.handle} only owners and admins create repositories; you are a ${role}`,
-    });
-  return ok({ kind: 'org', id: org.id, handle: org.handle });
-}
-
 /**
  * Moves a repository the actor administers to their own namespace or to an org where they
  * are an owner or admin; audited on the repository and on each org involved.
@@ -381,59 +226,6 @@ async function auditTransfer(
       ),
     );
   await Promise.all(writes);
-}
-
-async function provision(
-  deps: RepositoriesDeps,
-  repo: {
-    readonly artifactsRepo: string;
-    readonly name: string;
-    readonly description: string;
-    readonly origin: RepoOrigin;
-  },
-): Promise<void> {
-  const { storage } = deps;
-  const description = repo.description === '' ? repo.name : repo.description;
-  if (repo.origin.kind === 'import') {
-    const { url } = repo.origin;
-    await storage.importFrom(repo.artifactsRepo, url, description).catch((error: unknown) => {
-      if (IMPORT_REFUSALS.has(artifactsCode(error) ?? ''))
-        throw new GatewayError(
-          `${url} is not a public git repository (it asked for credentials or was not found)`,
-          'import_refused',
-          422,
-          { cause: error },
-        );
-      throw error;
-    });
-    const head = await storage.lineFromDefault(repo.artifactsRepo);
-    if (head === null)
-      throw new GatewayError('the imported repository is empty', 'invalid_request', 422);
-    return;
-  }
-  await storage.create(repo.artifactsRepo, description);
-  const files =
-    repo.origin.kind === 'template'
-      ? templateFiles(repo.origin.template, repo, deps.webUrl)
-      : emptyStart(repo.name, repo.description);
-  const message =
-    repo.origin.kind === 'template' ? 'Start from the TypeScript starter' : 'Initial commit';
-  await storage.seed(repo.artifactsRepo, {
-    files,
-    message,
-    author: SEED_AUTHOR,
-    time: Math.floor(deps.now() / 1000),
-  });
-}
-
-/** Removes a half-made repository; failures here are logged, the original error stands. */
-async function undo(deps: RepositoriesDeps, id: string, artifactsRepo: string): Promise<void> {
-  const results = await Promise.allSettled([
-    deps.registry.remove(id),
-    deps.storage.delete(artifactsRepo),
-  ]);
-  const failed = results.filter((result) => result.status === 'rejected').length;
-  if (failed > 0) deps.log.warn('repository cleanup incomplete', { repo: id, failed });
 }
 
 /** The repository, when the actor may administer it (its owner); 404 or 403 otherwise. */
