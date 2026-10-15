@@ -12,7 +12,8 @@
 # Repository settings: secret XINF_API_KEY, a Xava Inference API key (without it the review is off);
 # optional variables PROPOSAL_MAINTAINERS (comma-separated handles, default Disturbing),
 # XINF_BASE_URL (default https://zinf.ai; https://zinf.dev for staging) and PROPOSAL_REVIEW_MODEL
-# (a Xava Inference catalog id, default anthropic/claude-opus-5.5).
+# (a Xava Inference catalog id, default anthropic/claude-opus-5.5); PROPOSAL_WINDOW_HOURS (default
+# 72; set to 0 briefly to test the review on a throwaway proposal).
 name: proposals
 
 on:
@@ -58,6 +59,7 @@ jobs:
       - run: node scripts/proposals.mjs notify --pr "$PR"
         env:
           PR: ${{ github.event.pull_request.number }}
+          PROPOSAL_WINDOW_HOURS: ${{ vars.PROPOSAL_WINDOW_HOURS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
@@ -85,3 +87,4 @@ jobs:
           XINF_API_KEY: ${{ secrets.XINF_API_KEY }}
           XINF_BASE_URL: ${{ vars.XINF_BASE_URL }}
           PROPOSAL_REVIEW_MODEL: ${{ vars.PROPOSAL_REVIEW_MODEL }}
+          PROPOSAL_WINDOW_HOURS: ${{ vars.PROPOSAL_WINDOW_HOURS }}
