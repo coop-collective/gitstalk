@@ -103,7 +103,10 @@ describe('approval rules', () => {
     });
     expect(remote).toContain('approval rules: protected -> card (policy)');
     expect(remote).toContain("awaiting a person's approval");
-    expect(remote).toContain('RED: login was not landed');
+    expect(remote).toContain(
+      "HELD: login waits for a person's approval (class protected, decided by policy); nothing in it needs fixing",
+    );
+    expect(remote).not.toMatch(/RED:|fix:/u);
     await until(opened.engineId, 'login', ['red']);
 
     const held = await gateway.beanRoute(opened.engineId, 'login');

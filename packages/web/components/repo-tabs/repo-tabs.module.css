@@ -675,6 +675,22 @@
 .dot[data-tone='decide'] {
   background: var(--human-fill);
 }
+/* Held for a person's approval: the held panel's hollow violet bean, never a red dot. */
+.stepGlyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0 3px;
+  border-radius: 50%;
+  background: var(--sheet);
+}
+.dot[data-tone='approved'] {
+  background: var(--human-fill);
+  box-shadow: 0 0 0 2px var(--human-wash);
+}
 .stepText {
   font-size: var(--step--1);
 }

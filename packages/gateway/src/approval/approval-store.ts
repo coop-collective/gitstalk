@@ -129,6 +129,17 @@ export function readApprovalByKey(
   return row === undefined ? null : { revision: row.revision, approval: approvalOf(row) };
 }
 
+/** Every approval of `bean`'s revisions, oldest first: its journey names each one. */
+export function readApprovals(
+  sql: SqlStorage,
+  bean: string,
+): readonly { readonly revision: string; readonly approval: Approval }[] {
+  return sql
+    .exec<ApprovalRow>(`SELECT ${APPROVAL_COLUMNS} WHERE a.bean = ? ORDER BY a.at`, bean)
+    .toArray()
+    .map((row) => ({ revision: row.revision, approval: approvalOf(row) }));
+}
+
 function approvalOf(row: ApprovalRow): Approval {
   return {
     actor: row.actor,

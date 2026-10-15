@@ -23,7 +23,7 @@ import {
   checksSourceOf,
 } from '@gitstalk/shared-race/run-config';
 import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
-import type { ApprovedBean, BeanHold } from '@gitstalk/shared-race/bean-approval';
+import type { ApprovedBean, BeanHold, RevisionApproval } from '@gitstalk/shared-race/bean-approval';
 import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
 import { policyView, resolvePolicyFile } from '@gitstalk/shared-race/policy-file';
 import { readChecksFile } from '@gitstalk/shared-race/checks-config';
@@ -138,7 +138,12 @@ import {
   optionalAi,
   readStalkPolicy,
 } from '../approval/approval-host';
-import { migrateApprovalStore, readApproval, readRoute } from '../approval/approval-store';
+import {
+  migrateApprovalStore,
+  readApproval,
+  readApprovals,
+  readRoute,
+} from '../approval/approval-store';
 import type { EngineApproval } from '../approval/approve-bean';
 import { approveHeldBean } from '../approval/approve-bean';
 import { holdOf, shownApproval } from '../approval/bean-hold';
@@ -276,7 +281,11 @@ export type RunResult<T> =
   | { readonly ok: false; readonly error: RunFailure };
 
 /** A pushed bean with its approval hold (`approval/bean-hold.ts`). */
-export type HeldPushBean = PushBean & { readonly hold: BeanHold | null };
+export type HeldPushBean = PushBean & {
+  readonly hold: BeanHold | null;
+  /** Every approval of its revisions, oldest first. */
+  readonly approvals: readonly RevisionApproval[];
+};
 
 export type GitGrant =
   | {
@@ -2137,7 +2146,10 @@ export class RunDO extends DurableObject<Env> {
 function withHold(sql: SqlStorage, bean: PushBean): HeldPushBean {
   const receipt = readRoute(sql, bean.bean)?.receipt ?? null;
   const approval = receipt?.route === 'card' ? readApproval(sql, bean.bean, bean.head) : null;
-  return { ...bean, hold: holdOf({ receipt, approval, pushed: bean }) };
+  const approvals = readApprovals(sql, bean.bean).map(({ revision, approval: given }) =>
+    Object.assign(shownApproval(given), { revision }),
+  );
+  return { ...bean, hold: holdOf({ receipt, approval, pushed: bean }), approvals };
 }
 
 function failure(

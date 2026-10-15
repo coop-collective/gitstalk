@@ -294,7 +294,8 @@ function awaitingRed(receipt: RouteReceipt): CheckResult {
   const why = receipt.class === null ? 'its classes' : `class ${receipt.class}`;
   const reviewers =
     receipt.reviewers.length === 0 ? '' : ` (reviewers: ${receipt.reviewers.join(', ')})`;
-  return guardRed({
+  const held = { classes: [...receipt.classes], class: receipt.class, by: receipt.by };
+  const red = guardRed({
     file: receipt.policy.path ?? POLICY_PATH,
     name: 'awaits approval by a person',
     message: `routed to a person by ${why} (${receipt.by})`,
@@ -305,6 +306,7 @@ function awaitingRed(receipt: RouteReceipt): CheckResult {
       'check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.',
     ],
   });
+  return { ...red, held };
 }
 
 function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly string[] {

@@ -45,6 +45,14 @@ const Rework = z.object({
   conflicts: z.array(z.string()),
 });
 
+/** Why the approval rules held the bean at its latest check (`preland.check.held`). */
+export const CheckHold = z.object({
+  classes: z.array(z.string()),
+  class: z.string().nullable(),
+  by: z.enum(['policy', 'clef', 'rules']),
+});
+export type CheckHold = z.infer<typeof CheckHold>;
+
 export const PushBean = z.object({
   bean: TaskId,
   title: z.string(),
@@ -65,6 +73,11 @@ export const PushBean = z.object({
   phase: BeanPhase,
   reason: z.string(),
   rework: Rework.nullable(),
+  /**
+   * Set when its latest check was a hold of the approval rules: its verdict then says it waits
+   * for a person and that nothing needs fixing (beans stored before: none).
+   */
+  held: CheckHold.nullable().default(null),
   landedSha: z.string().nullable(),
   notes: z.array(Note),
   nextNote: z.number().int(),
@@ -121,6 +134,7 @@ export function receivedBean(input: {
     phase: 'checking',
     reason: 'the pre-land check is running on the merged tree',
     rework: null,
+    held: null,
     landedSha: null,
     notes: previous?.notes ?? [],
     nextNote: previous?.nextNote ?? 1,

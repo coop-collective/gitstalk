@@ -11,7 +11,7 @@
  * Output sizes are bounded, and a `truncated` flag says when a bound was hit.
  */
 import type { RouteReceipt } from './approval-policy';
-import type { ApproveBeanRequest, ApprovedBean, BeanHold } from './bean-approval';
+import type { ApproveBeanRequest, ApprovedBean, BeanHold, RevisionApproval } from './bean-approval';
 import type { ApprovalPolicyView } from './policy-file';
 import type {
   BeanContext,
@@ -699,6 +699,8 @@ export type PushedBeanStatus = {
   readonly verdict: readonly string[];
   /** Held for a person's approval, or approved for its head; null when no `card` route applies. */
   readonly hold: BeanHold | null;
+  /** Every approval a person gave its revisions, oldest first (a gateway before them: none). */
+  readonly approvals: readonly RevisionApproval[];
 };
 
 /** A git credential for one repository engine (`git` scope: clone, fetch, push beans). */

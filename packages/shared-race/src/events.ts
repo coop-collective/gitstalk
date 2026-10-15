@@ -18,6 +18,16 @@ export type Json =
   | readonly Json[]
   | { readonly [key: string]: Json };
 
+/**
+ * Why the approval rules held a bean at its pre-land check (`preland.check.held`): the
+ * change's classes, the class whose rule decided (null: none matched) and who decided.
+ */
+export type CheckHold = {
+  readonly classes: readonly string[];
+  readonly class: string | null;
+  readonly by: 'policy' | 'clef' | 'rules';
+};
+
 /** Extra keys `run_ci(meta=...)` spreads into `ci.start` and `ci.end`. */
 export type CiMeta = {
   readonly batch?: string;
@@ -390,6 +400,11 @@ export type RaceEventFields = {
     readonly inherited?: true;
     /** v2.5: a targeted check of the exact landing tree ran only these test files. */
     readonly targets?: readonly string[];
+    /**
+     * The approval rules held the bean for a person (`card`, no approval of this revision): the
+     * red is a hold, not a failure, and nothing in the bean needs fixing. Absent otherwise.
+     */
+    readonly held?: CheckHold;
   };
   /**
    * v2.5 (`tests_first`): the test author's files for a task, proven on its base. `accepted`:

@@ -546,6 +546,11 @@
   background: var(--warn-wash);
   color: var(--warn);
 }
+/* Held for a person's approval: violet, the held panel's colour, never the red of a failure. */
+.chip[data-tone='held'] {
+  background: var(--human-wash);
+  color: var(--human);
+}
 .chip[data-tone='base'] {
   color: var(--ink-3);
   box-shadow: inset 0 0 0 1px var(--rule);
@@ -995,6 +1000,21 @@
   border-radius: 2px;
   transform: rotate(45deg);
 }
+.journey li[data-tone='held']::before,
+.journey li[data-tone='approved']::before {
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--human-fill);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cellipse cx='7' cy='7' rx='3.6' ry='5' transform='rotate(28 7 7)' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cellipse cx='7' cy='7' rx='3.6' ry='5' transform='rotate(28 7 7)' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
+}
+.journey li[data-tone='approved']::before {
+  -webkit-mask: none;
+  mask: none;
+  border-radius: 50%;
+}
 .journey li[data-live]::before {
   background: transparent;
   box-shadow: none;
@@ -1004,6 +1024,13 @@
   height: 11px;
   transform: none;
   filter: drop-shadow(0 0 4px var(--glow-bean));
+}
+.journey li[data-live][data-tone='held']::before {
+  -webkit-mask: none;
+  mask: none;
+  border-color: var(--human-fill);
+  border-top-color: transparent;
+  border-radius: 50%;
 }
 .journey li[data-live][data-tone='plan']::before {
   border-color: var(--amber);
@@ -1296,6 +1323,16 @@
     center / 13px 13px no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.6' fill='none' stroke='%23fff' stroke-width='1.7' stroke-dasharray='3 3.2' stroke-linecap='round'/%3E%3C/svg%3E")
     center / 13px 13px no-repeat;
+}
+.helddot {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  background: var(--human-fill);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cellipse cx='7' cy='7' rx='3.6' ry='5' transform='rotate(28 7 7)' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cellipse cx='7' cy='7' rx='3.6' ry='5' transform='rotate(28 7 7)' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
 }
 /* glyph-chips:end */
 

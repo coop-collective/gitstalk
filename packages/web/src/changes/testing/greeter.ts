@@ -28,6 +28,7 @@ export const GREETER_PUSHED: readonly PushedBean[] = [
     landed_sha: TRUNCATE_LANDED,
     verdict: ['LANDED: add-truncate passed its pre-land check and is on the sprout as 941e146'],
     hold: null,
+    approvals: [],
   },
   {
     bean: 'shout',
@@ -41,6 +42,7 @@ export const GREETER_PUSHED: readonly PushedBean[] = [
     landed_sha: null,
     verdict: ['RED: shout was not landed. Merged onto the sprout, these tests failed:'],
     hold: null,
+    approvals: [],
   },
   {
     bean: 'slugify',
@@ -54,5 +56,6 @@ export const GREETER_PUSHED: readonly PushedBean[] = [
     landed_sha: SLUGIFY_LANDED,
     verdict: ['LANDED: slugify passed its pre-land check and is on the sprout as 8dadcc9'],
     hold: null,
+    approvals: [],
   },
 ];

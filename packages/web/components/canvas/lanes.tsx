@@ -100,6 +100,8 @@ function laneStatus(lane: Lane, state: RaceState): LaneStatus {
       return { glyph: 'blocked', text: `holding ${bean.id}`, bean };
     case 'parked':
       return { glyph: 'human', text: `${bean.id} needs a person`, bean };
+    case 'held':
+      return { glyph: 'human', text: `${bean.id} waits for a person's approval`, bean };
     default:
       return assertNever(bean.phase);
   }
