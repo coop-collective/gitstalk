@@ -27,19 +27,20 @@ describe('the freshness policy', () => {
     });
   });
 
-  it('persists immutable data of a public repository only', () => {
+  it('persists a repository’s immutable data, public or private, and nothing else’s', () => {
     const persisted = (visibility?: Visibility) =>
       freshness('immutable', visibility === undefined ? {} : { visibility }).meta['persist'];
     expect(persisted('public')).toBe(true);
-    expect(persisted('private')).toBe(false);
-    expect(persisted('internal')).toBe(false);
+    expect(persisted('private')).toBe(true);
+    expect(persisted('internal')).toBe(true);
     expect(persisted()).toBe(false);
   });
 
   it('never persists the event log, repository state that moves, or the viewer’s own data', () => {
     const kinds: readonly FreshnessClass[] = ['appendOnly', 'mutable', 'perViewer'];
     for (const kind of kinds)
-      expect(freshness(kind, { visibility: 'public' }).meta['persist']).toBeUndefined();
+      for (const visibility of ['public', 'private', 'internal'] as const)
+        expect(freshness(kind, { visibility }).meta['persist']).toBeUndefined();
   });
 
   it('keeps a persisted query in memory at least as long as its stored copy lives', () => {

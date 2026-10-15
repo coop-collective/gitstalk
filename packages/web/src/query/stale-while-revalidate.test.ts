@@ -1,8 +1,8 @@
 /**
  * The freshness policy as the browser lives it: a query (TanStack's `QueryObserver`, which
  * `useQuery` wraps) shows what the cache holds at once and refetches in the background only
- * when the data is stale; immutable data is never refetched; only a public repository's
- * data is written to storage.
+ * when the data is stale; immutable data is never refetched; only a repository's immutable
+ * data (public or private) is written to storage, never its event log or moving state.
  */
 import type { QueryKey } from '@tanstack/react-query';
 import { QueryObserver, dehydrate, focusManager } from '@tanstack/react-query';
@@ -148,19 +148,29 @@ describe('stale while revalidate', () => {
 });
 
 describe('what reaches storage', () => {
-  it('persists a public repository’s immutable data, and nothing private, append-only or mutable', async () => {
+  it('persists a repository’s immutable data, public or private, and nothing append-only or mutable', async () => {
     const client = makeQueryClient();
     const subscriptions = [
       observe(client, ['public-diff'], { kind: 'immutable', visibility: 'public' }, answer('a')),
       observe(client, ['private-diff'], { kind: 'immutable', visibility: 'private' }, answer('b')),
       observe(client, ['public-events'], { kind: 'appendOnly', visibility: 'public' }, answer('c')),
       observe(client, ['public-pushed'], { kind: 'mutable' }, answer('d')),
+      observe(
+        client,
+        ['private-events'],
+        { kind: 'appendOnly', visibility: 'private' },
+        answer('e'),
+      ),
+      observe(client, ['settings'], { kind: 'perViewer', visibility: 'private' }, answer('f')),
     ];
     await Promise.all(
       subscriptions.map(({ observer }) => observer.refetch().then(() => undefined)),
     );
     const stored = dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery });
-    expect(stored.queries.map((query) => query.queryKey)).toEqual([['public-diff']]);
+    expect(stored.queries.map((query) => query.queryKey)).toEqual([
+      ['public-diff'],
+      ['private-diff'],
+    ]);
     for (const { unsubscribe } of subscriptions) unsubscribe();
   });
 });

@@ -2,10 +2,10 @@
 
 /**
  * The app's TanStack Query client, around every page (app/layout.tsx). One client per tab;
- * queries that opt in with `meta: { persist: true }` (a public repository's immutable and
- * append-only data, src/query/policy.ts) are kept in sessionStorage for an hour, for this
- * build and this viewer only (src/query/persistence.ts). When the viewer changes (sign in,
- * sign out, another account), the cache and the stored copy are dropped.
+ * queries that opt in with `meta: { persist: true }` (a repository's immutable data, public or
+ * private, src/query/policy.ts) are kept in sessionStorage for an hour, for this build and this
+ * viewer only (src/query/persistence.ts). When the viewer changes (sign in, sign out, another
+ * account), the cache and the stored copy are dropped; a sign-out form drops them as it posts.
  */
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -26,6 +26,7 @@ import {
   sessionStorageOrUndefined,
   shouldPersistQuery,
 } from '../../src/query/persistence';
+import { SIGN_OUT_PATH } from '../../src/shell/header-entries';
 
 export function QueryProvider(props: {
   /** The signed-in person's id, or null when signed out. */
@@ -46,6 +47,16 @@ export function QueryProvider(props: {
     queryClient.clear();
     forgetPersistedCache(sessionStorageOrUndefined());
   }, [queryClient, viewer, buster]);
+  // Signing out: nothing of this viewer's stays in the tab, not even until the next page load.
+  useEffect(() => {
+    const onSubmit = (event: SubmitEvent) => {
+      if (!isSignOutForm(event.target)) return;
+      queryClient.clear();
+      forgetPersistedCache(sessionStorageOrUndefined());
+    };
+    document.addEventListener('submit', onSubmit);
+    return () => document.removeEventListener('submit', onSubmit);
+  }, [queryClient]);
   // Development only: how often each kind of query is served from the cache or fetched.
   useEffect(
     () =>
@@ -67,6 +78,12 @@ export function QueryProvider(props: {
       {props.children}
     </PersistQueryClientProvider>
   );
+}
+
+/** Whether a submitted form posts to sign-out (the header menu's, Settings → Sessions'). */
+function isSignOutForm(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLFormElement)) return false;
+  return new URL(target.action, window.location.href).pathname === SIGN_OUT_PATH;
 }
 
 function createPersister() {
