@@ -38,7 +38,7 @@ pnpm env:deploy <env>              # check secrets, deploy every package in orde
 | Public docs (`packages/site/public/docs/`) | `public-docs` |
 | Cloudflare platform questions (product choice, Workers, DOs, Wrangler, Sandbox, Agents SDK, vinext, web perf) | `cloudflare`, `workers-best-practices`, `durable-objects`, `wrangler`, `sandbox-next`, `agents-sdk`, `nextjs-on-cloudflare`, `web-perf` (vendored from `cloudflare/skills`; never edit by hand) |
 
-Skills live in `.agents/skills/` (read natively by Codex); `.claude/skills/` holds symlinks for Claude Code. A new skill goes in `.agents/skills/<name>/` plus `ln -s ../../.agents/skills/<name> .claude/skills/<name>`. Follow the Agent Skills size rules: `SKILL.md` under 150 lines, description under 1,024 characters, references one level deep with a contents list when over 100 lines.
+Skills live in `.agents/skills/` (read natively by Codex); `.claude/skills/` holds symlinks for Claude Code, which reads skills only from `.claude/skills/` and follows symlinked skill folders (checked 2026-10-15), so the symlinks are the one copy, not a duplicate. A new skill goes in `.agents/skills/<name>/` plus `ln -s ../../.agents/skills/<name> .claude/skills/<name>`. Follow the Agent Skills size rules: `SKILL.md` under 150 lines, description under 1,024 characters, references one level deep with a contents list when over 100 lines.
 
 ## Rules
 
