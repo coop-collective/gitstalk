@@ -190,10 +190,9 @@ function holdOf(
   receipt: RouteReceipt,
   unseen: readonly (LandedIntent | LandedContext)[],
 ): CheckResult | null {
+  if (receipt.approval.state === 'awaiting') return awaitingRed(receipt);
   const named = new Set(receipt.recheck ?? []);
   const clashing = unseen.filter((entry) => named.has(entry.bean));
-  if (receipt.approval.state === 'awaiting') return awaitingRed(receipt, clashing);
-  if (receipt.route === 'card') return null;
   return clashing.length === 0 ? null : recheckRed(receipt.bean, clashing);
 }
 
@@ -430,7 +429,12 @@ async function routeWithClashes(
   return clefRoute(route.value, sure.length === 0 ? null : sure, latencyMs);
 }
 
-/** Clef's route, held to `CARD_MIN_PROBABILITY`, or a recheck against the beans it is sure of. */
+/**
+ * A recheck against the beans Clef is sure of, else Clef's route held to `CARD_MIN_PROBABILITY`.
+ * A clash goes to the author agent first even when Clef would also card the bean (owner,
+ * 2026-10-16: misalignments must not reach a person); the author's next push is judged again,
+ * so a card for a real risk still comes, after the agent has reconciled what it can.
+ */
 function clefRoute(
   route: ChoiceAnswer,
   recheck: readonly (readonly [string, number])[] | null,
@@ -438,16 +442,6 @@ function clefRoute(
 ): Routed {
   const chosen = route.choice === 'card' ? 'card' : 'auto';
   const probability = route.probabilities[chosen] ?? route.confidence;
-  const sureCard =
-    chosen === 'card' && (probability === null || probability >= CARD_MIN_PROBABILITY);
-  if (sureCard)
-    return {
-      route: 'card',
-      by: 'clef',
-      probability,
-      latencyMs,
-      ...(recheck === null ? {} : { recheck: recheck.map(([bean]) => bean) }),
-    };
   if (recheck !== null)
     return {
       route: 'auto',
@@ -456,6 +450,9 @@ function clefRoute(
       latencyMs,
       recheck: recheck.map(([bean]) => bean),
     };
+  const sureCard =
+    chosen === 'card' && (probability === null || probability >= CARD_MIN_PROBABILITY);
+  if (sureCard) return { route: 'card', by: 'clef', probability, latencyMs };
   const auto = chosen === 'auto' ? probability : (route.probabilities['auto'] ?? null);
   return { route: 'auto', by: 'clef', probability: auto, latencyMs };
 }
@@ -530,19 +527,29 @@ function recheckRed(bean: string, landed: readonly (LandedIntent | LandedContext
       'and still being checked, so they may land first), which its tests never ran against, and thinks',
       'they may disagree (a unit, a format, a meaning or a value both rely on):',
       ...landed.flatMap((entry) => [
-        `  ${entry.bean}${entry.state === 'in-flight' ? ' (pushed before this one, still being checked)' : ''}: ${entry.intent ?? '(no intent recorded)'}`,
+        `  ${entry.bean}${entry.state === 'in-flight' ? ' (pushed before this one, still being checked)' : ''}: ${subjectOf(entry.intent)}`,
         ...(entry.sharedFiles.length === 0
           ? []
           : [`    both change: ${entry.sharedFiles.join(', ')}`]),
         ...linkLines(entry),
       ]),
       'Read them: landed ones on origin/sprout (git log origin/sprout), in-flight ones on their bean branches',
-      '(git fetch origin bean/<name>). If they disagree, fix this bean so both intents hold. Either way,',
-      'push again with a trailer naming what you checked, which takes them out:',
+      '(git fetch origin bean/<name>). If they disagree, fix this bean so both intents hold. When a test of',
+      'theirs only pins the assumption the two disagree on (a unit, a format), update that test so their',
+      'intent still holds under the new one, and say so in your commit message: that is reconciling, not',
+      'weakening it. Never change what their test is for. Either way, push again with a trailer naming',
+      'what you checked, which takes them out:',
       `  ${INTENT_CHECKED_TRAILER}: ${names.join(', ')}`,
-      `This is not a person's hold: the tests of ${bean} still decide once you push.`,
+      `This is not a person's hold: the tests of ${bean} still decide once you push, and the approval rules`,
+      'judge the new push again.',
     ],
   });
+}
+
+/** An intent's first line (an intent is its push's whole commit message), for one red line. */
+function subjectOf(intent: string | null): string {
+  const subject = intent?.split('\n')[0]?.trim() ?? '';
+  return subject === '' ? '(no intent recorded)' : subject;
 }
 
 /** How a landed bean connects to this one, for the author reading a recheck. */
@@ -561,14 +568,7 @@ function linkLines(entry: LandedIntent | LandedContext): string[] {
   ];
 }
 
-/**
- * A card's red. When Clef was also sure of a clash, the person approving reads it too: a card
- * wins over a recheck, so this is the only place the clash is said.
- */
-function awaitingRed(
-  receipt: RouteReceipt,
-  clashing: readonly (LandedIntent | LandedContext)[],
-): CheckResult {
+function awaitingRed(receipt: RouteReceipt): CheckResult {
   const why = receipt.class === null ? 'its classes' : `class ${receipt.class}`;
   const reviewers =
     receipt.reviewers.length === 0 ? '' : ` (reviewers: ${receipt.reviewers.join(', ')})`;
@@ -582,22 +582,9 @@ function awaitingRed(
       'Nothing in it needs fixing for this. An owner or maintainer approves this revision with Approve on the',
       "bean's page (Changes, Held), or has their agent call bean_approve. The approval re-submits it and its",
       'check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.',
-      ...clashLines(clashing),
     ],
   });
   return { ...red, awaitsApproval: true, held };
-}
-
-function clashLines(clashing: readonly (LandedIntent | LandedContext)[]): string[] {
-  if (clashing.length === 0) return [];
-  return [
-    'Before approving: Clef also thinks it may disagree with beans its author never saw (landed after it',
-    'forked, or pushed before it and still being checked), which its tests never ran against:',
-    ...clashing.flatMap((entry) => [
-      `  ${entry.bean}: ${entry.intent ?? '(no intent recorded)'}`,
-      ...linkLines(entry),
-    ]),
-  ];
 }
 
 /** A recheck is `auto` in the receipt, but the push line says what happened to the bean. */
@@ -619,11 +606,7 @@ function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly 
   if (receipt.refused !== null) lines.push(`${P} refused: ${receipt.refused}`);
   if (hasClashes(receipt)) {
     const beans = (receipt.recheck ?? []).join(', ');
-    lines.push(
-      receipt.route === 'card'
-        ? `${P} clef also sees a possible clash with ${beans}`
-        : `${P} back to its author: recheck against ${beans}`,
-    );
+    lines.push(`${P} back to its author: recheck against ${beans}`);
   }
   if (receipt.approval.state === 'awaiting') lines.push(`${P} awaiting a person's approval`);
   if (receipt.approval.state === 'approved')

@@ -321,10 +321,13 @@ remote: gitstalk:     Intent-checked: price-dollars</code></pre>
             landed one, <code>git fetch origin bean/&lt;name&gt;</code> for one in flight. If the
             two disagree, change your bean so both intents hold (in the example, shipping in dollars
             because <code>price()</code> now returns dollars), and add a test for the combination if
-            you can. Either way, rebase on <code>origin/sprout</code> and push again with a trailer
-            in the commit message naming what you checked:
-            <code>Intent-checked: price-dollars</code>. That takes the bean off the list and your
-            tests decide. See <a href="/docs/approval-rules#recheck">Recheck</a>.
+            you can. If a test of theirs only pins the old assumption (it expects
+            <code>price() + 500</code> in cents), update it so their intent still holds (<code
+              >price() * 100 + 500</code
+            >) and say so in your commit message. Either way, rebase on
+            <code>origin/sprout</code> and push again with a trailer in the commit message naming
+            what you checked: <code>Intent-checked: price-dollars</code>. That takes the bean off
+            the list and your tests decide. See <a href="/docs/approval-rules#recheck">Recheck</a>.
           </p>
 
           <h3 id="protected">changes protected paths ... refused</h3>

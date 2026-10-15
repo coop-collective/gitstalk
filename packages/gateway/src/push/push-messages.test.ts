@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { heldLines, heldWhy, promptOutput, withoutRemotePrefix } from './push-messages';
+import { heldLines, heldWhy, promptOutput, redLines, withoutRemotePrefix } from './push-messages';
 
 describe('verdict output', () => {
   it('keeps the telling lines of the suite output and drops stack frames', () => {
@@ -20,6 +20,39 @@ describe('verdict output', () => {
       "  code: 'ERR_ASSERTION',",
       '  actual: 99,',
     ]);
+  });
+});
+
+describe('a guard red', () => {
+  const guardPrompt = [
+    'Output:',
+    '```',
+    ...Array.from({ length: 20 }, (_, n) => `guard line ${n + 1}`),
+    '```',
+  ].join('\n');
+
+  it('keeps its output from the top, where a suite keeps the end', () => {
+    expect(promptOutput(guardPrompt, 'guard')[0]).toBe('guard line 1');
+    expect(promptOutput(guardPrompt, 'guard')).toHaveLength(20);
+    expect(promptOutput(guardPrompt)).toHaveLength(12);
+    expect(promptOutput(guardPrompt)[0]).toBe('guard line 9');
+  });
+
+  it('is told by its failing "test" in the configuration directory', () => {
+    const facts = {
+      reason: 'preland-red',
+      failing: ['.gitstalk/policy.yml > recheck against beans that landed after it forked'],
+      culprits: [],
+      conflicts: [],
+    };
+    const lines = redLines({ bean: 'shipping', link: null }, facts, guardPrompt);
+    expect(lines.join('\n')).toContain('guard line 1');
+    const suite = redLines(
+      { bean: 'shipping', link: null },
+      { ...facts, failing: ['test/a.test.mjs > a'] },
+      guardPrompt,
+    );
+    expect(suite.join('\n')).not.toContain('guard line 1\n');
   });
 });
 

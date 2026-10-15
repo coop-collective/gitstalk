@@ -540,10 +540,12 @@ classes:
             the other bean, its intent and the links. A recheck is cheaper than a card, so its bar
             is lower. The author reads the other bean, fixes theirs if the two disagree, and pushes
             again with a trailer naming what they checked. The trailer takes those beans off the
-            list; the tests still decide. A card Clef is sure of still wins, and a person decides:
-            the held message then also names the beans Clef thinks it clashes with, so the person
-            approving sees why. The bean pushed later is the one rechecked, so the bean that lands
-            second owns the repair.
+            list; the tests still decide. When a test of the other bean only pins the assumption the
+            two disagree on (a unit, a format), the author updates that test so the other bean's
+            intent still holds, and says so: reconciling, not weakening it. A clash goes to the
+            agent first even when the change would also need a person; the fixed push is judged
+            again, so a real risk still reaches a person and a simple misalignment never does. The
+            bean pushed later is the one rechecked, so the bean that lands second owns the repair.
           </p>
           <figure class="mock" aria-label="A terminal: a push sent back to its author to recheck">
             <div class="mock-bar" aria-hidden="true">
