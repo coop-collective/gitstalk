@@ -7,6 +7,13 @@
  */
 
 const OUTPUT_LINES = 12;
+/**
+ * Lines of a guard's own red (an approval rules recheck or hold, a writer limit, a protected
+ * path): written to be read whole and from the top, where a suite's output matters at its end.
+ */
+const GUARD_OUTPUT_LINES = 40;
+/** The failing "test" of a guard's red names a file in the configuration directory. */
+const GUARD_FAILURE = /^\.(?:gitstalk|beanstalk)\//u;
 const HUNK_LINES = 40;
 const INTENT_CHARS = 300;
 /** What every `remote:` line of a push starts with. */
@@ -100,7 +107,7 @@ export function redLines(context: VerdictContext, facts: ReworkFacts, prompt: st
     lines.push(`${P} it collided with these landed beans (accepted behaviour; keep both):`);
     for (const culprit of facts.culprits) lines.push(...beanLines(culprit));
   }
-  const output = promptOutput(prompt);
+  const output = promptOutput(prompt, isGuardRed(facts.failing) ? 'guard' : 'suite');
   if (output.length > 0) {
     lines.push(`${P} output:`, ...output.map((line) => `${P}   ${line}`));
   }
@@ -181,10 +188,15 @@ function beanLines(ref: BeanRef): string[] {
 }
 
 /** The suite output the engine's red prompt quotes, without stack frames, cut to its last lines. */
-export function promptOutput(prompt: string): string[] {
+export function promptOutput(prompt: string, kind: 'suite' | 'guard' = 'suite'): string[] {
   const match = /Output:\n```\n([\s\S]*?)\n```/.exec(prompt);
   const lines = (match?.[1] ?? '').split('\n').filter(isTelling);
-  return lines.slice(-OUTPUT_LINES);
+  return kind === 'guard' ? lines.slice(0, GUARD_OUTPUT_LINES) : lines.slice(-OUTPUT_LINES);
+}
+
+/** Every failing "test" is a guard's (a configuration file), so its output is the guard's own. */
+function isGuardRed(failing: readonly string[]): boolean {
+  return failing.length > 0 && failing.every((test) => GUARD_FAILURE.test(test));
 }
 
 /** An output line worth a terminal line: not blank, not a stack frame, not a lone brace. */
