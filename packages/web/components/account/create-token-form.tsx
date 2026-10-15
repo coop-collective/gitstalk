@@ -16,6 +16,11 @@ const SCOPES = [
     label: 'secrets',
     detail: 'set Actions secrets and variables (maintainers); the token can write deploy keys',
   },
+  {
+    value: 'create',
+    label: 'create',
+    detail: 'create repositories (POST /api/repos, or with write a push to a new address)',
+  },
 ] as const;
 
 const EXPIRY = [

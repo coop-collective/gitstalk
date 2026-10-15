@@ -6,7 +6,7 @@ import { startKeyRequest } from '@gitstalk/shared-identity/ssh-key-requests';
 
 import { problem } from '../../../../src/auth/http';
 import { log } from '../../../../src/log';
-import { KeyRequestBody, keyRequestAnswer } from '../../../../src/setup/setup-api';
+import { KeyRequestBody, keyRequestAnswer, wantsCreate } from '../../../../src/setup/setup-api';
 
 /**
  * Starts "add this SSH key" from a terminal: no session (the person approves in the browser),
@@ -24,6 +24,7 @@ export async function POST(request: Request): Promise<Response> {
     publicKey: body.data.public_key,
     machine: body.data.machine,
     httpsToken: body.data.https_token,
+    create: wantsCreate(body.data),
   });
   if (!started.ok) return problem(400, 'invalid_key', started.reason);
   log.info('ssh key request started', { fingerprint: started.fingerprint });

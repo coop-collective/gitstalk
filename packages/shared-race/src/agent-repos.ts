@@ -19,7 +19,7 @@ import type { PushedBeanStatus, RpcResult } from './rpc';
 export type { AgentPrincipal } from './collaborators';
 
 /** The scopes of an agent session (`@gitstalk/shared-identity/scopes`). */
-export type SessionScope = 'read' | 'collaborate' | 'write' | 'secrets';
+export type SessionScope = 'read' | 'collaborate' | 'write' | 'secrets' | 'create';
 
 /** `owner/name`, as in `/<owner>/<repo>` and the clone URL. */
 export const RepoSlug = z

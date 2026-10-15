@@ -236,7 +236,7 @@ describe('discovery (MCP authorization spec)', () => {
       registration_endpoint: `${ORIGIN}/oauth/register`,
       revocation_endpoint: `${ORIGIN}/oauth/token`,
       code_challenge_methods_supported: expect.arrayContaining(['S256']),
-      scopes_supported: ['read', 'collaborate', 'write', 'secrets'],
+      scopes_supported: ['read', 'collaborate', 'write', 'secrets', 'create'],
       client_id_metadata_document_supported: true,
     });
   });
@@ -359,7 +359,7 @@ describe('the authorization code flow', () => {
       redirectHost: 'localhost',
       redirectIsLoopback: true,
       requestedScopes: ['read'],
-      grantableScopes: ['read', 'collaborate', 'write', 'secrets'],
+      grantableScopes: ['read', 'collaborate', 'write', 'secrets', 'create'],
     });
     expect(await mcp().consentRequest(request, bob)).toBeNull();
     expect(await mcp().approveConsent(request, bob, ['read'], null)).toBeNull();
