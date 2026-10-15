@@ -245,6 +245,17 @@ cursor-agent mcp login gitstalk</code></pre>
               <code>origin</code> is a Gitstalk host.
             </li>
             <li>
+              <strong><code>/gitstalk:new [owner/]name</code></strong
+              >: creates a repository for the directory you are in (private unless you say
+              otherwise), connects it as <code>origin</code> and pushes your work as the first bean.
+              The agent asks you first before a public repository or one in an organization.
+            </li>
+            <li>
+              <strong><code>/gitstalk:host [url]</code></strong
+              >: points the plugin and the setup script at another Gitstalk (self-hosted, local or
+              staging).
+            </li>
+            <li>
               <strong><code>/gitstalk:bean-status [bean]</code></strong
               >: where a bean is, and what to do next.
             </li>
@@ -289,6 +300,16 @@ cursor-agent mcp login gitstalk</code></pre>
                   <div class="label"><b>Fingerprint</b></div>
                   <div class="m-input">SHA256:Hq3…x9k</div>
                 </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>create</b
+                    ><span
+                      >Create repositories where you may create them: by pushing to a new address or
+                      with the setup script's create. New ones are private.</span
+                    >
+                  </div>
+                  <div class="m-input">[x] ticked, you can untick</div>
+                </div>
               </div>
               <div class="m-decision">
                 <span class="ms held">check before you continue</span>
@@ -304,10 +325,13 @@ cursor-agent mcp login gitstalk</code></pre>
             </figcaption>
           </figure>
           <p>
-            Because git over SSH is not public yet, setup also stores an HTTPS token (read and
-            write, 90 days) in git's credential helper (your OS keychain where there is one) for the
-            Gitstalk host only, and says so. It shows up under Tokens in Settings. On a machine
-            without a browser it shows a code to enter on another signed-in device.
+            Setup asks for the <code>create</code> scope too, so the key and its token may create
+            repositories (with <code>/gitstalk:new</code>, or by pushing to a new address); untick
+            it to keep the key to existing repositories. Because git over SSH is not public yet,
+            setup also stores an HTTPS token (read and write, plus create when ticked; 90 days) in
+            git's credential helper (your OS keychain where there is one) for the Gitstalk host
+            only, and says so. It shows up under Tokens in Settings. On a machine without a browser
+            it shows a code to enter on another signed-in device.
           </p>
 
           <h2 id="session">What an agent session looks like</h2>
@@ -367,6 +391,13 @@ cursor-agent mcp login gitstalk</code></pre>
             <a class="fcard" href="/docs/mcp#scopes">
               <h3>Run workflows, set secrets <span class="badge live">live</span></h3>
               <p>Only with the write or secrets scope, and only where you are a maintainer.</p>
+            </a>
+            <a class="fcard" href="/docs/repositories#create-elsewhere">
+              <h3>Create repositories <span class="badge beta">beta</span></h3>
+              <p>
+                With the create scope: <code>repo_create</code>, the setup script's
+                <code>create</code>, or a push to a new address. Private unless you ask.
+              </p>
             </a>
           </div>
           <p>
@@ -435,7 +466,9 @@ cursor-agent mcp login gitstalk</code></pre>
             Any agent, or you, can run the same setup from the web app. It needs only
             <code>sh</code>, <code>curl</code>, <code>git</code> and OpenSSH 8.0 or newer. Windows
             has <code>setup.ps1</code> with the same subcommands (its options are written
-            <code>-Key</code>, <code>-AgentKey</code> and <code>-NoBrowser</code>).
+            <code>-Key</code>, <code>-AgentKey</code>, <code>-NoBrowser</code>,
+            <code>-Public</code>, <code>-Start</code>, <code>-Description</code> and
+            <code>-Reset</code>).
           </p>
           <div class="cmd" data-copyable>
             <header><span>Terminal</span></header>
@@ -480,6 +513,24 @@ cursor-agent mcp login gitstalk</code></pre>
                   <td><code>verify [OWNER/REPO]</code></td>
                   <td>Proves git reaches your account, and the repository.</td>
                 </tr>
+                <tr>
+                  <td>
+                    <code>create [OWNER/]NAME [--public] [--start ID] [--description TEXT]</code>
+                  </td>
+                  <td>
+                    Creates a repository with the token git already keeps (<code
+                      >POST /api/repos</code
+                    >; the token needs <code>create</code>), prints <code>created:</code> and its
+                    web address, then connects <code>origin</code> like <code>remote</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>host [URL | --reset]</code></td>
+                  <td>
+                    Shows, saves or forgets this machine's Gitstalk host, in
+                    <code>~/.config/gitstalk/host</code>.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -495,9 +546,10 @@ cursor-agent mcp login gitstalk</code></pre>
                 <tr>
                   <td><code>GITSTALK_WEB</code></td>
                   <td>
-                    The Gitstalk web app to talk to. Defaults to the public deployment. Set it for a
+                    The Gitstalk web app to talk to for this run. Without it the script uses the
+                    host saved with <code>host URL</code>, else the public deployment. Set it for a
                     <a href="/docs/self-hosting#custom-host">self-hosted</a> copy. A script
-                    downloaded from your own deployment already points there.
+                    downloaded from your own deployment already defaults there.
                   </td>
                 </tr>
                 <tr>
