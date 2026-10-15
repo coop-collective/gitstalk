@@ -20,6 +20,7 @@ const UNREACHABLE: CodeData = {
   seq: 0,
   head: null,
   body: { kind: 'missing', what: 'This repository’s engine is not reachable.' },
+  folders: [],
 };
 
 export async function codePage(tab: RepositoryTab, input: CodeInput): Promise<CodePage> {

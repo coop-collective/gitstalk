@@ -65,6 +65,10 @@ export const qk = {
       tree: (sha: string) => [...all, 'tree', sha] as const,
       /** One file at a commit sha. */
       file: (sha: string, path: string) => [...all, 'file', sha, path] as const,
+      /** One folder's entries at a commit sha (the Code tab's file tree; '' is the root). */
+      folder: (sha: string, path: string) => [...all, 'folder', sha, path] as const,
+      /** Every file's path at a commit sha (Go to file). */
+      paths: (sha: string) => [...all, 'paths', sha] as const,
       /**
        * The events after `seq`, for a page that watches the feed without the whole log (the
        * Code and History tabs' head watcher).

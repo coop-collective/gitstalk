@@ -38,6 +38,8 @@ describe('query keys', () => {
       repo.diff('a', 'b'),
       repo.tree('a'),
       repo.file('a', 'src/x.ts'),
+      repo.folder('a', 'src'),
+      repo.paths('a'),
       repo.tail(4),
     ])
       expect(key.slice(0, repo.all.length)).toEqual(repo.all);
