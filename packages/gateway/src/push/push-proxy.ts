@@ -25,7 +25,6 @@ import type { ReportMode } from '../git/receive-pack-report';
 import {
   acceptedResponse,
   parseReportStatus,
-  refusalResponse,
   reportMode,
   withRemoteLines,
   withoutFinalFlush,
@@ -41,8 +40,11 @@ import { DEFAULT_WAIT_REF_SECONDS, parsePushOptions } from './push-intent';
 import { checkStartedLines, receivedLines, statusHint } from './push-messages';
 import { repoEngineId } from './repo-engine';
 import { writeBeanWait, writePushVerdict } from './wait-stream';
+import type { RepositoriesDeps } from '../repos/repositories-deps';
+import type { RepositoryRecord } from '@gitstalk/shared-race/repos';
+import { firstPush, missingForPush, pushToCreate } from './push-create';
+import { bytesResponse, refused, resultHeaders, text } from './push-responses';
 
-const RESULT_TYPE = 'application/x-git-receive-pack-result';
 const ADVERTISED = ['push-options'];
 const ZERO_SHA = '0'.repeat(40);
 
@@ -53,6 +55,8 @@ export type RepoGitRequest = {
   readonly credential: GitCredential | null;
   readonly deps: Deps;
   readonly ctx: Pick<ExecutionContext, 'waitUntil'>;
+  /** The creation path, for push-to-create; absent: a push to a missing address is a 404. */
+  readonly repositories?: RepositoriesDeps;
 };
 
 type Engine = DurableObjectStub<RunDO>;
@@ -62,6 +66,12 @@ export async function repoGit(input: RepoGitRequest): Promise<Response> {
   const { path, credential, deps } = input;
   const principal: RepositoryPrincipal =
     credential === null ? { kind: 'anonymous' } : { kind: 'credential', credential };
+  if (credential?.address !== undefined && credential.address !== addressOf(path))
+    return text(404, missingForPush(path, deps.config.webUrl));
+  if (credential !== null) {
+    const created = await pushToCreate(input, credential);
+    if (created !== null) return created;
+  }
   const repository = await repositoryAt(deps, path, principal);
   const access = accessFor(path.service);
   // A repository the credential may not use is answered as missing: its existence is not
@@ -69,7 +79,7 @@ export async function repoGit(input: RepoGitRequest): Promise<Response> {
   const missing =
     credential === null
       ? notConnected('missing', deps.config.webUrl)
-      : text(404, `no repository ${path.namespace}/${path.repo}`);
+      : text(404, missingText(path, deps.config.webUrl));
   if (repository === null) return missing;
   const verdict = mayUseEngine(principal, repository.access, access);
   if (verdict !== 'allowed') {
@@ -93,6 +103,7 @@ export async function repoGit(input: RepoGitRequest): Promise<Response> {
           use,
           credential,
           movedTo,
+          record: repository.record,
           protectedAccess: protectedAccessOf(
             credential,
             roleOf({ kind: 'credential', credential }, repository.access),
@@ -129,6 +140,8 @@ async function repositoryAt(
 ): Promise<{
   readonly access: RepositoryAccess;
   readonly repoId: string | null;
+  /** The registry's record; null for an engine opened without one. */
+  readonly record: RepositoryRecord | null;
   /** The record's `owner/name` now (it differs from the path at an old address). */
   readonly fullName: string | null;
 } | null> {
@@ -137,6 +150,7 @@ async function repositoryAt(
     return {
       access: await accessFacts(deps.collaborators, record, principal),
       repoId: record.id,
+      record,
       fullName: `${record.owner.handle}/${record.name}`,
     };
   const derived = await repoEngineId(path.namespace, path.repo);
@@ -151,8 +165,21 @@ async function repositoryAt(
       archived: false,
     },
     repoId: null,
+    record: null,
     fullName: null,
   };
+}
+
+/** What git prints for a repository that is not there for this credential. */
+function missingText(path: GitPath, webUrl: string): string {
+  return path.service === 'git-receive-pack'
+    ? missingForPush(path, webUrl)
+    : `no repository ${path.namespace}/${path.repo}`;
+}
+
+/** `owner/name` of a git path, lower case. */
+function addressOf(path: GitPath): string {
+  return `${path.namespace}/${path.repo}`.toLowerCase();
 }
 
 /** The current `owner/name` when the request used an old address (a rename or a transfer). */
@@ -229,11 +256,16 @@ async function push(
     credential: GitCredential;
     /** The repository's current `owner/name` when the push used an old address. */
     movedTo: string | null;
+    record: RepositoryRecord | null;
     protectedAccess: ProtectedAccess;
   },
 ): Promise<Response> {
   if (input.request.headers.get('content-encoding') !== null)
     return text(415, 'compressed pushes are not supported');
+  if (target.record !== null) {
+    const first = await firstPush(input, { record: target.record, engine: target.engine });
+    if (first !== null) return first;
+  }
   const read = await readPushRequest(input.request.body);
   if (!read.ok) return text(400, read.reason);
   const { request } = read;
@@ -423,12 +455,6 @@ async function checkCommands(
   return { ok: true, ref: command.ref, bean, head: Sha.parse(command.newSha) };
 }
 
-function refused(request: PushRequest, mode: ReportMode, reason: string): Response {
-  const refs = request.commands.map((command) => command.ref);
-  const lines = [`gitstalk: push refused: ${reason}`];
-  return bytesResponse(refusalResponse(refs, reason, { mode, lines }), new Headers());
-}
-
 /**
  * A streamed answer: the report (the upstream's, or the gateway's own for a wait ref), the
  * lines so far, then what `body` writes as it happens, then the closing flush.
@@ -464,20 +490,4 @@ function streamedResponse(input: {
   })();
   input.ctx.waitUntil(work);
   return new Response(readable, { status: 200, headers: resultHeaders(input.headers) });
-}
-
-function resultHeaders(upstream: Headers): Headers {
-  const headers = new Headers(upstream);
-  headers.delete('content-length');
-  headers.set('content-type', RESULT_TYPE);
-  headers.set('cache-control', 'no-cache');
-  return headers;
-}
-
-function bytesResponse(bytes: Uint8Array, upstream: Headers, status = 200): Response {
-  return new Response(bytes, { status, headers: resultHeaders(upstream) });
-}
-
-function text(status: number, message: string): Response {
-  return new Response(`${message}\n`, { status, headers: { 'content-type': 'text/plain' } });
 }

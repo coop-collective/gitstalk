@@ -11,6 +11,17 @@ import type { SeedCommit } from '../git/seed-pack';
 import { emptyPack, seedPack } from '../git/seed-pack';
 import { call, withRepo } from './artifacts';
 
+/**
+ * A pushed commit that becomes the stalk's and the sprout's (push-to-create, or the first push
+ * to a repository created empty): its pack, as git sent it, and where the lines are now (null
+ * when the repo has none yet).
+ */
+export type PushedStart = {
+  readonly commit: string;
+  readonly pack: ReadableStream<Uint8Array>;
+  readonly from: string | null;
+};
+
 export type RepositoryStorage = {
   /** An empty repo whose default branch is the stalk. */
   create(name: string, description: string): Promise<void>;
@@ -20,6 +31,12 @@ export type RepositoryStorage = {
   seed(name: string, seed: SeedCommit): Promise<string>;
   /** Points the stalk and the sprout at the imported default branch's head; null if empty. */
   lineFromDefault(name: string): Promise<string | null>;
+  /** Puts a pushed commit, with the objects of its pack, on the stalk and the sprout. */
+  seedFromPush(name: string, start: PushedStart): Promise<void>;
+  /** The stalk's and the sprout's heads, null for a line that does not exist. */
+  lineHeads(
+    name: string,
+  ): Promise<{ readonly stalk: string | null; readonly sprout: string | null }>;
   files(name: string, ref: string): Promise<RepositoryFiles>;
   delete(name: string): Promise<boolean>;
 };
@@ -51,8 +68,20 @@ export function repositoryStorage(binding: Artifacts): RepositoryStorage {
     },
     async seed(name, seed) {
       const { commit, pack } = await seedPack(seed);
-      await pushLines(binding, name, commit, pack);
+      await pushLines(binding, name, receivePackBody(commit, pack));
       return commit;
+    },
+    async seedFromPush(name, start) {
+      const head = receivePackHead(start.commit, start.from ?? ZERO);
+      await pushLines(binding, name, prepended(head, start.pack));
+    },
+    lineHeads(name) {
+      return opened(binding, name, async (repo) => {
+        const [stalk, sprout] = await Promise.all(
+          LINES.map(async (line) => (await repo.log({ ref: line, limit: 1 }))[0]?.hash ?? null),
+        );
+        return { stalk: stalk ?? null, sprout: sprout ?? null };
+      });
     },
     async lineFromDefault(name) {
       const head = await opened(binding, name, async (repo) => {
@@ -61,7 +90,7 @@ export function repositoryStorage(binding: Artifacts): RepositoryStorage {
         return top?.hash ?? null;
       });
       if (head === null) return null;
-      await pushLines(binding, name, head, await emptyPack());
+      await pushLines(binding, name, receivePackBody(head, await emptyPack()));
       return head;
     },
     files(name, ref) {
@@ -73,12 +102,11 @@ export function repositoryStorage(binding: Artifacts): RepositoryStorage {
   };
 }
 
-/** Creates `stalk` and `sprout` at `commit` with one smart-HTTP push to the Artifacts remote. */
+/** Moves `stalk` and `sprout` with one smart-HTTP push (`body`) to the Artifacts remote. */
 async function pushLines(
   binding: Artifacts,
   name: string,
-  commit: string,
-  pack: Uint8Array,
+  body: Uint8Array | ReadableStream<Uint8Array>,
 ): Promise<void> {
   const { remote, token } = await opened(binding, name, async (repo) => {
     const [info, minted] = await Promise.all([
@@ -95,7 +123,7 @@ async function pushLines(
         'content-type': 'application/x-git-receive-pack-request',
         accept: 'application/x-git-receive-pack-result',
       },
-      body: receivePackBody(commit, pack),
+      body,
       signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
     });
     const report = await response.text();
@@ -110,14 +138,37 @@ async function pushLines(
 
 /** `<old> <new> <ref>` for each line (capabilities on the first), a flush, then the pack. */
 export function receivePackBody(commit: string, pack: Uint8Array): Uint8Array {
-  const lines = LINES.map((line, index) =>
-    pktLine(`${ZERO} ${commit} refs/heads/${line}${index === 0 ? '\0report-status' : ''}\n`),
-  );
-  const head = new TextEncoder().encode(`${lines.join('')}0000`);
+  const head = receivePackHead(commit, ZERO);
   const body = new Uint8Array(head.length + pack.length);
   body.set(head, 0);
   body.set(pack, head.length);
   return body;
+}
+
+/** The command section moving both lines from `from` (ZERO: creating them) to `commit`. */
+function receivePackHead(commit: string, from: string): Uint8Array {
+  const lines = LINES.map((line, index) =>
+    pktLine(`${from} ${commit} refs/heads/${line}${index === 0 ? '\0report-status' : ''}\n`),
+  );
+  return new TextEncoder().encode(`${lines.join('')}0000`);
+}
+
+/** `head`, then everything `rest` streams. */
+function prepended(head: Uint8Array, rest: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = rest.getReader();
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(head);
+    },
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }
 
 /** The refs a report-status refused (`ng <ref> <why>`), or an unpack failure. */

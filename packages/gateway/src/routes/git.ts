@@ -23,6 +23,7 @@ import { accessFor, parseGitPath } from '../git/git-path';
 import { inspectPush, pushRefusal } from '../git/receive-pack';
 import { repoGit } from '../push/push-proxy';
 import { usedFrom } from '../repos/deploy-tokens';
+import { repositoriesDepsFrom } from '../repos/repositories-deps';
 import { runOfRepo } from '../run/run-names';
 
 const CHALLENGE = { 'www-authenticate': 'Basic realm="gitstalk"' };
@@ -60,6 +61,7 @@ export const gitRoutes = new Hono<AppEnv>().all('/*', async (c) => {
       credential,
       deps,
       ctx: c.executionCtx,
+      repositories: repositoriesDepsFrom(c.env),
     });
   }
   return runGit(c, parsed.path, credential);

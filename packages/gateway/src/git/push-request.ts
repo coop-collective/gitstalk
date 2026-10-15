@@ -19,6 +19,11 @@ export type PushRequest = {
   readonly options: readonly string[];
   /** The request body for the upstream receive-pack. */
   readonly upstreamBody: ReadableStream<Uint8Array>;
+  /**
+   * The pack alone, after the commands and options: what a push that creates a repository
+   * forwards under its own commands. Read this or `upstreamBody`, never both.
+   */
+  readonly pack: ReadableStream<Uint8Array>;
 };
 
 export type PushRequestRead =
@@ -47,8 +52,9 @@ export async function readPushRequest(
     if (typeof head === 'string') return refuse(reader, head);
     if (head !== null) {
       const { commands, capabilities, options, forwarded, packStart } = head;
-      const upstreamBody = replay(concatBytes([forwarded, buffered.subarray(packStart)]), reader);
-      return { ok: true, request: { commands, capabilities, options, upstreamBody } };
+      const pack = replay(buffered.subarray(packStart), reader);
+      const upstreamBody = ahead(forwarded, pack);
+      return { ok: true, request: { commands, capabilities, options, upstreamBody, pack } };
     }
     if (buffered.length > MAX_HEAD_BYTES) return refuse(reader, 'push command list too long');
     // oxlint-disable-next-line no-await-in-loop -- a stream is read one chunk at a time
@@ -143,6 +149,25 @@ function replay(
     },
     cancel(reason) {
       return reader.cancel(reason);
+    },
+  });
+}
+
+/** `head`, then `source`, which is locked only once the stream is read (so `source` stays usable until then). */
+function ahead(head: Uint8Array, source: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (head.length > 0) controller.enqueue(head);
+    },
+    async pull(controller) {
+      reader ??= source.getReader();
+      const { done, value } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader === null ? source.cancel(reason) : reader.cancel(reason);
     },
   });
 }

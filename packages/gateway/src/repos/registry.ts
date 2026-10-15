@@ -51,6 +51,15 @@ export type Registry = {
   reserve(repo: NewRepository, nowMs: number): Promise<boolean>;
   /** Marks a reserved repository ready, with its engine, and records its creation. */
   markReady(id: string, engineId: string, nowMs: number): Promise<RepositoryRecord | null>;
+  /**
+   * A repository created empty whose first push became its stalk: its new engine and origin,
+   * with an activity line; null when it is missing.
+   */
+  restart(
+    id: string,
+    start: { readonly engineId: string; readonly origin: RepoOrigin },
+    nowMs: number,
+  ): Promise<RepositoryRecord | null>;
   byId(id: string): Promise<RepositoryRecord | null>;
   /** The repository at `/<owner>/<name>` now; old addresses are `resolve`'s. */
   byName(ownerHandle: string, name: string): Promise<RepositoryRecord | null>;
@@ -129,9 +138,10 @@ const Row = z.object({
 const Topics = z.array(z.string());
 
 const Origin = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('empty') }),
+  z.object({ kind: z.literal('empty'), first_push: z.literal('becomes-stalk').optional() }),
   z.object({ kind: z.literal('template'), template: z.enum(['typescript-starter']) }),
   z.object({ kind: z.literal('import'), url: z.string() }),
+  z.object({ kind: z.literal('push'), ref: z.string() }),
 ]);
 
 const SELECT = 'SELECT * FROM repositories';
@@ -215,6 +225,26 @@ export function d1Registry(db: D1Database, identity?: IdentityEnv): Registry {
         activityInsert(db, record, at, 'created', createdText(record.origin)),
       ]);
       return { ...record, engine_id: engineId, updated_at: at };
+    },
+    async restart(id, start, nowMs) {
+      const record = await one(`${SELECT} WHERE id = ? AND state = 'ready'`, id);
+      if (record === null) return null;
+      const at = iso(nowMs);
+      const restarted = {
+        ...record,
+        engine_id: start.engineId,
+        origin: start.origin,
+        updated_at: at,
+      };
+      await db.batch([
+        db
+          .prepare(
+            'UPDATE repositories SET engine_id = ?, origin_json = ?, updated_at = ? WHERE id = ?',
+          )
+          .bind(start.engineId, JSON.stringify(start.origin), at, id),
+        activityInsert(db, restarted, at, 'created', createdText(start.origin)),
+      ]);
+      return restarted;
     },
     byId: (id) => one(`${SELECT} WHERE id = ? AND state = 'ready'`, id),
     byName,
@@ -499,11 +529,15 @@ function changes(before: RepositoryRecord, after: RepositoryRecord): Change[] {
 function createdText(origin: RepoOrigin): string {
   switch (origin.kind) {
     case 'empty':
-      return 'Created with a README.';
+      return origin.first_push === undefined
+        ? 'Created with a README.'
+        : 'Created empty: its first push becomes the stalk.';
     case 'template':
       return 'Created from the TypeScript starter.';
     case 'import':
       return `Imported from ${origin.url}.`;
+    case 'push':
+      return `Created by a push of ${origin.ref}.`;
     default:
       return assertNever(origin);
   }

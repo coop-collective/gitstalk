@@ -86,6 +86,15 @@ export async function registryEngineId(artifactsRepo: string): Promise<RunId> {
   return engineIdOf(`#registry/${artifactsRepo}`);
 }
 
+/**
+ * The engine a repository created empty gets when its first push becomes its stalk (§10 of
+ * the repositories doc): a new engine starts from that commit, and the one that held the seed
+ * is closed.
+ */
+export async function firstPushEngineId(artifactsRepo: string): Promise<RunId> {
+  return engineIdOf(`#registry/${artifactsRepo}#first-push`);
+}
+
 async function engineIdOf(key: string): Promise<RunId> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
   const hex = [...new Uint8Array(digest)]

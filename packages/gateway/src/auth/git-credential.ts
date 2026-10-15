@@ -40,9 +40,13 @@ import { JOB_TOKEN_PREFIX, verifyJobToken } from '../actions/job-tokens';
 import { assertNever } from '../engine/errors';
 import { DEPLOY_TOKEN_PREFIX, verifyDeployToken } from '../repos/deploy-tokens';
 import { verifyToken } from './tokens';
+import { NEW_ADDRESS_PREFIX } from '@gitstalk/shared-race/repo-create';
 
-/** What a credential may do with a repository. Landing is never one of them. */
-export type GitScope = 'repo:read' | 'bean:write';
+/**
+ * What a credential may do with a repository. Landing is never one of them. `repo:create`
+ * lets a push to an address that does not exist create it (push-to-create, `push-create.ts`).
+ */
+export type GitScope = 'repo:read' | 'bean:write' | 'repo:create';
 
 export type GitUser = { readonly id: string; readonly handle: string };
 
@@ -76,6 +80,12 @@ export type GitCredential = {
    * `permissions: beans: read`): bean pushes are refused. Absent means the scopes decide.
    */
   readonly beanPushAllowed?: boolean | undefined;
+  /**
+   * `owner/name` (lower case) for a session token minted by `git_credentials` for an address
+   * that did not exist yet: it opens that address only, to create it by a push and use it
+   * after. Absent for every other credential.
+   */
+  readonly address?: string | undefined;
 };
 
 /** What verification needs: the run-token secret, the clock and, for people's tokens, the identity DB. */
@@ -92,6 +102,11 @@ export type GitCredentialEnv = {
 /** The repository a request names, as access rules see it. */
 export type RepositoryAccess = {
   readonly engine: RunId;
+  /**
+   * The engine a repository made empty had before its first push became the stalk (a new
+   * engine starts then): a `git_credentials` token minted for it still opens the repository.
+   */
+  readonly seedEngine?: RunId | undefined;
   /** The owner (the registry's; for an engine opened without one, the URL's handle and no id). */
   readonly owner: { readonly id: string | null; readonly handle: string };
   /** Public, private, or internal (an org's: its members read it; `RepoVisibility`). */
@@ -219,7 +234,7 @@ function roleVerdict(
   if (principal.kind === 'credential') {
     const { credential } = principal;
     if (credential.engine !== null)
-      return credential.engine === repository.engine
+      return credential.engine === repository.engine || credential.engine === repository.seedEngine
         ? withinScopes(credential, action)
         : 'not-found';
     if (credential.runPrincipal !== null) return 'not-found';
@@ -338,6 +353,15 @@ async function verifyPersonToken(
   if (verified === null) return null;
   // A session token minted for one repository (MCP `git_credentials`) opens that one only.
   const bound = verified.token.repository;
+  if (bound?.startsWith(NEW_ADDRESS_PREFIX) === true)
+    return {
+      user: { id: verified.user.id, handle: verified.user.handle },
+      scopes: gitScopes(verified.scopes),
+      engine: null,
+      runPrincipal: null,
+      session: { via: 'agent-session', id: verified.token.id },
+      address: bound.slice(NEW_ADDRESS_PREFIX.length).toLowerCase(),
+    };
   const engine = bound === null ? null : RunId.safeParse(bound);
   if (engine !== null && !engine.success) return null;
   return {
@@ -395,11 +419,15 @@ async function verifyJob(env: GitCredentialEnv, token: string): Promise<GitCrede
   };
 }
 
-/** An account grant's git reach: `read` reads, `write` also pushes beans; `collaborate` has none. */
+/**
+ * An account grant's git reach: `read` reads, `write` also pushes beans, `create` lets a push
+ * create a repository (with `write`: creating is a push); `collaborate` has none.
+ */
 export function gitScopes(scopes: readonly Scope[]): GitScope[] {
   const git: GitScope[] = [];
   if (scopes.includes('read') || scopes.includes('write')) git.push('repo:read');
   if (scopes.includes('write')) git.push('bean:write');
+  if (scopes.includes('write') && scopes.includes('create')) git.push('repo:create');
   return git;
 }
 

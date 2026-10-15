@@ -9,7 +9,7 @@ import type { RepoOwner } from '@gitstalk/shared-race/repos';
 
 import type { Deps } from '../deps';
 import { GatewayError } from '../errors';
-import { registryEngineId } from '../push/repo-engine';
+import { firstPushEngineId, registryEngineId } from '../push/repo-engine';
 import { openRepoEngine, repoEngineRpc } from '../rpc/repo-engine-rpc';
 
 export type OpenRepoEngineInput = {
@@ -19,8 +19,11 @@ export type OpenRepoEngineInput = {
   readonly settings?: Readonly<Record<string, unknown>>;
 };
 
+/** Which engine of a repository: its first, or the one its first push starts (`firstPushEngineId`). */
+export type EngineGeneration = 'first' | 'first-push';
+
 export type RepoEnginePort = {
-  open(input: OpenRepoEngineInput): Promise<{ engineId: string }>;
+  open(input: OpenRepoEngineInput, generation?: EngineGeneration): Promise<{ engineId: string }>;
   /** Stops the engine of a deleted repository (the registry deletes the Artifacts repo). */
   close(engineId: string): Promise<void>;
 };
@@ -28,11 +31,15 @@ export type RepoEnginePort = {
 /** The real engine (git-native work): opens or finds the repository's continuous engine. */
 export function repoEnginePort(deps: Deps): RepoEnginePort {
   return {
-    async open(input) {
+    async open(input, generation = 'first') {
+      const engineId =
+        generation === 'first'
+          ? await registryEngineId(input.artifactsRepo)
+          : await firstPushEngineId(input.artifactsRepo);
       const opened = await openRepoEngine(
         deps,
         { repoName: input.repoName, artifactsRepo: input.artifactsRepo, owner: input.owner },
-        await registryEngineId(input.artifactsRepo),
+        engineId,
       );
       if (!opened.ok) throw new GatewayError(opened.error.message, opened.error.code, 502);
       return { engineId: opened.value.engineId };
