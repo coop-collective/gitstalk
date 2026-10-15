@@ -14,6 +14,8 @@ export function RepositoryShell(props: {
   readonly tab: RepoTab;
   /** Beans in check, red or waiting, counted on the Changes tab. */
   readonly openChanges: number;
+  /** Use the width of the window (the Code tab's two panes), not the reading column. */
+  readonly wide?: boolean;
   readonly children: ReactNode;
 }) {
   const { record, base, role } = props.page;
@@ -30,7 +32,9 @@ export function RepositoryShell(props: {
         canAdminister={role !== null}
         archived={record.archived_at !== null}
       />
-      <div className={styles.page}>{props.children}</div>
+      <div className={styles.page} data-wide={props.wide === true ? '' : undefined}>
+        {props.children}
+      </div>
     </main>
   );
 }

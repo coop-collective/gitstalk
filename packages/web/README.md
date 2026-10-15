@@ -29,7 +29,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/login`, `/signup`, `/signup/agent` | One sign-in flow (`components/account/sign-in-flow.tsx`): continue with a passkey (autofill where supported) or an email and six-digit code; a new address picks a handle, then is offered a passkey; `/signup` also creates an account from a handle and a passkey. Turnstile when configured; `next` is kept on every step. Sign-up through your agent's own OAuth flow |
 | `/connect` | OAuth consent for an agent, opened by `gitstalk-mcp`'s `/authorize` |
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
-| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk |
+| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk: the file tree beside the open file or folder (`components/repo-tabs/code-workspace.tsx`, `file-tree.tsx`, `go-to-file.tsx`; model in `src/code/file-tree.ts`), its folders read through `/api/repos/<owner>/<repo>/code/folder` and Go to file through `/code/paths` |
 | `/<owner>/<repo>/ask`, `/files` | Ask, the generated explorer: a question becomes a view spec with removable chips, then a fixed arrangement of files, beans, decisions and checks |
 | `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, held for approval, landed, parked) and a bean's detail (a held bean's page has the Held panel where owners and maintainers approve it); stalk and sprout history with validation verdicts; who has access |
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
@@ -256,7 +256,8 @@ subject, which carries the code.
 
 Most tests run under plain vitest (no Miniflare): view models, the gateway and Actions clients
 against fakes, auth helpers, site forwarding and search headers, the setup API, the query
-policy and invalidation map, and the benchmark reducer. The edge cache's tests
+policy and invalidation map, the benchmark reducer, and component render tests
+(`components/**/*.test.tsx`, rendered to HTML as the server would, with `next/*` mocked). The edge cache's tests
 (`*.workers.test.ts`) run on Miniflare with real KV and Cache API (`vitest.workers.config.ts`).
 
 ## Configuration

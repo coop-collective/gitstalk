@@ -1,4 +1,8 @@
-/** The Code tab, laid out: the bar (with the Code button), the folder or file, the side column. */
+/**
+ * The Code tab, laid out as an editor: the bar (ref switcher, path, Code button) over two
+ * panes, the file tree on the left and the open file or folder on the right (code-workspace).
+ * A folder keeps the side column (About) beside its listing while there is room.
+ */
 import { groupCounts } from '../../src/changes/changes';
 import type { CodeView, RefChoice } from '../../src/code/tree';
 import type { CodePage } from '../../src/server/code-page';
@@ -6,6 +10,8 @@ import type { RepositoryTab } from '../../src/server/repository-tab';
 import { BlobView } from './blob-view';
 import type { CodeLocation } from './code-browser';
 import { CodeAside, CodeBar, FolderView } from './code-browser';
+import { CodeWorkspace } from './code-workspace';
+import treeStyles from './file-tree.module.css';
 import styles from './repo-tabs.module.css';
 import { repoScopeOf } from './changes-tab';
 import { RepositoryShell } from './repository-shell';
@@ -27,8 +33,32 @@ export function CodeTab(props: {
   const beans = [...data.changes].toSorted(
     (a, b) => Number(b.group === 'open') - Number(a.group === 'open'),
   );
+  const bar = (
+    <CodeBar
+      at={at}
+      view={props.view}
+      repoName={tab.record.name}
+      beans={beans}
+      menu={props.view === 'tree' ? { menu: data.menu, slug: slugOf(tab) } : null}
+    />
+  );
+  const body = <CodeBody at={at} data={data} plain={props.plain} nowMs={props.nowMs} />;
+  const main =
+    props.view === 'blob' ? (
+      body
+    ) : (
+      <div className={treeStyles.folderSplit}>
+        <div>{body}</div>
+        <CodeAside
+          base={tab.base}
+          description={tab.record.description}
+          changes={data.changes}
+          onStalk={data.changes.filter((change) => change.state === 'validated').length}
+        />
+      </div>
+    );
   return (
-    <RepositoryShell page={tab} tab="code" openChanges={counts.open}>
+    <RepositoryShell page={tab} tab="code" openChanges={counts.open} wide={data.sha !== ''}>
       {tab.reads === null || !isLine(props.browsing) ? null : (
         <HeadWatcher
           scope={repoScopeOf(tab)}
@@ -39,26 +69,22 @@ export function CodeTab(props: {
           seq={data.seq}
         />
       )}
-      <div className={props.view === 'blob' ? styles.single : styles.split}>
-        <div>
-          <CodeBar
-            at={at}
-            view={props.view}
-            repoName={tab.record.name}
-            beans={beans}
-            menu={props.view === 'tree' ? { menu: data.menu, slug: slugOf(tab) } : null}
-          />
-          <CodeBody at={at} data={data} plain={props.plain} nowMs={props.nowMs} />
+      {data.sha === '' ? (
+        // Nothing could be read (an unknown bean, an unreachable engine): no tree to show.
+        <div className={styles.single}>
+          {bar}
+          {main}
         </div>
-        {props.view === 'blob' ? null : (
-          <CodeAside
-            base={tab.base}
-            description={tab.record.description}
-            changes={data.changes}
-            onStalk={data.changes.filter((change) => change.state === 'validated').length}
-          />
-        )}
-      </div>
+      ) : (
+        <CodeWorkspace
+          scope={repoScopeOf(tab)}
+          at={{ ref: props.browsing, sha: data.sha, path: props.path, view: props.view }}
+          folders={data.folders}
+          bar={bar}
+        >
+          {main}
+        </CodeWorkspace>
+      )}
     </RepositoryShell>
   );
 }
