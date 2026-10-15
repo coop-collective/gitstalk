@@ -69,6 +69,7 @@ describe('bean_approve', () => {
       approve_url: `https://gitstalk-web.example.workers.dev/${slug(repo)}/changes/login`,
       next: expect.stringContaining('only if they tell you to'),
     });
+    expect(status['summary']).toMatch(/^login held for a person's approval/u);
     const approved = await tool(client, 'bean_approve', {
       repo: slug(repo),
       bean: 'login',

@@ -7,13 +7,13 @@
  */
 import type { RunDO } from '../run/run-do';
 import type { BeanWatch, WaitMode, WatchInput, WatchedBean } from './bean-wait';
-import { isActionable, isChecking, isWaitOver } from './bean-wait';
+import { isActionable, isChecking, isWaitOver, needsPush } from './bean-wait';
 import type { PushProgress } from './push-bean';
 import { statusHint, waitCommand } from './push-messages';
 import {
-  actionableLines,
   arrivedLines,
   keepaliveLine,
+  settledLines,
   waitEndLines,
   waitHeaderLines,
 } from './wait-messages';
@@ -81,10 +81,10 @@ export async function writeBeanWait(
     maxMs: 0,
   });
   await write(waitHeaderLines(wait.mode, first.beans, first.unknown));
-  const actionable = first.beans.filter((bean) => isActionable(bean.phase));
-  await write(actionable.flatMap(actionableLines));
+  await write(first.beans.filter((bean) => isActionable(bean.phase)).flatMap(settledLines));
   const watching = new Set(first.beans.filter((bean) => isChecking(bean.phase)).map(name));
-  if (watching.size === 0 || (wait.mode === 'any' && actionable.length > 0)) {
+  // A held bean is printed but does not end an `any` wait: its author has nothing to push.
+  if (watching.size === 0 || (wait.mode === 'any' && first.beans.some(needsPush))) {
     await write(waitEndLines(wait.mode, first.beans, null));
     return;
   }
