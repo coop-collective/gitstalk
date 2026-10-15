@@ -237,7 +237,7 @@ export default class Gateway
     const log = createLogger(readConfig(this.env).logLevel, { component: 'repo-events' });
     this.ctx.waitUntil(
       this.env.DERIVED.getByName(feed.engine)
-        .observe({ repo: feed.repo, events: feed.events })
+        .observe({ repo: feed.repo, engine: feed.engine, events: feed.events })
         .catch((error: unknown) => {
           log.warn('derived history feed failed', { engine: feed.engine, error });
         }),

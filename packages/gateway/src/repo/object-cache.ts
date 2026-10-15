@@ -36,8 +36,11 @@ export type ObjectStore = {
 
 /** Named refs resolved within this long are answered from memory. */
 export const REF_MEMO_MS = 5000;
-/** Blobs above this size are read through, not stored (a SQLite row holds at most 2 MB). */
-const MAX_CACHED_BLOB_BYTES = 1024 * 1024;
+/**
+ * Blobs above this size are read through, not stored (a SQLite row holds at most 2 MB), nor
+ * served to derivation (`object-reads.ts`).
+ */
+export const MAX_CACHED_BLOB_BYTES = 1024 * 1024;
 const COMMIT_ID = /^[0-9a-f]{40}$/;
 
 const Person = z.object({ name: z.string(), email: z.string() });
@@ -149,20 +152,29 @@ export function cachedReader(handle: RepoReader, cache: ReadCache): RepoReader {
     const [head] = await log({ ref, limit: 1 });
     return head?.treeHash ?? null;
   };
-  const readFile: RepoReader['readFile'] = async ({ ref, path }) => {
-    let current = await resolveTree(ref);
-    const segments = path.split('/');
-    for (const [index, segment] of segments.entries()) {
-      if (current === null) return null;
-      // oxlint-disable-next-line no-await-in-loop -- each level is read from the one above
-      const entry = (await readTree(current))?.find((candidate) => candidate.name === segment);
-      if (entry === undefined) return null;
-      if (index === segments.length - 1) return entry.type === 'tree' ? null : readBlob(entry.hash);
-      current = entry.type === 'tree' ? entry.hash : null;
-    }
-    return null;
-  };
+  const readFile: RepoReader['readFile'] = async ({ ref, path }) =>
+    readPath({ readTree, readBlob }, await resolveTree(ref), path);
   return { readTree, readBlob, readCommit, readFile, log, prefetchBlob };
+}
+
+/** The blob at `path` under the tree `root`, read level by level; null when absent or a tree. */
+export async function readPath(
+  reads: Pick<RepoReader, 'readTree' | 'readBlob'>,
+  root: string | null,
+  path: string,
+): Promise<Blob | null> {
+  let current = root;
+  const segments = path.split('/');
+  for (const [index, segment] of segments.entries()) {
+    if (current === null) return null;
+    // oxlint-disable-next-line no-await-in-loop -- each level is read from the one above
+    const entry = (await reads.readTree(current))?.find((candidate) => candidate.name === segment);
+    if (entry === undefined) return null;
+    if (index === segments.length - 1)
+      return entry.type === 'tree' ? null : reads.readBlob(entry.hash);
+    current = entry.type === 'tree' ? entry.hash : null;
+  }
+  return null;
 }
 
 /** The store in the RunDO's SQLite (table `git_objects`, created on first use). */

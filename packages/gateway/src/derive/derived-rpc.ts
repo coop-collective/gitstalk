@@ -48,12 +48,14 @@ export function derivedRpc(deps: DerivedRpcDeps): DerivedRpc {
     async whyLines(run, input) {
       const args = WhyLinesArgs.safeParse(input);
       if (!args.success) return invalid(args.error.issues[0]?.message ?? 'arguments');
-      return forRepository(deps, run, (stub, repo) => stub.whyLines({ ...args.data, repo }));
+      return forRepository(deps, run, (stub, source) => stub.whyLines({ ...args.data, ...source }));
     },
     async pathHistory(run, input) {
       const args = PathHistoryArgs.safeParse(input);
       if (!args.success) return invalid(args.error.issues[0]?.message ?? 'arguments');
-      return forRepository(deps, run, (stub, repo) => stub.pathHistory({ ...args.data, repo }));
+      return forRepository(deps, run, (stub, source) =>
+        stub.pathHistory({ ...args.data, ...source }),
+      );
     },
   };
 }
@@ -63,7 +65,7 @@ async function forRepository<T>(
   run: string,
   read: (
     stub: Pick<DurableObjectStub<RepoDerivedDO>, 'whyLines' | 'pathHistory'>,
-    repo: string,
+    source: { readonly repo: string; readonly engine: string },
   ) => Promise<RpcResult<T>>,
 ): Promise<RpcResult<T>> {
   const engine = RunId.safeParse(run);
@@ -73,7 +75,7 @@ async function forRepository<T>(
     const message = 'derived history exists for repositories only, and this engine drives none';
     return { ok: false, error: { code: 'not_found', status: 404, message } };
   }
-  return read(deps.derived(engine.data), record.artifacts_repo);
+  return read(deps.derived(engine.data), { repo: record.artifacts_repo, engine: engine.data });
 }
 
 function invalid(message: string): {

@@ -14,9 +14,11 @@
  *   memory and disk while the instance is up, which is each call plus the `sleepAfter` tail,
  *   overlapping tails counted once per instance.
  * - The read index (`repo/object-cache.ts`): hits and misses by object kind and of the ref
- *   memo (`repo/cache-stats.ts`), demand reads apart from the warm-up's prefetch. Free in
- *   itself. Its misses are binding reads inside the port calls counted above (one per call),
- *   or the warm-up's, which the Artifacts count leaves out.
+ *   memo (`repo/cache-stats.ts`), demand reads apart from the warm-up's prefetch and from
+ *   the derived data's reads through the engine (`derived`, `repo/object-reads.ts`). Free in
+ *   itself. Its misses are binding reads inside the port calls counted above (one per call;
+ *   a `readObjects` call counts one when it opens the repository), or the warm-up's, which
+ *   the Artifacts count leaves out.
  */
 import type { CacheView } from '@gitstalk/shared-race/rpc';
 

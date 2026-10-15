@@ -206,7 +206,7 @@ describe('derived history: why_lines and path_history', () => {
     });
     await getQueueResult(batch, createExecutionContext());
     expect(fed).toEqual([{ engine: opened.engineId, repo, events }]);
-    await env.DERIVED.getByName(opened.engineId).observe({ repo, events });
+    await env.DERIVED.getByName(opened.engineId).observe({ repo, engine: opened.engineId, events });
 
     const why = value(await gateway.whyLines(opened.engineId, { path: 'src/tax.ts' }));
     expect(why.beans['tax-rate']).toEqual({

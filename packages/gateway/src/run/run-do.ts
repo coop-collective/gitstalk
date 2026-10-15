@@ -89,7 +89,12 @@ import type { RunnerCapacity } from '../capacity/runner-capacity';
 import { DEFAULT_PRELAND_SANDBOXES, RUNNER_POOL_NAME } from '../capacity/runner-capacity';
 import { leaseSandbox, needsSandboxLease, releaseSandbox } from '../capacity/sandbox-lease';
 import type { ArtifactsPort, RepoRemote } from '../adapters/artifacts';
-import { artifactsPort, selectedArtifactsPort, withRepo } from '../adapters/artifacts';
+import {
+  artifactsPort,
+  call as artifactsCall,
+  selectedArtifactsPort,
+  withRepo,
+} from '../adapters/artifacts';
 import type { SessionCommit } from '../commit/bean-commit';
 import { commitToBean, commitToRepoBean } from '../commit/bean-commit';
 import type { FileSave } from '../commit/file-save';
@@ -119,6 +124,8 @@ import { GatewayError, UpstreamError } from '../errors';
 import type { ObjectStore, ReadCache, RefMemo, RepoReader } from '../repo/object-cache';
 import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
+import type { ObjectRead } from '../repo/object-reads';
+import { ObjectReadsRequest, serveObjectReads } from '../repo/object-reads';
 import type { ReadPurpose } from '../repo/cache-stats';
 import { readThroughPort } from '../repo/read-through-port';
 import type { Logger } from '../log';
@@ -1250,6 +1257,37 @@ export class RunDO extends DurableObject<Env> {
 
   async repoFile(ref: string, path: string): Promise<RunResult<RepoFile>> {
     return this.#explore((explorer) => explorer.file(this.#repoRef(ref), path));
+  }
+
+  /**
+   * Git objects of the repository this engine drives, by id, through the read index: a hit is
+   * served from SQLite, a miss is read from Artifacts, stored, then served. For the
+   * repository's derived data (`derive/engine-reader.ts`); a Durable Object RPC that no route
+   * reaches. Objects only, never refs or engine state; counted as `derived` on the meter.
+   */
+  async readObjects(request: unknown): Promise<RunResult<ObjectRead[]>> {
+    this.#countRequest();
+    const parsed = ObjectReadsRequest.safeParse(request);
+    if (!parsed.success)
+      return failure('invalid_request', 400, parsed.error.issues[0]?.message ?? 'object reads');
+    const repo = this.#loaded?.stored.repos.repo.name;
+    if (!this.#drivesRepository || repo !== parsed.data.repo)
+      return failure('not_found', 404, `this engine does not drive ${parsed.data.repo}`);
+    const source = {
+      open: () => {
+        this.#setMeter(countArtifactsOps(this.#meter, 1));
+        return artifactsCall(`open ${repo}`, () => this.env.REPOS.get(repo));
+      },
+      cache: this.#readCache('derived'),
+    };
+    try {
+      const value = await artifactsCall('read objects', () =>
+        serveObjectReads(source, parsed.data.reads),
+      );
+      return { ok: true, value };
+    } catch (error: unknown) {
+      return upstreamFailure(error, 'reading objects');
+    }
   }
 
   async repoDiff(

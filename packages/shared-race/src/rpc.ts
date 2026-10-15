@@ -258,9 +258,13 @@ export type CacheKindsView = {
  * Reads someone asked for (jobs, the approval gate, the explorer) at the top level; the
  * warm-up after each landing under `prefetch`, where a miss is an object fetched ahead of any
  * reader and a hit one already held. Gateways before 2026-10-14 counted the warm-up as demand
- * and had no `prefetch`.
+ * and had no `prefetch`. Under `derived`, the repository's derived data reading objects
+ * through the engine's index (gateways before 2026-10-15 had none).
  */
-export type CacheView = CacheKindsView & { readonly prefetch?: CacheKindsView };
+export type CacheView = CacheKindsView & {
+  readonly prefetch?: CacheKindsView;
+  readonly derived?: CacheKindsView;
+};
 
 /** `runEvents`: one page of `events.jsonl` lines (parse each as a `RaceEvent`). */
 export type RunEventsPage = {
