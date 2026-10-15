@@ -281,12 +281,12 @@ Owner, 2026-10-10: gitstalk.io is production, gitstalk.dev staging, both zones i
 
 ### 13.4 The private deploy repository and CI
 
-**Repository**: `https://github.com/coop-collective/gitstalk-deploy` (private; the `gitstalk` org did not exist, so it is under the owner's account and can be transferred later). Its `main` is the public `prototype` history plus commits of its own: `environments/{production,staging,legacy,legacy-staging}/{env.jsonc,resources.json}` and `.github/workflows/sync-upstream.yml`. Nothing secret. Until this change is merged upstream, `main` carries this branch's commits too. A local clone: `git clone https://github.com/coop-collective/gitstalk-deploy && git remote add upstream https://github.com/coop-collective/gitstalk.git`.
+**Repository**: `https://github.com/coop-collective/gitstalk-deploy` (private; the `gitstalk` org did not exist, so it is under the owner's account and can be transferred later). Its `main` is the public tree plus files of its own: `environments/{production,staging,legacy,legacy-staging}/{env.jsonc,resources.json}` and its workflows. Nothing secret. Since 2026-10-14 it follows the public `main` by overlay commits (§13.7). A local clone: `git clone https://github.com/coop-collective/gitstalk-deploy && git remote add upstream https://github.com/coop-collective/gitstalk.git`.
 
 **Workflows**
 
 - `deploy.yml` (from the public repo, so upstream improves it): staging on every push to `main` (deploy repo or soft fork); production on `workflow_dispatch` with `environment: production`, or on a pushed `production-*` tag, through the GitHub environment `production`. Steps: checkout (full history, for the runner image's tag), free disk space, pnpm, Node 24, `pnpm install --frozen-lockfile`, `pnpm check`, a clear failure if `CLOUDFLARE_API_TOKEN` is absent, then `env:provision`, `env:secrets`, `env:deploy`, `env:smoke`. One run per environment at a time, never cancelled. The Rust half of `pnpm check` runs on `RUSTUP_TOOLCHAIN: 1.96.0`, the `RUST_VERSION` of every container Dockerfile: the first CI run failed on GitHub's stable 1.99, whose new clippy lints (`assert_is_empty`, unused `async` in trait impls) fail `-D warnings` on code that passes on 1.96; bump both together. Wrangler builds the three container images (`packages/gateway/container`, `packages/actions-executor/container`, `packages/ssh/container`) with the runner's Docker on `ubuntu-latest`, which is amd64, the platform Cloudflare Containers run; each Dockerfile's build context is the repo root (`image_build_context: "../.."`), which the checkout provides.
-- `sync-upstream.yml` (deploy repo only): hourly at :17 and on demand. Fetches upstream `main`; if `main` already contains it, stops; otherwise merges (a fast-forward when possible), pushes `main`, and dispatches `deploy.yml` for staging (a push made with `GITHUB_TOKEN` starts no workflow; a dispatch does). On a merge conflict it pushes the upstream commit to `sync/upstream-<sha>` and opens a pull request. `GITHUB_TOKEN` may not push commits that change `.github/workflows/`; when upstream does, the push fails and the job opens an issue, unless the repository secret `SYNC_TOKEN` exists (a fine-grained token for this repository: Contents, Pull requests and Workflows read/write), in which case the push itself starts the deploy.
+- `sync-upstream.yml` (deploy repo only, 2026-10-10 to 2026-10-14): an hourly `git merge` of upstream. It stopped on 2026-10-12, when upstream changed `.github/workflows/check.yml`: `GITHUB_TOKEN` may not push commits that change workflows. Replaced by `sync.yml` (§13.7).
 
 **GitHub environments** (set with `gh`): `staging` and `production`, each with the secret `GITSTALK_SECRETS_JSON` (8 secrets: actions-executor, gateway, web, ssh). `production` accepts deployments only from branch `main` and tags `production-*`. Required reviewers on a private repository need a paid GitHub plan (the API answered 422), so production is gated by the manual trigger and the branch policy until the owner upgrades. **Missing: `CLOUDFLARE_API_TOKEN`** in both environments; the owner creates it. Until then a run tests the code (`pnpm check`) and stops with that message.
 
@@ -313,11 +313,10 @@ Store it with `gh secret set CLOUDFLARE_API_TOKEN --env staging --repo coop-coll
 
 ### 13.5 Runbook
 
-- **Routine**: merge to the public `main`; within the hour sync-upstream merges it into the deploy repo's `main` and staging deploys. Production: Actions → deploy → Run workflow → `production`, or push a `production-<date>` tag in the deploy repo.
+- **Routine**: merge to the public `main`; within 10 minutes the deploy repo's `sync.yml` brings it into its `main` and deploys staging (§13.7). Production: Actions → deploy → Run workflow → `production`, or push a `production-<date>` tag in the deploy repo.
 - **From the owner's machine** (a clone of the deploy repo, `environments/<env>/secrets/` restored from the backup): `pnpm install`, `wrangler login`, then `pnpm env:provision <env>`, `pnpm env:secrets <env>`, `pnpm env:deploy <env>`, `pnpm env:smoke <env>`. The first provision's secrets are backed up in `~/Workspace/gitstalk-secrets-backup/{staging,production}/` (owner-only permissions) and stored in the GitHub environments.
 - **Rotate a secret**: edit `secrets/<pkg>.vars` (never `ACTIONS_SECRETS_KEY` while stored Actions secrets matter), `pnpm env:secrets <env>`, then `pnpm env:secrets <env> --to-github coop-collective/gitstalk-deploy`.
 - **A new resource or migration upstream**: nothing to do; CI's provision creates it and migrates D1 before deploying. Provision rewrites `resources.json` on the runner only; when a new id appears, commit the file from a local provision so local runs match.
-- **If the public merge of this change is a squash or rebase**, the next sync conflicts on files both sides changed and opens a pull request; resolve it by taking upstream's side for everything outside `environments/` and `sync-upstream.yml`.
 
 ### 13.6 Results (2026-10-10)
 
@@ -340,6 +339,34 @@ The account answered every product with no billing or plan error: Workers, D1, K
 Not done: an MCP OAuth sign-in from Claude Code (`claude mcp login`) against `mcp.gitstalk.dev` needs a person at a browser; the OAuth metadata and a token-authenticated `initialize` were checked instead. No Actions job asked for an OIDC token; the issuer's discovery document answers on `api.<host>`.
 
 CI in the deploy repository: with the Rust pin, `deploy` on a push to `main` ran `pnpm check` green on `ubuntu-latest` (about 12 minutes) and stopped, as designed, at the missing `CLOUDFLARE_API_TOKEN`; `sync-upstream` run by hand found `main` already containing upstream `prototype` and exited. Provision, deploy and smoke from CI wait for the token.
+
+### 13.7 The deploy repository from 2026-10-14: overlay sync, staging on every upstream push
+
+Owner, 2026-10-14: every push to the public `main` deploys gitstalk.dev (staging), with nothing account-specific in the public repository. Production stays manual.
+
+**Where things live.** The private repository `coop-collective/gitstalk-deploy` holds what the public one must not: `environments/<env>/env.jsonc` and `resources.json` for staging, production and the two legacy environments (ids and URLs, not secrets). It also holds its own two workflows: `sync.yml` and `deploy.yml`. Secrets live only in its GitHub environments: `GITSTALK_SECRETS_JSON` (Worker secrets, from `pnpm env:secrets staging --to-github coop-collective/gitstalk-deploy`) and `CLOUDFLARE_API_TOKEN`. Everything else is the public tree.
+
+**How it syncs** (`.github/workflows/sync.yml` in the deploy repository): every 10 minutes, on a manual run, and on a `repository_dispatch` of type `upstream-main`, it fetches the public `main` and builds the deploy repository's next commit as an overlay, not a merge. The commit takes upstream's whole tree, except two things the deploy repository supplies:
+
+- `.github/workflows/`: the deploy repository's own files, never upstream's.
+- `environments/<env>/{env.jsonc,resources.json}` files that upstream does not track.
+
+The new commit's only parent is the deploy repository's `main`, and it carries an `Upstream: <sha>` trailer. Because such a commit never changes `.github/workflows/`, `GITHUB_TOKEN` may push it, so no personal token is needed. It cannot conflict either. When the tree already matches, the run stops. A push made with `GITHUB_TOKEN` starts no other workflow, so the same run then calls `deploy.yml` as a reusable workflow (`workflow_call`, `environment: staging`, `ref:` the pushed commit). A manual run deploys even when upstream has not moved (input `deploy`, default true). One sync runs at a time, and deploys queue per environment (`deploy-staging`), so a push-triggered deploy and a sync-triggered one never overlap.
+
+**`deploy.yml` is a copy.** The deploy repository keeps its own copy of the public `deploy.yml`, because an upstream change to it could not be pushed by the sync. When the two differ, every sync run shows a warning. To update the copy, take upstream's file and push it from a person's clone. That push needs a token with the `workflow` scope, for example `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push` after `gh auth refresh -s workflow`. A person's push to `main` also deploys staging, through `deploy.yml`'s own push trigger. Production runs the same way as before: a manual run of `deploy` with `production`, or a `production-*` tag. The public `deploy.yml` has the `workflow_call` trigger too, so the two files stay identical. In the public repository the trigger does nothing: with no `environments/<env>/env.jsonc` there, every run ends at "nothing to deploy".
+
+**Changing configuration.** Edit `environments/<env>/env.jsonc` or `resources.json` in a clone of the deploy repository (`git add -f`, because `.gitignore` excludes `environments/*`; never `secrets/`) and push. Staging deploys from that push. The next sync keeps the files.
+
+**Rotating the Cloudflare API token.**
+
+1. Create the new token. The permissions are in `deploy.yml`'s header and §13.4: account permissions on the staging account, and zone permissions on gitstalk.dev (add gitstalk.io for one token that covers production too).
+2. Run `gh secret set CLOUDFLARE_API_TOKEN --env staging --repo coop-collective/gitstalk-deploy` and paste the value at the prompt.
+3. Run the sync by hand (Actions → sync → Run workflow) and check that the deploy job passes provision, deploy and smoke.
+4. Revoke the old token in the dashboard.
+
+To rotate Worker secrets, follow §13.5, then run `pnpm env:secrets staging --to-github coop-collective/gitstalk-deploy` again.
+
+**Faster deploys (not set up).** The public repository's `check` workflow could start a sync as soon as `main` is green. It would need a final job with `if: github.ref == 'refs/heads/main' && github.event_name == 'push'` that runs `gh api repos/coop-collective/gitstalk-deploy/dispatches -f event_type=upstream-main`. That job needs a repository secret in the public repository: a fine-grained token limited to the deploy repository, with Contents: read and write (the permission that `repository_dispatch` requires). Without it, the 10-minute schedule is the bound.
 
 ## 14. Search engines: robots.txt, sitemap.xml, canonical links (2026-10-10)
 
