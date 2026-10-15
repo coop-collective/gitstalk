@@ -7,7 +7,6 @@ import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import type { ActionsMode } from '../../src/actions/actions-client';
-import { RepoHead } from '../home/repo-head';
 import type { RepositoryPage } from '../../src/server/repository-page';
 import styles from './actions.module.css';
 
@@ -23,19 +22,9 @@ export function ActionsShell(props: {
   readonly automationCount?: number | undefined;
   readonly children: ReactNode;
 }) {
-  const { record, base, role } = props.page;
+  const { base } = props.page;
   return (
     <main>
-      <RepoHead
-        base={base}
-        repository={{ owner: record.owner.handle, name: record.name }}
-        current="automations"
-        kind="repository"
-        visibility={record.visibility}
-        ownerHref={`/${record.owner.handle}`}
-        canAdminister={role !== null}
-        archived={record.archived_at !== null}
-      />
       <div className={styles.page}>
         <nav className={styles.subnav} aria-label="Automations">
           <div className={styles.segments}>

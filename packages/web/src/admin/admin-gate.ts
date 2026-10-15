@@ -8,6 +8,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { User } from '../auth/user';
 import type { RunAccess } from '../changes/bean-diff-answer';
 import { currentUser, getUser } from '../auth/user';
+import { ReadGrant } from '../edge/read-grant';
 import { engineVerdict } from '../repositories/engine-guard';
 import { adminPathOf } from './admin-paths';
 import { isPlatformAdmin } from './platform-admins';
@@ -51,8 +52,8 @@ export async function runAccess(request: Request, run: string): Promise<RunAcces
     action: 'read',
   });
   if (verdict.kind === 'repository') {
-    const { visibility, updated_at } = verdict.repository;
-    return { kind: 'repository', repository: { visibility, updated_at } };
+    // The gateway answered the record for this viewer: they may read it, on this request.
+    return { kind: 'repository', repository: ReadGrant.afterAccessCheck(verdict.repository) };
   }
   if (verdict.kind === 'race' && isPlatformAdmin(user, configuredPlatformAdmins()))
     return { kind: 'race' };

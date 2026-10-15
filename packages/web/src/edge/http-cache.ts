@@ -12,7 +12,7 @@
  * check at all. Sign-out also sends `Clear-Site-Data: "cache"` (auth/sign-out.ts).
  */
 import type { Visibility } from '../query/policy';
-import type { EdgeLayer } from './object-cache';
+import type { EdgeOutcome } from './object-cache';
 
 /** How long a browser may keep an answer. */
 export type CacheRule =
@@ -101,8 +101,8 @@ export function isNotModified(request: Request, etag: string): boolean {
 export type JsonAnswer = {
   readonly rule: CacheRule;
   readonly etag?: string;
-  /** The edge layer that served the object, for `Server-Timing`. */
-  readonly timing?: { readonly layer: EdgeLayer; readonly ms: number };
+  /** What the edge read came to (a layer's hit, or a KV miss), for `Server-Timing`. */
+  readonly timing?: { readonly outcome: EdgeOutcome; readonly ms: number };
 };
 
 /** A 200 with the JSON body and the browser headers, or a 304 when the ETag matches. */
@@ -110,7 +110,7 @@ export function jsonAnswer(request: Request, body: unknown, answer: JsonAnswer):
   const headers = new Headers({ 'cache-control': cacheControl(answer.rule) });
   if (answer.etag !== undefined) headers.set('etag', answer.etag);
   if (answer.timing !== undefined)
-    headers.set('server-timing', serverTiming(answer.timing.layer, answer.timing.ms));
+    headers.set('server-timing', serverTiming(answer.timing.outcome, answer.timing.ms));
   if (answer.etag !== undefined && isNotModified(request, answer.etag))
     return new Response(null, { status: 304, headers });
   return Response.json(body, { headers });
@@ -124,10 +124,12 @@ export function problem(status: number, message: string): Response {
   );
 }
 
-/** `edge;desc="colo-hit";dur=1.8`: which layer served the object, shown in devtools. */
-export function serverTiming(layer: EdgeLayer, ms: number): string {
-  const desc = layer === 'gateway' ? 'gateway-read' : `${layer}-hit`;
-  return `edge;desc="${desc}";dur=${Math.max(0, ms).toFixed(1)}`;
+/**
+ * `edge;desc="colo-hit";dur=1.8`: what the edge read came to, shown in devtools
+ * (`kv-hit-private` and `kv-miss-private` for a private repository's KV namespace).
+ */
+export function serverTiming(outcome: EdgeOutcome, ms: number): string {
+  return `edge;desc="${outcome}";dur=${Math.max(0, ms).toFixed(1)}`;
 }
 
 function opaque(tag: string): string {

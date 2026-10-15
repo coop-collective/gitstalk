@@ -1,13 +1,13 @@
 /**
  * `TreeAccess` for this request: the signed-in viewer, the same repository lookup as the pages
- * (private and missing both read as not found), and the GATEWAY binding. A public repository's
- * reads share the edge object cache (`sharedReadsFor`); a private or internal one reads fresh.
- * Server-only.
+ * (private and missing both read as not found), and the GATEWAY binding. The lookup's grant
+ * opens the repository's cached reads (`cachedReadsFor`): the shared edge layers for a public
+ * repository, the private KV namespace otherwise. Server-only.
  */
 import { env } from 'cloudflare:workers';
 
 import { currentUser } from '../auth/user';
-import { sharedReadsFor } from '../repo-pages/cached-reads';
+import { cachedReadsFor } from '../repo-pages/cached-reads';
 import { engineOf, engineReads } from '../repo-pages/engine-reads';
 import { lookupRepository } from '../repositories/flows';
 import { registryClient } from '../repositories/registry-client';
@@ -26,12 +26,11 @@ export async function viewerTreeAccess(context: TreeRouteContext): Promise<TreeA
     registryClient(env.GATEWAY),
   );
   if (found.kind === 'not-found') return { kind: 'not-found' };
-  const { record } = found;
+  const { record, grant } = found;
   const engine = engineOf(record.engine_id);
   return {
     kind: 'found',
     visibility: record.visibility,
-    reads:
-      engine === null ? null : engineReads(env.GATEWAY, engine, sharedReadsFor(record, engine)),
+    reads: engine === null ? null : engineReads(env.GATEWAY, engine, cachedReadsFor(grant, engine)),
   };
 }

@@ -12,8 +12,10 @@ import { RunId, Sha, TaskId } from '@gitstalk/shared-race/ids';
 import type { BeanStatus, ForgeSource } from '@gitstalk/shared-ask/forge/forge-source';
 import type { RepoDiff } from '@gitstalk/shared-ask/repo/repo-types';
 import type { EdgeObject } from '../edge/cache-keys';
-import { EDGE_CACHE_NAME, coloKey, kvKey } from '../edge/cache-keys';
+import { EDGE_CACHE_NAME, coloKey, kvKey, privateKvKey } from '../edge/cache-keys';
 import { createEdgeObjectCache } from '../edge/object-cache';
+import { createPrivateObjectCache } from '../edge/private-object-cache';
+import { PrivateEngine, ReadGrant } from '../edge/read-grant';
 import { PublicEngine } from '../repo-pages/event-cache';
 import type { RunAccess } from './bean-diff-answer';
 import { answerBeanDiff } from './bean-diff-answer';
@@ -38,7 +40,7 @@ const repositoryAccess = (
   updatedAt = UPDATED_AT,
 ): RunAccess => ({
   kind: 'repository',
-  repository: { visibility, updated_at: updatedAt },
+  repository: ReadGrant.afterAccessCheck({ visibility, updated_at: updatedAt }),
 });
 const PUBLIC = repositoryAccess('public');
 const PRIVATE = repositoryAccess('private');
@@ -75,7 +77,13 @@ function harness() {
     },
     isolateBytes: 1024 * 1024,
   });
-  return { objects, settle: () => Promise.all(pending.splice(0)) };
+  const privateObjects = createPrivateObjectCache({
+    kv: () => env.OBJECTS,
+    waitUntil: (promise) => {
+      pending.push(promise);
+    },
+  });
+  return { objects, privateObjects, settle: () => Promise.all(pending.splice(0)) };
 }
 
 const request = (ifNoneMatch?: string) =>
@@ -85,7 +93,10 @@ const request = (ifNoneMatch?: string) =>
 
 /** The keys a public engine of this id would have: what a leak would be stored under. */
 async function keysOf(run: RunId, updatedAt = UPDATED_AT) {
-  const asPublic = PublicEngine.of({ visibility: 'public', updated_at: updatedAt }, run);
+  const asPublic = PublicEngine.of(
+    ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: updatedAt }),
+    run,
+  );
   if (asPublic === null) throw new Error('a public record names a public engine');
   return {
     colo: await coloKey(ORIGIN, asPublic, DIFF_OBJECT),
@@ -93,22 +104,36 @@ async function keysOf(run: RunId, updatedAt = UPDATED_AT) {
   };
 }
 
+/** workerd's `caches.default` (the DOM typings this package uses do not declare it). */
+function defaultCache(): Cache {
+  const cache: unknown = Reflect.get(caches, 'default');
+  if (!(cache instanceof Cache)) throw new Error('no caches.default in this runtime');
+  return cache;
+}
+
+/** The private key a private grant of this access would read: where a private copy lives. */
+async function privateKeyOf(run: RunId, access: RunAccess): Promise<string> {
+  const owned = access.kind === 'repository' ? PrivateEngine.of(access.repository, run) : null;
+  if (owned === null) throw new Error('a private repository has a private engine');
+  return privateKvKey(owned, DIFF_OBJECT);
+}
+
 describe('a public repository’s bean diff', () => {
   it('is read once through the edge cache, then served from it with Server-Timing', async () => {
     const run = freshRun();
-    const { objects, settle } = harness();
+    const { objects, privateObjects, settle } = harness();
     const { source, calls } = fakeSource();
     const first = await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(first.status).toBe(200);
-    expect(first.headers.get('server-timing')).toMatch(/^edge;desc="gateway-read";dur=/);
+    expect(first.headers.get('server-timing')).toMatch(/^edge;desc="kv-miss";dur=/);
     expect(await first.json()).toEqual(DIFF);
     await settle();
     const second = await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(second.headers.get('server-timing')).toMatch(/^edge;desc="isolate-hit";dur=/);
     expect(await second.json()).toEqual(DIFF);
@@ -119,17 +144,17 @@ describe('a public repository’s bean diff', () => {
 
   it('is a 404, uncached and without the stored diff, once the viewer may no longer read it', async () => {
     const run = freshRun();
-    const { objects, settle } = harness();
+    const { objects, privateObjects, settle } = harness();
     const { source, calls } = fakeSource();
     await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     await settle();
     // The repository turned private (or was deleted): the access check refuses this viewer.
     const response = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: { kind: 'refused' } },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(response.status).toBe(404);
     expect(response.headers.get('cache-control')).toBe('no-store');
@@ -140,20 +165,20 @@ describe('a public repository’s bean diff', () => {
 
   it('is read again, never from the old copies, once the record changes (the purge path)', async () => {
     const run = freshRun();
-    const { objects, settle } = harness();
+    const { objects, privateObjects, settle } = harness();
     const { source, calls } = fakeSource();
     await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     await settle();
     // An operator's takedown edit, a transfer or a visibility flip moves `updated_at`.
     const later = repositoryAccess('public', '2026-10-15T08:00:00.000Z');
     const fresh = await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: later },
-      { source, objects: harness().objects },
+      { source, ...harness() },
     );
-    expect(fresh.headers.get('server-timing')).toMatch(/^edge;desc="gateway-read";dur=/);
+    expect(fresh.headers.get('server-timing')).toMatch(/^edge;desc="kv-miss";dur=/);
     expect(calls.diff).toBe(2);
     expect(await env.OBJECTS.get((await keysOf(run)).kv)).not.toBeNull();
     expect((await keysOf(run, '2026-10-15T08:00:00.000Z')).kv).not.toBe((await keysOf(run)).kv);
@@ -164,28 +189,75 @@ describe('a private repository’s bean diff', () => {
   it.each([
     ['private', PRIVATE],
     ['internal', INTERNAL],
-  ])('is never stored in the colo or KV (%s)', async (_name, access) => {
+  ])(
+    'is cached in the private KV namespace only, never the colo or public keys (%s)',
+    async (_name, access) => {
+      const run = freshRun();
+      const { objects, privateObjects, settle } = harness();
+      const { source, calls } = fakeSource();
+      const read = async () => {
+        const response = await answerBeanDiff(
+          { request: request(), run, bean: BEAN, access },
+          { source, objects, privateObjects },
+        );
+        expect(await response.json()).toEqual(DIFF);
+        expect(response.headers.get('cache-control')).toBe('no-store');
+        return response.headers.get('server-timing');
+      };
+      // Two requests, one after the other: the second hits the KV entry the first wrote.
+      expect(await read()).toMatch(/^edge;desc="kv-miss-private";dur=/);
+      await settle();
+      expect(await read()).toMatch(/^edge;desc="kv-hit-private";dur=/);
+      expect(calls.diff).toBe(1);
+      const keys = await keysOf(run);
+      expect(await (await caches.open(EDGE_CACHE_NAME)).match(keys.colo)).toBeUndefined();
+      expect(await defaultCache().match(keys.colo)).toBeUndefined();
+      expect(await env.OBJECTS.get(keys.kv)).toBeNull();
+      expect(await env.OBJECTS.get(await privateKeyOf(run, access))).not.toBeNull();
+      expect(objects.stats()).toEqual({
+        hits: { isolate: 0, colo: 0, kv: 0 },
+        misses: 0,
+        writes: 0,
+      });
+      expect(privateObjects.stats()).toEqual({ hits: 1, misses: 1, writes: 1 });
+    },
+  );
+
+  it('is a 404 without any cache read once the viewer may no longer read it', async () => {
     const run = freshRun();
-    const { objects, settle } = harness();
+    const { objects, privateObjects, settle } = harness();
     const { source, calls } = fakeSource();
-    const read = async () => {
-      const response = await answerBeanDiff(
-        { request: request(), run, bean: BEAN, access },
-        { source, objects },
-      );
-      expect(await response.json()).toEqual(DIFF);
-      expect(response.headers.get('server-timing')).toBeNull();
-    };
-    // Two requests, one after the other: the second would hit a cache the first had filled.
-    await read();
+    await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: PRIVATE },
+      { source, objects, privateObjects },
+    );
     await settle();
-    await read();
+    const refused = await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: { kind: 'refused' } },
+      { source, objects, privateObjects },
+    );
+    expect(refused.status).toBe(404);
+    expect(await refused.text()).not.toContain('a.ts');
+    expect(privateObjects.stats()).toEqual({ hits: 0, misses: 1, writes: 1 });
+    expect(calls).toEqual({ detail: 1, diff: 1 });
+  });
+
+  it('is read again once the record changes (a settings save or a visibility flip)', async () => {
+    const run = freshRun();
+    const { objects, privateObjects, settle } = harness();
+    const { source, calls } = fakeSource();
+    await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: PRIVATE },
+      { source, objects, privateObjects },
+    );
     await settle();
+    const saved = repositoryAccess('private', '2026-10-15T08:00:00.000Z');
+    const response = await answerBeanDiff(
+      { request: request(), run, bean: BEAN, access: saved },
+      { source, objects, privateObjects },
+    );
+    expect(response.headers.get('server-timing')).toMatch(/^edge;desc="kv-miss-private";dur=/);
     expect(calls.diff).toBe(2);
-    const keys = await keysOf(run);
-    expect(await (await caches.open(EDGE_CACHE_NAME)).match(keys.colo)).toBeUndefined();
-    expect(await env.OBJECTS.get(keys.kv)).toBeNull();
-    expect(objects.stats()).toEqual({ hits: { isolate: 0, colo: 0, kv: 0 }, misses: 0, writes: 0 });
   });
 
   it('is never served from a poisoned entry under its engine’s key', async () => {
@@ -199,11 +271,11 @@ describe('a private repository’s bean diff', () => {
       new Response(poisoned, { headers: { 'cache-control': 'public, max-age=600' } }),
     );
     await env.OBJECTS.put(keys.kv, poisoned);
-    const { objects } = harness();
+    const { objects, privateObjects } = harness();
     const { source, calls } = fakeSource();
     const response = await answerBeanDiff(
       { request: request(), run, bean: BEAN, access: PRIVATE },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     const body = await response.text();
     expect(body).not.toContain('stolen.ts');
@@ -245,36 +317,36 @@ describe('the browser headers', () => {
 
   it('answer 304 to a reader holding the same pair without reading the diff, and 404 to anyone refused', async () => {
     const run = freshRun();
-    const { objects } = harness();
+    const { objects, privateObjects } = harness();
     const { source, calls } = fakeSource('green');
     const held = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(held.status).toBe(304);
     expect(held.headers.get('etag')).toBe(pairTag());
     expect(calls).toEqual({ detail: 1, diff: 0 });
     const privately = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: PRIVATE },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(privately.status).toBe(200);
     const refused = await answerBeanDiff(
       { request: request(pairTag()), run, bean: BEAN, access: { kind: 'refused' } },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(refused.status).toBe(404);
   });
 
   it('answer 404, uncached, for a bean without a change yet', async () => {
-    const { objects } = harness();
+    const { objects, privateObjects } = harness();
     const source: Pick<ForgeSource, 'beanDetail' | 'repoDiff'> = {
       beanDetail: () => Promise.resolve(beanDetail('pending', null, null)),
       repoDiff: () => Promise.reject(new Error('not asked')),
     };
     const response = await answerBeanDiff(
       { request: request(), run: freshRun(), bean: BEAN, access: PUBLIC },
-      { source, objects },
+      { source, objects, privateObjects },
     );
     expect(response.status).toBe(404);
     expect(response.headers.get('cache-control')).toBe('no-store');
@@ -282,11 +354,11 @@ describe('the browser headers', () => {
 });
 
 async function answer(status: BeanStatus, access: RunAccess): Promise<Response> {
-  const { objects } = harness();
+  const { objects, privateObjects } = harness();
   const { source } = fakeSource(status);
   return answerBeanDiff(
     { request: request(), run: freshRun(), bean: BEAN, access },
-    { source, objects },
+    { source, objects, privateObjects },
   );
 }
 

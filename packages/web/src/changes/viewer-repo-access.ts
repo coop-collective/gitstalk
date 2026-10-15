@@ -1,12 +1,12 @@
 /**
- * `repoAccess` for this request: the signed-in viewer and the GATEWAY binding. A public
- * repository's reads share the isolate's caches (`sharedReadsFor`), as its pages do; a private
- * or internal one reads fresh. Server-only.
+ * `repoAccess` for this request: the signed-in viewer and the GATEWAY binding. The access
+ * check's grant opens the repository's cached reads (`cachedReadsFor`), as its pages do: the
+ * shared edge layers for a public repository, the private KV namespace otherwise. Server-only.
  */
 import { env } from 'cloudflare:workers';
 
 import { currentUser } from '../auth/user';
-import { sharedReadsFor } from '../repo-pages/cached-reads';
+import { cachedReadsFor } from '../repo-pages/cached-reads';
 import { engineOf, engineReads } from '../repo-pages/engine-reads';
 import { registryClient } from '../repositories/registry-client';
 import type { RepoAccess } from './changes-api';
@@ -23,11 +23,11 @@ export async function viewerRepoAccess(context: RepoRouteContext): Promise<RepoA
     repo,
     viewer,
     registry: registryClient(env.GATEWAY),
-    readsFor: (record) => {
+    readsFor: ({ record, grant }) => {
       const engine = engineOf(record.engine_id);
       return engine === null
         ? null
-        : engineReads(env.GATEWAY, engine, sharedReadsFor(record, engine));
+        : engineReads(env.GATEWAY, engine, cachedReadsFor(grant, engine));
     },
   });
 }

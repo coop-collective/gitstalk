@@ -16,8 +16,12 @@
  * - `mutable`: repository state that moves (heads, the pushed list, an open bean's diff).
  * - `perViewer`: the viewer's own data (sessions, settings). Never persisted.
  *
- * Only a public repository's immutable data is persisted (sessionStorage, this tab, this build
- * and this viewer): a private or internal repository never leaves memory.
+ * A repository's immutable data is persisted, public or private (sessionStorage only, never
+ * localStorage: this tab, this build and this viewer, dropped at sign-out and on a change of
+ * viewer). A private repository's copy is shown only inside a page the server rendered after
+ * its access check, so a revoked viewer gets the 404 page, not the copy. Nothing per-viewer
+ * (sessions, settings, tokens, CSRF, secret values), no event log and no moving state is ever
+ * persisted.
  */
 import type { QueryMeta } from '@tanstack/react-query';
 
@@ -31,7 +35,7 @@ export type FreshnessClass = 'immutable' | 'appendOnly' | 'mutable' | 'perViewer
 export type Visibility = 'public' | 'private' | 'internal';
 
 export type FreshnessInput = {
-  /** The repository's visibility; persistence needs `public`. Absent: not persisted. */
+  /** The repository's visibility. Absent: not a repository's data, so not persisted. */
   readonly visibility?: Visibility;
   /** For `appendOnly`: whether its live feed is open now. */
   readonly live?: boolean;
@@ -66,13 +70,13 @@ export function freshness(kind: FreshnessClass, input: FreshnessInput = {}): Fre
 /**
  * Data worth keeping: held for as long as a persisted copy lives (a restored query whose
  * `gcTime` is shorter than the persister's `maxAge` would be collected straight away), and
- * persisted only for a public repository.
+ * persisted for a repository of any visibility (sessionStorage, this tab and viewer only).
  */
 function kept(staleTime: number, visibility: Visibility | undefined): Freshness {
   return {
     staleTime,
     gcTime: PERSIST_MAX_AGE_MS,
-    meta: { persist: visibility === 'public' },
+    meta: { persist: visibility !== undefined },
   };
 }
 

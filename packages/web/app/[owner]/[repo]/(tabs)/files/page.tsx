@@ -5,7 +5,6 @@ import { RunId } from '@gitstalk/shared-race/ids';
 
 import { FilesExplorer } from '../../../../../components/explorer/files-explorer';
 import type { SearchParams } from '../../../../../components/home/repository-home';
-import { RepoHead } from '../../../../../components/home/repo-head';
 import styles from '../../../../../components/repository/repository.module.css';
 import { forgeForRun } from '../../../../../src/forge/sources';
 import { hasGrown } from '../../../../../src/repositories/flows';
@@ -49,7 +48,6 @@ export default async function RepositoryFilesPage({ params, searchParams }: Page
   const files = await registryClient(env.GATEWAY).files(record.id, page.user?.id ?? null);
   return (
     <main>
-      <RepoHead {...frame} current="files" />
       <div className={styles.page}>
         <section className={styles.panel} aria-labelledby="stalk-files">
           <div className={styles.panelHead}>

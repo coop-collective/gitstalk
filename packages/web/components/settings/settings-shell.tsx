@@ -3,11 +3,14 @@
  * up, a left nav with one link per section page (the current one marked), then the page's
  * sheets. Under 760 px the nav becomes a strip that scrolls sideways. `SettingsSection` is one
  * titled sheet; `danger` marks a destructive one.
+ *
+ * `SettingsShell` is the whole page. A layout that keeps the nav mounted across sections (a
+ * repository's settings) draws `SettingsFrame` itself and each page draws `SettingsHead`; the
+ * nav then marks the current section from the address.
  */
-import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
-import { CurrentInView } from './settings-client';
+import { SettingsNav } from './settings-client';
 import styles from './settings-shell.module.css';
 
 export type SettingsNavItem = {
@@ -37,37 +40,39 @@ export function SettingsShell({
   readonly children: ReactNode;
 }) {
   return (
+    <SettingsFrame who={who} nav={nav}>
+      <SettingsHead title={title} {...(lede === undefined ? {} : { lede })} />
+      {children}
+    </SettingsFrame>
+  );
+}
+
+/** Who or what is being set up and the section nav, around a page's sheets. */
+export function SettingsFrame(props: {
+  readonly who: ReactNode;
+  readonly nav: readonly SettingsNavGroup[];
+  readonly children: ReactNode;
+}) {
+  return (
     <main className={styles.shell}>
       <aside className={styles.aside}>
-        {who}
+        {props.who}
         <nav aria-label="Settings sections">
-          <CurrentInView className={styles.nav}>
-            {nav.map((group) => (
-              <div key={group.title} className={styles.group}>
-                <span className={styles.groupTitle}>{group.title}</span>
-                {group.items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`${styles.link} ${item.isDanger === true ? styles.linkDanger : ''}`}
-                    aria-current={currentOf(item)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            ))}
-          </CurrentInView>
+          <SettingsNav groups={props.nav} />
         </nav>
       </aside>
-      <div className={styles.main}>
-        <header className={styles.head}>
-          <h1 className={styles.title}>{title}</h1>
-          {lede === undefined ? null : <p className={styles.lede}>{lede}</p>}
-        </header>
-        {children}
-      </div>
+      <div className={styles.main}>{props.children}</div>
     </main>
+  );
+}
+
+/** A settings page's title and the line under it. */
+export function SettingsHead(props: { readonly title: string; readonly lede?: ReactNode }) {
+  return (
+    <header className={styles.head}>
+      <h1 className={styles.title}>{props.title}</h1>
+      {props.lede === undefined ? null : <p className={styles.lede}>{props.lede}</p>}
+    </header>
   );
 }
 
@@ -138,10 +143,4 @@ export function SaveStatus({
       </p>
     );
   return null;
-}
-
-/** Page links say "page"; anchors on one page say "true" (the section in view). */
-function currentOf(item: SettingsNavItem): 'page' | 'true' | undefined {
-  if (item.isCurrent !== true) return undefined;
-  return item.href.startsWith('#') ? 'true' : 'page';
 }

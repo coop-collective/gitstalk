@@ -72,6 +72,8 @@ export function RepoHead(props: {
   readonly canAdminister?: boolean;
   /** A persistent repository its owner archived: read-only, said under the name. */
   readonly archived?: boolean;
+  /** Where the Settings tab links (its first section for this viewer); `/settings` otherwise. */
+  readonly settingsHref?: string;
 }) {
   if (props.kind === 'repository') return <RepositoryHead {...props} />;
   return (
@@ -112,6 +114,7 @@ function RepositoryHead(props: {
   readonly openChanges?: number;
   readonly canAdminister?: boolean;
   readonly archived?: boolean;
+  readonly settingsHref?: string;
 }) {
   const tabs = REPOSITORY_TABS.filter(
     (item) => item.tab !== 'settings' || props.canAdminister !== false,
@@ -152,7 +155,11 @@ function RepositoryHead(props: {
           ) : (
             <Link
               key={item.tab}
-              href={repositoryTabHref(props.base, item.tab)}
+              href={
+                item.tab === 'settings' && props.settingsHref !== undefined
+                  ? props.settingsHref
+                  : repositoryTabHref(props.base, item.tab)
+              }
               className={styles.tab}
               aria-current={props.current === item.tab ? 'page' : undefined}
             >

@@ -4,6 +4,7 @@
  * then the engine's reads for this request.
  */
 import type { User } from '../auth/user';
+import type { ReadGrant } from '../edge/read-grant';
 import { lookupRepository } from '../repositories/flows';
 import type { RegistryClient, RepositoryRecord } from '../repositories/registry-client';
 import type { ChangeReads, RepoAccess } from './changes-api';
@@ -14,8 +15,14 @@ export type RepoAccessInput = {
   readonly repo: string;
   readonly viewer: User | null;
   readonly registry: RegistryClient;
-  /** The engine's reads, or null when the record's engine id is unusable. */
-  readonly readsFor: (record: RepositoryRecord) => ChangeReads | null;
+  /**
+   * The engine's reads, or null when the record's engine id is unusable. `grant` is the proof
+   * of this access check that opens its cached reads.
+   */
+  readonly readsFor: (found: {
+    readonly record: RepositoryRecord;
+    readonly grant: ReadGrant;
+  }) => ChangeReads | null;
 };
 
 export async function repoAccess(input: RepoAccessInput): Promise<RepoAccess> {
@@ -26,6 +33,5 @@ export async function repoAccess(input: RepoAccessInput): Promise<RepoAccess> {
     input.registry,
   );
   if (found.kind === 'not-found') return { kind: 'not-found' };
-  const { record } = found;
-  return { kind: 'found', visibility: record.visibility, reads: input.readsFor(record) };
+  return { kind: 'found', visibility: found.record.visibility, reads: input.readsFor(found) };
 }

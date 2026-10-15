@@ -77,15 +77,18 @@ export async function RepositoryHome(props: {
   );
   return (
     <main>
-      <RepoHead
-        base={base}
-        repository={repository}
-        current={currentTab(props.frame.kind, url)}
-        kind={props.frame.kind}
-        {...(props.frame.visibility === undefined ? {} : { visibility: props.frame.visibility })}
-        {...(props.frame.ownerHref === undefined ? {} : { ownerHref: props.frame.ownerHref })}
-        archived={props.frame.archived === true}
-      />
+      {/* A repository's header is its layout's (RepositoryFrame), kept across tabs. */}
+      {props.frame.kind === 'repository' ? null : (
+        <RepoHead
+          base={base}
+          repository={repository}
+          current={raceTab(url)}
+          kind={props.frame.kind}
+          {...(props.frame.visibility === undefined ? {} : { visibility: props.frame.visibility })}
+          {...(props.frame.ownerHref === undefined ? {} : { ownerHref: props.frame.ownerHref })}
+          archived={props.frame.archived === true}
+        />
+      )}
       <HomeWorkspace
         run={run}
         base={base}
@@ -211,8 +214,8 @@ async function explorerFor(input: {
 }
 
 /** A repository's explorer is its Ask tab; a race's follows the question's tab. */
-function currentTab(kind: RepoKind, url: HomeState): RepoTab {
-  if (kind === 'repository') return 'ask';
+/** A race's open tab: the question's, or Code for a bean. */
+function raceTab(url: HomeState): RepoTab {
   return url.bean === null ? tabOf(url.q) : 'code';
 }
 

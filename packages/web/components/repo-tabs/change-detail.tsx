@@ -29,7 +29,7 @@ export function ChangeDetail(props: {
 }) {
   const { tab, change } = props;
   return (
-    <RepositoryShell page={tab} tab="changes" openChanges={props.openChanges}>
+    <RepositoryShell tab="changes" openChanges={props.openChanges}>
       <ChangeView
         scope={props.scope}
         diff={props.diff}

@@ -1,13 +1,15 @@
 /**
- * The keys of the shared edge caches (docs/claude-opus/35-caching.md §4.6): one place builds
- * them, from a `PublicEngine` (a public repository's engine, taken from the record the viewer's
- * access check returned) and a commit sha, never a ref name. A key holds nothing about the
- * viewer, which is correct only because private and internal repositories never reach here.
+ * The keys of the edge caches (docs/claude-opus/35-caching.md §7): one place builds them, from
+ * an engine key a `ReadGrant` made on this request (`PublicEngine` or `PrivateEngine`, so only
+ * after the viewer's access check) and commit shas, never a ref name. A key holds nothing about
+ * the viewer: access is checked live on every request, and the content is the same for every
+ * viewer who may read it.
  *
- * - Cache API (per colo): `https://<origin>/__edge/v1/<engine>/tree/<sha>`,
- *   `…/file/<sha>/<encodeURIComponent(path)>`, `…/diff/<base>..<head>`.
- * - KV (global): `v1:<engine>:tree:<sha>`, `v1:<engine>:file:<sha>:<sha256(path)>`,
- *   `v1:<engine>:diff:<base>:<head>`. The path is hashed: KV keys are at most 512 bytes.
+ * - Cache API (per colo, public only): `https://<origin>/__edge/v1/<engine>/<epoch>/tree/<sha>`,
+ *   `…/file/<sha>/<sha256(path)>`, `…/diff/<base>..<head>`.
+ * - KV (global), public: `v1:<engine>:<epoch>:tree:<sha>`, `…:file:<sha>:<sha256(path)>`,
+ *   `…:diff:<base>:<head>`. Private and internal: the same under `v1:priv:<engine>:<epoch>:`.
+ *   The path is hashed: KV keys are at most 512 bytes.
  *
  * Bump `EDGE_CACHE_VERSION` when a stored payload changes shape: old entries are then never
  * read again and expire by their TTL.
@@ -15,6 +17,7 @@
 import type { Sha } from '@gitstalk/shared-race/ids';
 
 import type { PublicEngine } from '../repo-pages/event-cache';
+import type { PrivateEngine } from './read-grant';
 
 export const EDGE_CACHE_VERSION = 'v1';
 
@@ -42,16 +45,32 @@ export async function coloKey(
   return new URL(`${base}/${await coloPath(object)}`, origin).toString();
 }
 
-/** The KV key of an object. */
+/** The KV key of a public repository's object. */
 export async function kvKey(engine: PublicEngine, object: EdgeObject): Promise<string> {
-  const prefix = `${EDGE_CACHE_VERSION}:${engine.engine}:${engine.epoch}`;
+  return `${EDGE_CACHE_VERSION}:${engine.engine}:${engine.epoch}:${await kvSuffix(object)}`;
+}
+
+/**
+ * The KV key of a private or internal repository's object, in its own namespace:
+ * `v1:priv:<engine>:<epoch>:<kind>:<sha>[:<sha256(path)>]`. `priv` cannot be an engine id
+ * (`RunId` is 6 to 24 characters), so no private key equals a public one.
+ */
+export async function privateKvKey(engine: PrivateEngine, object: EdgeObject): Promise<string> {
+  const prefix = `${EDGE_CACHE_VERSION}:${PRIVATE_KV_NAMESPACE}:${engine.engine}:${engine.epoch}`;
+  return `${prefix}:${await kvSuffix(object)}`;
+}
+
+/** The segment that sets private entries apart in `OBJECTS`. */
+export const PRIVATE_KV_NAMESPACE = 'priv';
+
+async function kvSuffix(object: EdgeObject): Promise<string> {
   switch (object.kind) {
     case 'tree':
-      return `${prefix}:tree:${object.sha}`;
+      return `tree:${object.sha}`;
     case 'file':
-      return `${prefix}:file:${object.sha}:${await sha256Hex(object.path)}`;
+      return `file:${object.sha}:${await sha256Hex(object.path)}`;
     case 'diff':
-      return `${prefix}:diff:${object.base}:${object.head}`;
+      return `diff:${object.base}:${object.head}`;
     default:
       return assertNever(object);
   }

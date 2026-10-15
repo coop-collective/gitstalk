@@ -6,7 +6,7 @@
 import { env } from 'cloudflare:workers';
 import { redirect } from 'next/navigation';
 
-import { sharedReadsFor } from '../repo-pages/cached-reads';
+import { cachedReadsFor } from '../repo-pages/cached-reads';
 import type { EngineReads } from '../repo-pages/engine-reads';
 import { engineOf, engineReads } from '../repo-pages/engine-reads';
 import type { RepositoryPage, RepositoryParams } from './repository-page';
@@ -43,10 +43,10 @@ export async function engineTab(params: RepositoryParams): Promise<EngineTab> {
 
 async function openTab(params: RepositoryParams): Promise<RepositoryTab> {
   // The access check comes first: `repositoryPage` answers 404 unless the viewer may read the
-  // repository, and only its record (public or not) decides whether reads are shared.
+  // repository, and only its grant opens the cached reads (shared layers if public, else KV).
   const page = await repositoryPage(params);
   const engine = engineOf(page.record.engine_id);
   if (engine === null) return { ...page, reads: null };
-  const shared = sharedReadsFor(page.record, engine);
-  return { ...page, reads: engineReads(env.GATEWAY, engine, shared) };
+  const cached = cachedReadsFor(page.grant, engine);
+  return { ...page, reads: engineReads(env.GATEWAY, engine, cached) };
 }

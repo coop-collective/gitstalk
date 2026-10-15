@@ -5,6 +5,7 @@ import { RunId } from '@gitstalk/shared-race/ids';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import { parseRaceEvents } from '@gitstalk/shared-ask/race/race-events';
 import type { EventCacheLimits } from './event-cache';
+import { ReadGrant } from '../edge/read-grant';
 import { createEventCache, PublicEngine } from './event-cache';
 
 const ROOMY: EventCacheLimits = { maxEngines: 8, maxEvents: 1000 };
@@ -23,7 +24,10 @@ function eventsUpTo(count: number, stamp = 'a'): RaceEvent[] {
 }
 
 function publicEngine(id: string): PublicEngine {
-  const engine = PublicEngine.of({ visibility: 'public', updated_at: UPDATED_AT }, RunId.parse(id));
+  const engine = PublicEngine.of(
+    ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: UPDATED_AT }),
+    RunId.parse(id),
+  );
   if (engine === null) throw new Error('a public record names a public engine');
   return engine;
 }
@@ -156,10 +160,23 @@ describe('the event cache’s bounds', () => {
 describe('which engines may be cached', () => {
   it('names only a public repository’s engine', () => {
     const engine = RunId.parse('engineaaa');
-    expect(PublicEngine.of({ visibility: 'public', updated_at: UPDATED_AT }, engine)?.engine).toBe(
-      engine,
-    );
-    expect(PublicEngine.of({ visibility: 'private', updated_at: UPDATED_AT }, engine)).toBeNull();
-    expect(PublicEngine.of({ visibility: 'internal', updated_at: UPDATED_AT }, engine)).toBeNull();
+    expect(
+      PublicEngine.of(
+        ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: UPDATED_AT }),
+        engine,
+      )?.engine,
+    ).toBe(engine);
+    expect(
+      PublicEngine.of(
+        ReadGrant.afterAccessCheck({ visibility: 'private', updated_at: UPDATED_AT }),
+        engine,
+      ),
+    ).toBeNull();
+    expect(
+      PublicEngine.of(
+        ReadGrant.afterAccessCheck({ visibility: 'internal', updated_at: UPDATED_AT }),
+        engine,
+      ),
+    ).toBeNull();
   });
 });

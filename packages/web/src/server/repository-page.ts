@@ -18,6 +18,7 @@ import { resolveRetiredHandle } from '@gitstalk/shared-identity/profiles';
 
 import { currentSession } from '../auth/user';
 import type { User as SessionUser } from '../auth/user';
+import type { ReadGrant } from '../edge/read-grant';
 import { lookupRepository } from '../repositories/flows';
 import type { StartConfig } from '../repositories/paths';
 import { isOldAddress, repositoryPath, sshEndpoint } from '../repositories/paths';
@@ -35,6 +36,8 @@ export type RepositoryPage = {
   readonly role: ViewerRole | null;
   /** `/<owner>/<repo>` as the record names it now. */
   readonly base: string;
+  /** Proof of this request's access check: what opens the repository's cached reads. */
+  readonly grant: ReadGrant;
 };
 
 /**
@@ -115,7 +118,8 @@ async function checkAccess(address: {
   const base = repositoryPath(found.record.owner.handle, found.record.name);
   if (isOldAddress(address.owner, address.repo, found.record))
     return { kind: 'moved', location: base };
-  const page = { user, record: found.record, isOwner: found.isOwner, role: found.role, base };
+  const { record, isOwner, role, grant } = found;
+  const page = { user, record, isOwner, role, base, grant };
   return { kind: 'readable', page };
 }
 

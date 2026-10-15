@@ -7,11 +7,10 @@ import type { SearchParams } from '../home/repository-home';
 import { RepositoryHome } from '../home/repository-home';
 import type { AskData } from '../../src/server/ask-page';
 import { askData } from '../../src/server/ask-page';
+import { ASK_KEYS } from '../../src/repo-pages/repo-tab-of';
 import type { RepositoryPage } from '../../src/server/repository-page';
 
-/** Query keys that belong to the Ask view rather than the Code tab. */
-const ASK_KEYS = ['q', 'bean', 't', 'removed'] as const;
-
+/** Whether the query opens the Ask view rather than the Code tab (`ASK_KEYS`). */
 export function isAskQuery(query: SearchParams): boolean {
   return ASK_KEYS.some((key) => query[key] !== undefined);
 }

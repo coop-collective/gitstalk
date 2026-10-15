@@ -5,7 +5,7 @@ import { RunId } from '@gitstalk/shared-race/ids';
 import { GREETER_PUSHED, ROOT, SLUGIFY_LANDED, TRUNCATE_LANDED } from '../changes/testing/greeter';
 import events from '../changes/testing/greeter-events.json' with { type: 'json' };
 import { codeData } from './code-data';
-import type { SharedReads } from './engine-reads';
+import type { CachedReads } from './engine-reads';
 import { engineReads, hasGrownEngine } from './engine-reads';
 
 const ENGINE = RunId.parse('r281f4071a6a622cb597');
@@ -170,10 +170,10 @@ describe('the Code tab’s reads', () => {
   });
 });
 
-/** Shared reads that answer from fixed values and record what they were asked. */
+/** Cached reads that answer from fixed values and record what they were asked. */
 function fakeShared() {
   const asked: string[] = [];
-  const shared: SharedReads = {
+  const shared: CachedReads = {
     events: (readTail) => {
       asked.push('events');
       return readTail(0).then((tail) => tail.events);
@@ -185,6 +185,10 @@ function fakeShared() {
     file: (sha, path) => {
       asked.push(`file ${sha} ${path}`);
       return Promise.resolve({ path, size: 6, binary: false, content: 'shared', truncated: false });
+    },
+    diff: (base, head) => {
+      asked.push(`diff ${base} ${head}`);
+      return Promise.resolve({ from: base, to: head, files: [] });
     },
   };
   return { shared, asked };

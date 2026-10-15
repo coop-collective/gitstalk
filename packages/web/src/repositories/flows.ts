@@ -6,6 +6,7 @@
 import { UpdateRepositoryInput } from '@gitstalk/shared-race/repos';
 
 import type { User as SessionUser } from '../auth/user';
+import { ReadGrant } from '../edge/read-grant';
 import type { CreateFormResult, CreateValues } from './create-form';
 import { DEFAULT_VALUES, readCreateForm } from './create-form';
 import { isReservedOwner, repositoryPath } from './paths';
@@ -139,6 +140,8 @@ export type RepositoryLookup =
       /** What the viewer is on it: owner, a collaborator role, or null (reading a public one). */
       readonly role: ViewerRole | null;
       readonly isOwner: boolean;
+      /** Proof of this access check, for the edge caches (src/edge/read-grant.ts). */
+      readonly grant: ReadGrant;
     };
 
 export async function lookupRepository(
@@ -151,7 +154,9 @@ export async function lookupRepository(
   const found = await registry.get(owner, name, user?.id ?? null);
   if (!found.ok) return { kind: 'not-found' };
   const role = found.value.viewer_role;
-  return { kind: 'found', record: found.value, role, isOwner: role === 'owner' };
+  // The gateway answered the record for this viewer: they may read it, on this request.
+  const grant = ReadGrant.afterAccessCheck(found.value);
+  return { kind: 'found', record: found.value, role, isOwner: role === 'owner', grant };
 }
 
 /** Whether the engine has grown anything yet: no bean has started on an empty repository. */

@@ -4,7 +4,8 @@
  * The file tree's folders: those the page sent (the root and the way to the open path), and
  * each folder the reader expands, read once through TanStack Query by (commit sha, folder).
  * A tree at a sha never changes, so each folder is fetched at most once and never refetched
- * (`freshness('immutable')`); a public repository's folders are also persisted for the tab.
+ * (`freshness('immutable')`); a repository's folders, public or private, are also persisted
+ * for the tab (sessionStorage, this viewer only).
  */
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
