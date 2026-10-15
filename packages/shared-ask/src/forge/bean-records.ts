@@ -35,6 +35,7 @@ function beanStatus(bean: Bean): BeanStatus {
     case 'queued':
     case 'testing':
     case 'rework':
+    case 'held':
     case 'deciding':
       return 'in-flight';
     default:

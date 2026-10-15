@@ -309,6 +309,8 @@ function liveItem(bean: Bean): JourneyItem | null {
       return { ...base, tone: 'plan', text: 'In the merge queue' };
     case 'parked':
       return { ...base, tone: 'decide', text: 'Parked: needs a person' };
+    case 'held':
+      return { ...base, tone: 'held', text: "Waiting for a person's approval" };
     case 'pending':
     case 'landed':
     case 'green':
@@ -325,6 +327,7 @@ function verdict(winner: string | null, task: string): string {
 }
 
 function statusOf(bean: BeanDetail): { readonly word: string; readonly tone: string } {
+  if (bean.phase === 'held') return { word: 'held for approval', tone: 'held' };
   switch (bean.status) {
     case 'green':
       return { word: 'on the stalk', tone: 'stalk' };
@@ -656,6 +659,7 @@ function whoNote(bean: Bean, ctx: ExplorerContext): string {
 function phaseTone(phase: string): string {
   if (phase === 'green') return 'stalk';
   if (phase === 'landed') return 'sprout';
+  if (phase === 'held') return 'held';
   if (phase === 'rework' || phase === 'dropped') return 'red';
   if (phase === 'checking' || phase === 'queued' || phase === 'testing') return 'amber';
   return 'fly';

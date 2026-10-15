@@ -131,6 +131,8 @@ function awaitingStep(route: RouteReceipt): string {
 }
 
 function nextStep(detail: BeanDetail): string {
+  if (detail.phase === 'held')
+    return "Held for a person's approval: nothing to fix. Do not change the code for this; wait, and poll bean_status.";
   if (detail.phase === 'rework')
     return 'Sent back: read bean_status with checks: true, fix the code, resubmit.';
   if (detail.phase === 'deciding')

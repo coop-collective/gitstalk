@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 
-import { BeanHold } from '@gitstalk/shared-race/bean-approval';
+import { BeanHold, RevisionApproval } from '@gitstalk/shared-race/bean-approval';
 
 import { log } from '../log';
 
@@ -23,6 +23,8 @@ export const PushedBean = z.object({
   verdict: z.array(z.string()),
   /** Held for a person's approval, or approved (a gateway before approvals sends none). */
   hold: BeanHold.nullable().default(null),
+  /** Every approval of its revisions, oldest first, for its journey (an older gateway: none). */
+  approvals: z.array(RevisionApproval).default([]),
 });
 export type PushedBean = z.infer<typeof PushedBean>;
 

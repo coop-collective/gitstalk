@@ -68,6 +68,8 @@ const STEP_LABEL: Readonly<Record<BeanStep['kind'], string>> = {
   committed: 'Committed',
   'check-green': 'Pre-land check green',
   'check-red': 'Pre-land check red',
+  held: 'Held for approval',
+  approved: 'Approved; checked again',
   recheck: 'Re-checked on a moved sprout',
   optimistic: 'Landed without a re-check',
   conflict: 'Merge conflict',
@@ -116,7 +118,7 @@ function stepBead(kind: BeanStep['kind']): string {
   if (kind === 'check-red' || kind === 'conflict' || kind === 'ejected' || kind === 'reverted') {
     return `${beadClass('dropped')} ${styles.beadRed ?? ''}`;
   }
-  if (kind === 'decision' || kind === 'reconcile') {
+  if (kind === 'decision' || kind === 'reconcile' || kind === 'held' || kind === 'approved') {
     return `${beadClass('dropped')} ${styles.beadHuman ?? ''}`;
   }
   if (kind === 'dropped') return beadClass('dropped');
