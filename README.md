@@ -73,7 +73,7 @@ pnpm -F @gitstalk/<package> test    # one package's tests
 pnpm -F @gitstalk/<package> dev     # run one Worker locally (wrangler dev, or vite for the web app)
 ```
 
-Local development of the gateway, web app and MCP server needs `wrangler login`, because Artifacts and Workers AI bindings are remote-only; the site runs offline. Each package's README lists its commands and the `.dev.vars` it needs. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Local development of the gateway, web app and MCP server needs `wrangler login`, because Artifacts and Workers AI bindings are remote-only; the site runs offline. Each package's README lists its commands and the `.dev.vars` it needs. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. To find something to work on, see the [roadmap](ROADMAP.md); a larger change starts as a [proposal](docs/proposals/README.md) pull request, reviewed by a maintainer within 72 hours or by an automated review after that.
 
 ## Self-hosting
 
@@ -124,7 +124,7 @@ Gitstalk is licensed under the [Apache License, Version 2.0](LICENSE) (Apache-2.
 
 ## Community
 
-- [Contributing guide](CONTRIBUTING.md)
+- [Contributing guide](CONTRIBUTING.md), [roadmap](ROADMAP.md) and [proposals](docs/proposals/README.md)
 - [Security policy](SECURITY.md): report vulnerabilities privately, not in public issues
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - Source: [github.com/coop-collective/gitstalk](https://github.com/coop-collective/gitstalk)

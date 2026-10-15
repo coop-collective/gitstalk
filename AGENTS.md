@@ -59,9 +59,11 @@ Skills live in `.agents/skills/` (read natively by Codex); `.claude/skills/` hol
 |---|---|
 | `AGENTS.md` | This file |
 | `.agents/skills/`, `.claude/skills/`, `skills-lock.json` | Skills (canonical; symlinks, because Claude Code reads only `.claude/skills/`; vendored-skill lock) |
+| `ROADMAP.md` | What is done, in progress and not started, with links to design docs; update it when an item's status changes |
 | `docs/` | Research, thesis, demo plan, design docs |
+| `docs/proposals/` | Design proposals from contributors (`TEMPLATE.md`; process in `CONTRIBUTING.md`, automation in `scripts/proposals.mjs` and `.github/workflows/proposals.yml`) |
 | `packages/` | Production code: one directory per package; a container crate sits in its Worker's `container/` |
-| `scripts/` | Repo tooling (`rust-check.mjs`, `check-docs.mjs`, `environments.mjs`) |
+| `scripts/` | Repo tooling (`rust-check.mjs`, `check-docs.mjs`, `environments.mjs`, `proposals.mjs`; tests in `scripts/*.test.mjs`) |
 | `environments/` | Deploy environments; only `example/` is public. Never put account ids in `packages/*/wrangler.jsonc` (templates) |
 | `packages/site/public/docs/` | Public docs on the marketing site; `.claude/agents/docs-*.md` maintain and audit them |
 | `research/` | Experiments, races and benchmarks: corpus clones, the race harness (`research/race`, its tools in `research/race/tools`) and the swarm Worker (`research/swarm`, a pnpm workspace member so its tests run). Race-, benchmark- or load-only tooling goes here, not in `packages/` |
