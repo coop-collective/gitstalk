@@ -6,12 +6,11 @@
  * warmed after. It measures the Artifacts reads and the read index's counts with the gate
  * reading straight from Artifacts (as the staging runs did) and through the index.
  *
- * The second case adds the derived-data `RepoDerivedDO`, which reads each landing's changes
+ * The second case adds the derived data (`RepoDerivedDO`), which reads each landing's changes
  * (`changesIn`, as derivation does) after the engine's warm-up, and measures the Artifacts
- * reads without and with the gateway's object tier (`object-tier.ts`, the colo's Cache API)
- * under both Durable Objects, both in one colo.
+ * reads with derivation reading Artifacts itself and reading through the engine's index
+ * (`object-reads.ts`, `derive/engine-reader.ts`).
  */
-import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 import { Sha } from '@gitstalk/shared-race/ids';
@@ -19,22 +18,24 @@ import { Sha } from '@gitstalk/shared-race/ids';
 import landings from '../../test/fixtures/fastify-landings.json';
 import { changedFilesIn, changesIn } from '../adapters/artifacts';
 import { warmLine } from '../adapters/repo-explorer';
-import type { ReadPurpose, TierRead } from './cache-stats';
-import { cacheReport, countCacheRead, countTierRead, emptyCacheStats } from './cache-stats';
-import type { RepoReader } from './object-cache';
+import { engineReader } from '../derive/engine-reader';
+import type { ReadPurpose } from './cache-stats';
+import { cacheReport, countCacheRead, emptyCacheStats } from './cache-stats';
+import type { ReadCache, RepoReader } from './object-cache';
 import { cachedReader, memoryObjectStore } from './object-cache';
-import { objectTier, tieredReader } from './object-tier';
+import { serveObjectReads } from './object-reads';
 
 type Files = Readonly<Record<string, string>>;
 type Landing = { readonly task: string; readonly files: readonly string[] };
 type Calls = { commit: number; tree: number; blob: number; log: number };
 
-/** How the replay is set up: the gate's reads, whether derivation reads, the object tier. */
+/** How the replay is set up: how the gate reads, and whether and how derivation reads. */
 type Setup = {
   readonly gate: 'direct' | 'indexed';
-  readonly derivation: 'none' | 'after-warm-up';
-  readonly tier: 'absent' | 'present';
+  readonly derivation: 'none' | 'direct' | 'through-engine';
 };
+
+const REPO = 'repo-replay';
 
 const PERSON = { name: 'replay', email: 'replay@gitstalk.invalid' };
 const LINE = 'stalk';
@@ -57,8 +58,8 @@ const FILLER: Readonly<Record<string, number>> = {
 
 describe('the read index over the fastify load test (offline replay)', () => {
   it('serves the gate’s diff reads from the warmed index and spares the warm-up their fetches', async () => {
-    const direct = await replay({ gate: 'direct', derivation: 'none', tier: 'absent' });
-    const indexed = await replay({ gate: 'indexed', derivation: 'none', tier: 'absent' });
+    const direct = await replay({ gate: 'direct', derivation: 'none' });
+    const indexed = await replay({ gate: 'indexed', derivation: 'none' });
 
     // The staging runs' shape: the warm-up alone fills the index, nobody else reads through
     // it, so there is no demand hit rate at all; the warm-up fetches each new object once.
@@ -80,23 +81,24 @@ describe('the read index over the fastify load test (offline replay)', () => {
     });
   });
 
-  it('serves derivation’s reads from the object tier the engine filled', async () => {
-    const without = await replay({ gate: 'indexed', derivation: 'after-warm-up', tier: 'absent' });
-    const tiered = await replay({ gate: 'indexed', derivation: 'after-warm-up', tier: 'present' });
+  it('serves derivation’s reads from the engine’s index instead of fetching them again', async () => {
+    const direct = await replay({ gate: 'indexed', derivation: 'direct' });
+    const through = await replay({ gate: 'indexed', derivation: 'through-engine' });
 
     // Derivation reads each landing's two commits, the trees that differ and both sides of
-    // each changed file, all of them objects the gate or the warm-up fetched just before.
-    expect(without.derivedReads).toEqual({ commit: 76, tree: 256, blob: 306, log: 0 });
-    expect(tiered.derivedReads).toEqual({ commit: 0, tree: 0, blob: 0, log: 0 });
-    // The engine's own reads are unchanged: its index misses become tier misses.
-    expect(tiered.gateReads).toEqual(without.gateReads);
-    // The landed heads' commits come from the ref reads, kept by id; derivation then hits all.
-    expect(tiered.cache.edge?.objects).toEqual({ hits: 638, misses: 741, hit_rate: 0.4627 });
-    expect(tiered.cache.edge?.commit).toEqual({ hits: 76, misses: 38, hit_rate: 0.6667 });
-    expect(tiered.cache.edge?.blob).toEqual({ hits: 306, misses: 560, hit_rate: 0.3533 });
-    expect({ without: without.artifactsReads, with: tiered.artifactsReads }).toEqual({
-      without: 1418,
-      with: 780,
+    // each changed file: objects the gate or the warm-up fetched just before.
+    expect(direct.derivedReads).toEqual({ commit: 76, tree: 256, blob: 306, log: 0 });
+    expect(through.derivedReads).toEqual({ commit: 0, tree: 0, blob: 0, log: 0 });
+    expect(through.cache.derived?.objects).toEqual({ hits: 638, misses: 0, hit_rate: 1 });
+    // The engine's own counts are unchanged by derivation reading through it.
+    expect(through.gateReads).toEqual(direct.gateReads);
+    expect(through.cache.objects).toEqual(direct.cache.objects);
+    // Reads issued together go out together: a call for the commits, one per level of the
+    // tree walk, one per batch of changed files (about 4 a landing for 17 objects).
+    expect(through.engineCalls).toBe(169);
+    expect({ direct: direct.artifactsReads, through: through.artifactsReads }).toEqual({
+      direct: 1418,
+      through: 780,
     });
   });
 });
@@ -108,33 +110,24 @@ async function replay(setup: Setup) {
   let stats = emptyCacheStats();
   const store = memoryObjectStore();
   const refs = new Map();
-  const below =
-    setup.tier === 'present'
-      ? replayTier(
-          git.reader,
-          (read) => (stats = { ...stats, edge: countTierRead(stats.edge, read) }),
-        )
-      : { reader: git.reader, settled: () => Promise.resolve() };
-  const reader = (purpose: ReadPurpose): RepoReader =>
-    cachedReader(below.reader, {
-      store,
-      refs,
-      now: () => 0,
-      count: (read) => (stats = countCacheRead(stats, read)),
-      purpose,
-    });
+  const cache = (purpose: ReadPurpose): ReadCache => ({
+    store,
+    refs,
+    now: () => 0,
+    count: (read) => (stats = countCacheRead(stats, read)),
+    purpose,
+  });
+  const reader = (purpose: ReadPurpose): RepoReader => cachedReader(git.reader, cache(purpose));
+  const derivation = derivationReader(setup, git.reader, cache('derived'));
   const measure = async (into: Calls, work: () => Promise<unknown>): Promise<void> => {
     const before = { ...git.calls };
     await work();
-    // The tier's writes run past each read; the next reader comes after them.
-    await below.settled();
     for (const kind of ['commit', 'tree', 'blob', 'log'] as const)
       into[kind] += git.calls[kind] - before[kind];
   };
   const gateReads = { commit: 0, tree: 0, blob: 0, log: 0 };
   const derivedReads = { commit: 0, tree: 0, blob: 0, log: 0 };
-  const noReads = { commit: 0, tree: 0, blob: 0, log: 0 };
-  await measure(noReads, () => warmLine(reader('prefetch'), LINE));
+  await warmLine(reader('prefetch'), LINE);
   for (const landing of landings) {
     const onto = head;
     const merged = git.commit(onto, edited(git.files(onto), landing));
@@ -147,38 +140,46 @@ async function replay(setup: Setup) {
     git.moveLine(head);
     refs.clear();
     // oxlint-disable-next-line no-await-in-loop -- the warm-up follows its landing
-    await measure(noReads, () => warmLine(reader('prefetch'), LINE));
-    if (setup.derivation === 'after-warm-up')
+    await warmLine(reader('prefetch'), LINE);
+    if (derivation !== null)
       // oxlint-disable-next-line no-await-in-loop -- derivation follows the warm-up
-      await measure(derivedReads, () => changesIn(below.reader, range));
+      await measure(derivedReads, () => changesIn(derivation.reader, range));
   }
   const { calls } = git;
   return {
     cache: cacheReport(stats),
     gateReads,
     derivedReads,
+    engineCalls: derivation?.engineCalls() ?? 0,
     artifactsReads: calls.commit + calls.tree + calls.blob + calls.log,
     blobsFetched: stats.prefetch.blob.misses + stats.blob.misses,
   };
 }
 
-/** Artifacts under the object tier, over the test Worker's Cache API (one name per replay). */
-function replayTier(
+/**
+ * Derivation's reader: Artifacts itself, or the engine's index over an in-process stand-in for
+ * the RunDO's `readObjects` (the same store the gate and the warm-up fill), counting its calls.
+ */
+function derivationReader(
+  setup: Setup,
   artifacts: RepoReader,
-  count: (read: TierRead) => void,
-): { readonly reader: RepoReader; readonly settled: () => Promise<unknown> } {
-  const writes: Promise<void>[] = [];
-  const tier = objectTier(env.PUBLIC_URL, {
-    defer: (write) => writes.push(write),
-    count,
+  cache: ReadCache,
+): { readonly reader: RepoReader; readonly engineCalls: () => number } | null {
+  if (setup.derivation === 'none') return null;
+  if (setup.derivation === 'direct') return { reader: artifacts, engineCalls: () => 0 };
+  let calls = 0;
+  const opened = { ...artifacts, [Symbol.dispose]: () => undefined };
+  const reader = engineReader({
+    repo: REPO,
+    engine: async (request) => {
+      calls += 1;
+      const value = await serveObjectReads({ open: async () => opened, cache }, request.reads);
+      return { ok: true, value };
+    },
+    direct: artifacts,
     warn: () => undefined,
   });
-  if (tier === null) throw new Error('the test config sets PUBLIC_URL');
-  const repo = `repo-replay${crypto.randomUUID().slice(0, 8)}`;
-  return {
-    reader: tieredReader(artifacts, repo, tier),
-    settled: () => Promise.all(writes.splice(0)),
-  };
+  return { reader, engineCalls: () => calls };
 }
 
 /** The recorded paths of every landing, plus filler, each with its own text. */

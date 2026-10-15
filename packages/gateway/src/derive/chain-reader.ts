@@ -32,13 +32,13 @@ export type ChainReader = {
 export type ChainSource = {
   readonly binding: Artifacts;
   readonly repo: string;
-  /** Wraps the handle, for instance in the object tier; without it reads go to Artifacts. */
+  /** Wraps the handle, for instance to read objects through the engine (`engine-reader.ts`). */
   readonly through?: (handle: RepoReader) => RepoReader;
 };
 
 /**
  * Runs `use` with a reader over the repository `source.repo`, releasing it after. Only the
- * reader's Artifacts calls become `UpstreamError`s; what `use` throws passes unchanged.
+ * reader's reads become `UpstreamError`s; what `use` throws passes unchanged.
  */
 export async function withChainReader<T>(
   source: ChainSource,

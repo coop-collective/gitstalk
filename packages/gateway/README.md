@@ -52,36 +52,29 @@ Who reads through it:
 - **The warm-up** after every landing (`warmLine` in `src/adapters/repo-explorer.ts`): it walks the new line head's trees and fetches every blob it does not hold, so the explorer and the next job find them.
 - **The explorer** (the web's code view, MCP reads) and server-side commits.
 
-Every read counts as a hit or a miss, by kind (`commit`, `tree`, `blob`) and for the ref memo apart (`src/repo/cache-stats.ts`), and by purpose: `demand` (a reader asked) or `prefetch` (the warm-up). The warm-up fetches each new object exactly once by design, so its misses can never be hits of their own; they are reported apart and kept out of the hit rates. Reads that bypass the index (a `log` page, a ref given as a commit id) are not counted. The counts are kept in memory on the infra meter (`src/run/infra-meter.ts`) and stored with its existing writes, so counting costs no SQLite write of its own.
+Every read counts as a hit or a miss, by kind (`commit`, `tree`, `blob`) and for the ref memo apart (`src/repo/cache-stats.ts`), and by purpose: `demand` (a reader asked), `prefetch` (the warm-up) or `derived` (the `RepoDerivedDO` reading through the engine). The warm-up fetches each new object exactly once by design, so its misses can never be hits of their own; they are reported apart and kept out of the hit rates. Reads that bypass the index (a `log` page, a ref given as a commit id) are not counted. The counts are kept in memory on the infra meter (`src/run/infra-meter.ts`) and stored with its existing writes, so counting costs no SQLite write of its own.
 
-They are reported as `cache` in `runView` (RPC and `GET /v1/runs/:run`) and in `summary.json`'s `infra`: `hits`, `misses` and `hit_rate` (null before any read) for `objects` (the three kinds together), each kind and `ref_memo`, for demand reads at the top level and for the warm-up under `cache.prefetch` (a hit there is an object already held).
+They are reported as `cache` in `runView` (RPC and `GET /v1/runs/:run`) and in `summary.json`'s `infra`: `hits`, `misses` and `hit_rate` (null before any read) for `objects` (the three kinds together), each kind and `ref_memo`, for demand reads at the top level, for the warm-up under `cache.prefetch` (a hit there is an object already held), and for the derived data's reads through the engine under `cache.derived`.
 
 Measured:
 
 - **Staging, before (2026-10-14, `research/race/runs/stg-scion-*fastify-16-s*`, six runs):** objects 0.65 to 0.67, trees about 0.89, blobs 0 (573 to 578 misses a run), ref memo 0 (54 to 59 misses). Every one of those reads was the warm-up's: in a headless load test nobody else read through the index, because the jobs read Artifacts directly. The warm-up's re-walk of unchanged trees made the tree rate look good, and its first fetch of each blob made the blob rate 0.
 - **Offline replay, after** (`src/repo/read-index-replay.test.ts`: the 38 fastify beans' recorded paths on a 407-file tree, each landing's merge diff read by the gate, then warmed): with the gate reading through the index, its 638 object reads cost 319 Artifacts reads (blob demand hit rate 0.50: every stalk side was warmed, every bean side is new), the warm-up then finds the bean's side held (prefetch misses 703 to 422), and the run's Artifacts object reads fall from 1,380 to 780. The replay's warm-up alone (143 tree and 560 blob fetches, 39 ref reads) matches staging's shape (173 to 176, 573 to 578, 54 to 59). A staging run with the change has not been made; it should show demand hit rates where there were none, and `prefetch.blob.misses` lower by the gate's bean-side blobs.
-- **Not done:** a per-colo Cache API tier keyed by object id (folded into the separate repository caching work, owner's decision 2026-10-14), which would let `RepoDerivedDO` (a separate object, which reads the same landed blobs again through its own handle) and the explorer share fetches across Durable Objects; and keeping the ref memo across landings by setting it to the landed commit (compare-and-swap) instead of clearing it, which would turn the warm-up's one `log` per landing into a hit. Both are projected, not measured.
+- **Derived data through the index** (2026-10-15): `RepoDerivedDO` reads its objects through the engine (`readObjects`, counted under `cache.derived`), so it no longer fetches the landed objects again; see Caching below. A per-colo Cache API tier was tried for this and dropped (docs/claude-opus/35-caching.md §12).
+- **Not done:** keeping the ref memo across landings by setting it to the landed commit (compare-and-swap) instead of clearing it, which would turn the warm-up's one `log` per landing into a hit. Projected, not measured.
 
 ## Caching
 
-The gateway has two tiers that hold every repository, private ones included. The read index
-above keeps objects by id in each engine's SQLite, with the 5 s ref memo a landing clears. Under
-it, the **object tier** (`src/repo/object-tier.ts`) keeps commits, trees and blobs by id in the
-colo's Cache API (named cache `gitstalk-gateway-objects-v1`, key
-`<PUBLIC_URL origin>/__objects/v1/<Artifacts repo>/<kind>/<id>`, `max-age` 7 days, `immutable`,
-blobs up to the index's 1 MB cap). The engine's `RunDO` (under its index) and the
-`RepoDerivedDO` both read through it, so the second reader of an object in a colo does not go
-to Artifacts: in the offline replay of the fastify load test (`read-index-replay.test.ts`),
-derivation's 638 reads per run all hit and Artifacts reads fall from 1,418 to 780. Refs and the
-ref memo are never kept there (the commit a ref read returns is, by its id). Its hits and
-misses are `cache.edge` in the RunDO's infra meter, apart from the index's; the `RepoDerivedDO`
-logs them (`object tier`). Only those two Durable Objects build a tier reader, from the
-Artifacts repo name they hold; no route serves `/__objects/`. It needs the custom domain (on
-`*.workers.dev` every read is a miss) and `PUBLIC_URL` set to an http(s) origin. Privacy
-decision and deletion rule:
-[docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md) §12.
-
-The web app adds its own tiers in front of the gateway for **public repositories only**
+The gateway's read index above is the last cache tier and the only one that holds every
+repository, private ones included: objects by id in each engine's SQLite, and the 5 s ref memo a
+landing clears. The repository's derived data (`RepoDerivedDO`) reads its commits, trees and
+blobs through it too: `RunDO.readObjects` (`src/repo/object-reads.ts`, a Durable Object RPC only,
+objects by validated id, never refs) serves them from the index and fetches a miss once, and
+`src/derive/engine-reader.ts` batches the reads issued together and falls back to Artifacts, with
+a log line, when the engine cannot answer. Its counts are `cache.derived`, apart from the
+engine's own. In the offline replay of the fastify load test (`read-index-replay.test.ts`) this
+takes derivation's 638 Artifacts reads to 0 and the total from 1,418 to 780, in 169 calls
+([docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md) §12). The web app adds its own tiers in front of it for **public repositories only**
 (`packages/web` README, Caching; design in
 [docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
 the colo's Cache API and a global KV namespace, keyed by engine, the record's `updated_at` (so

@@ -8,7 +8,7 @@
 - **Cache API rules.** `cache.put` refuses a response with `Set-Cookie` and does not store `private` or `no-store` responses. It does nothing on `*.workers.dev` (production needs the custom domain). `cache.delete` purges only the current colo.
 - **The gateway RPCs do not authorise.** `repoTree`, `repoFile`, `repoLog` and `repoDiff` trust the engine id; the web app checks access before every call.
 - **Events already say when a head moves.** `land` carries `sha` and `target` (`trunk` is the sprout, `main` the stalk in queue mode), `green.promote` and `green.demote` (a red audit takes the stalk back) carry the new stalk `sha`, `revert` and `sprout.reset` the new sprout `sha`. The list is `LINE_MOVE_TYPES` in `@gitstalk/shared-race/events`, shared by the gateway's read index and the web app's head watcher.
-- **The gateway already caches every repository's objects** (the RunDO read index, `gateway/src/repo/object-cache.ts`), with a 5 s ref memo that a landing clears. Under it, a per-colo object tier (§12) is shared by the engine's Durable Objects.
+- **The gateway already caches every repository's objects** (the RunDO read index, `gateway/src/repo/object-cache.ts`), with a 5 s ref memo that a landing clears. The repository's derived data (`RepoDerivedDO`) reads its objects through that index too (§12).
 
 ## 2. Classes of data
 
@@ -46,8 +46,7 @@ Enforcement in code:
 | **Isolate memory** (`object-cache.ts` LRU, 4 MB of JSON, held parsed; `EventCache`) | Layer 1 for class A, public only; the public event log | anything that must survive a cold isolate | Free and fastest; measured like the other layers. Concurrent reads of one key share one read (the burst after a landing) |
 | **Cache API**, named cache `gitstalk-objects-v1` | Layer 2 for class A, public only: trees, files, diffs | B, C, D, E | Per colo, free, no consistency question for immutable keys; stored copies are `public, max-age=604800` |
 | **KV**, binding `OBJECTS` on the web Worker | Layer 3 for class A, public only, values up to 1 MiB | heads, the pushed list, access verdicts, anything a pusher must see right after writing it | Global, so a new colo is warm; eventual consistency does not matter for immutable data; one write per object; `expirationTtl` 30 days |
-| **Gateway read index** (exists) | Layer 4 for every repository, private included | | Authoritative for objects |
-| **Gateway object tier**, named cache `gitstalk-gateway-objects-v1` | Under the read index, for every repository, private included (§12): commits, trees and blobs by id, read by the RunDO and the `RepoDerivedDO` | refs, the ref memo, anything not addressed by object id | Two Durable Objects of one engine read the same objects; per colo, free |
+| **Gateway read index** (exists) | Layer 4 for every repository, private included; also serves the `RepoDerivedDO`'s object reads (§12) | | Authoritative for objects |
 
 The binding is templated like every KV id (`local-gitstalk-objects`, docs/claude-opus/30 §3.2), so `pnpm env:provision <env>` creates `gitstalk-objects<suffix>` and records its id. **An existing environment must run provision once before its next deploy**; until then config generation stops with "no id for kv gitstalk-objects-…".
 
@@ -125,7 +124,7 @@ Stored Cache API copies carry their own headers (`public, max-age=604800`, no `S
 
 ## 8. Measurement
 
-- Gateway object tier: `cache.edge` in the RunDO's infra meter (`objects`, `commit`, `tree`, `blob`; hits and misses apart from the read index's), and an `object tier` log line from the `RepoDerivedDO` with the same shape after each read or derivation round (§12).
+- Gateway: derivation's reads through the engine are `cache.derived` in the engine's `runView` and `summary.json` (`objects`, `commit`, `tree`, `blob`), apart from the engine's own demand and prefetch counts (§12).
 - `edge.read` log per object read through `src/log.ts`: `{ kind, layer: isolate|colo|kv|gateway, public: true, engine, ms }` (no shas).
 - `Server-Timing: edge;desc="colo-hit";dur=1.8` on the bean diff route for a public repository. Pages cannot carry it: vinext streams a page's headers before its reads finish, so pages rely on the `edge.read` logs.
 - `createEdgeObjectCache(...).stats()`: hits by layer, misses, writes.
@@ -175,30 +174,25 @@ Stored Cache API copies carry their own headers (`public, max-age=604800`, no `S
 | Dev counter inflated "served" | Fixed |
 | Cold reads pay a KV miss; KV writes unbounded per crawl | Deferred (§9) |
 
-## 12. Gateway object tier (2026-10-15)
+## 12. Derived data reads through the engine's read index (2026-10-15)
 
-Code: `packages/gateway/src/repo/object-tier.ts`; tests `object-tier.test.ts` and the second case of the offline replay `read-index-replay.test.ts`.
+Code: `packages/gateway/src/repo/object-reads.ts` (served by `RunDO.readObjects`), `packages/gateway/src/derive/engine-reader.ts` (the `RepoDerivedDO`'s reader); tests `derive/engine-reader.test.ts`, `test/engine-objects.test.ts` and the second case of the offline replay `repo/read-index-replay.test.ts`.
 
-**Why.** PR #2's read index work found that the engine's RunDO and the derived-data `RepoDerivedDO` fetch the same objects from Artifacts separately: the RunDO's approval gate and warm-up read each landing through its SQLite index, then derivation reads the same landing's commits, changed trees and both sides of each changed file straight from Artifacts, and blobs never hit in a per-object cache. Each Durable Object's own cache cannot help the other. A per-colo Cache API tier between the Durable Objects and Artifacts can.
+**Why.** PR #2's read index work found that the engine's `RunDO` and the derived-data `RepoDerivedDO` fetched the same objects from Artifacts separately: the approval gate and the warm-up read each landing through the RunDO's SQLite index, then derivation read the same landing's commits, changed trees and both sides of each changed file straight from Artifacts.
 
-**What it holds.** Commits, trees and blobs by object id (40 or 64 hex), never refs or the ref memo. A one-commit `log` of a named ref still goes to Artifacts every time, but the commit it returns is kept by its id, so derivation's `readCommit` of a landed head hits. Blobs over the read index's 1 MB cap are read through and not kept; a not-found is never kept. Stored as `public, max-age=604800, immutable`, never with `Set-Cookie`; writes run past the read (`ctx.waitUntil`). A failing cache read or write is logged and read as a miss; it never fails a read.
+**Design.** The `RepoDerivedDO` asks the repository's engine for commits, trees and blobs by id over Durable Object RPC (`env.RUNS.getByName(engine).readObjects({ repo, reads })`). The engine serves them through its read index: a hit from SQLite, a miss read from Artifacts, stored, then served. Refs (`sprout`, `stalk` heads) and history pages still go to Artifacts directly, as before.
 
-**Privacy decision: the tier holds private repositories' objects.** Unlike the web's edge caches (§3), its readers are internal and already authorised, so §3's risk (a code path that reads a shared cache before the access check, an invisible leak) has no path here:
+- *Narrow.* Objects only, never refs or engine state. At most 64 reads a call; each id must be 40 or 64 lowercase hex, the kind `commit`, `tree` or `blob` (Zod), and `repo` must be the Artifacts repository the engine drives, or the call is refused. A Durable Object RPC that no route reaches; only gateway code holds the `RUNS` binding. Blobs over the index's 1 MB cap are not sent (`oversized-blob`): the derived reader fetches those itself.
+- *Batched.* Reads issued together (the two commits of a range, a level of the tree walk, a batch of 8 changed files) go out as one call, at most 16 blobs a call so that an answer stays far under the RPC size limit. The replay: 169 calls for 638 object reads over 38 landings, about 4 a landing.
+- *Never stalls derivation.* If the engine throws or refuses, the reader logs one warning (`engine object reads failed` or `refused; reading Artifacts directly`) and reads Artifacts directly for the rest of that read or round.
+- *Counted.* The engine counts derivation's reads as purpose `derived` on its infra meter, reported as `cache.derived`, apart from the engine's own demand reads (`cache.objects`) and the warm-up (`cache.prefetch`), so neither hit rate is inflated by the other. A call that opens the repository (any miss) counts one Artifacts operation.
+- *Addressing.* The `RepoDerivedDO` is named by the engine id; the gateway passes `engine` with `repo` on every `observe`, `whyLines` and `pathHistory` call (from the repo-events feed and the registry record).
 
-1. *Who can reach it.* Only the two Durable Objects build a tier reader, from an Artifacts repo name they stored (the RunDO's `repos.repo.name`) or were handed by the gateway after the web or MCP access check (the `RepoDerivedDO`'s `repo`, from the registry record). No route serves `/__objects/` (a request to a key's path answers 404, tested), and the cache is a named cache, which the CDN never consults for incoming requests.
-2. *Keys.* `<PUBLIC_URL origin>/__objects/v1/<Artifacts repo name>/<kind>/<object id>`. The repo name must be one key segment (`[A-Za-z0-9][A-Za-z0-9._-]*`), or the reader is built without the tier. A reader of repository A never addresses repository B's entries, even for an identical object id (tested); it reads its own copy from Artifacts. A repository's Artifacts name is `repo-<12 random [a-z0-9]>` (`artifactsRepoName`), so it is not guessable and never reused. Race repos are named by run id (`runRepoName`), so a reused run id would reuse the name; races are operator benchmark runs, not people's repositories, and content addressing keeps such a hit correct.
-3. *Deletion: content addressing plus a short TTL, not a purge.* The Cache API cannot purge other colos, so the tier does not fail closed on deletion. A deleted repository's entries become unreachable instead: `deleteRepository` removes the registry record first and then closes the engine, so no access check passes and no engine id or repo name reaches either Durable Object again, and the name is never reused. An object id names the same bytes forever, so an entry is never stale. `max-age` is 7 days, not 30, to bound how long a deleted private repository's bytes stay in a colo's cache; a takedown of a committed secret in a private repository waits out those 7 days in the colos that read it (the accepted cost).
-4. *Visibility does not matter here.* The gateway's Durable Objects do not know a repository's visibility, and nothing reads this tier for a viewer without the upstream access check, so a visibility flip changes nothing in it.
-
-Public-only was considered and rejected: the gateway would have to look visibility up in the registry for every reader, the gain is the same for private repositories, and §3's risk has no path here, since every caller of the two Durable Objects is already past the check.
-
-**Measured (offline replay).** The fastify load test's 38 landings on a 407-file tree (`test/fixtures/fastify-landings.json`). Each landing: the gate's diff read through the index, the warm-up, then derivation's `changesIn`. Both Durable Objects in one colo:
+**Measured (offline replay).** The fastify load test's 38 landings on a 407-file tree (`test/fixtures/fastify-landings.json`): the gate's diff through the index, the warm-up, then derivation's `changesIn`.
 
 | | Engine (gate and warm-ups) | Derivation | Artifacts reads |
 |---|---|---|---|
-| Without the tier | 780 | 638 (76 commits, 256 trees, 306 blobs) | **1,418** |
-| With the tier | 780 (unchanged: its index misses become tier misses) | **0** (all hits) | **780** (−45%) |
+| Derivation reads Artifacts itself | 780 | 638 (76 commits, 256 trees, 306 blobs) | **1,418** |
+| Derivation reads through the engine | 780 (unchanged) | **0** (`cache.derived`: 638 hits, 0 misses) | **780** (−45%) |
 
-The tier's own hit rate is 0.46 (638 hits, 741 misses; blobs 306 of 866). If the two Durable Objects run in different colos the gain is zero and nothing else changes. Production check after deploying to the custom domain: `cache.edge` in a repository engine's summary, and the `object tier` log lines.
-
-**Open point.** The Cache API inside Durable Objects works in Miniflare; in production the counters show whether it does there (all misses means it does nothing, and reads behave as before).
+**Why the per-colo Cache API tier was dropped (owner's decision 2026-10-15).** The first version of this change put a Cache API tier (`gitstalk-gateway-objects-v1`) under both Durable Objects. The same replay gave the same 780, but only when both objects ran in one colo, and it depended on the Cache API working inside Durable Objects in production (unverified; it does nothing on `*.workers.dev`). It also put private repositories' bytes in a shared per-colo cache with a 7-day window that no purge could close. Reading through the engine removes the duplicate fetches across colos, needs no Cache API, and keeps private data only in the engine's own storage, which repository deletion already removes.

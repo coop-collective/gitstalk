@@ -37,15 +37,14 @@ export type ObjectStore = {
 /** Named refs resolved within this long are answered from memory. */
 export const REF_MEMO_MS = 5000;
 /**
- * Blobs above this size are read through, not stored (a SQLite row holds at most 2 MB); the
- * object tier (`object-tier.ts`) keeps the same cap.
+ * Blobs above this size are read through, not stored (a SQLite row holds at most 2 MB), nor
+ * served to derivation (`object-reads.ts`).
  */
 export const MAX_CACHED_BLOB_BYTES = 1024 * 1024;
 const COMMIT_ID = /^[0-9a-f]{40}$/;
 
 const Person = z.object({ name: z.string(), email: z.string() });
-/** A tree as a cache stores it (JSON). */
-export const StoredTree = z.array(
+const StoredTree = z.array(
   z.object({
     name: z.string(),
     mode: z.string(),
@@ -53,8 +52,7 @@ export const StoredTree = z.array(
     type: z.enum(['tree', 'blob', 'symlink', 'gitlink', 'exec']),
   }),
 );
-/** A commit's metadata as a cache stores it (JSON). */
-export const StoredCommit = z.object({
+const StoredCommit = z.object({
   hash: z.string(),
   treeHash: z.string(),
   message: z.string(),

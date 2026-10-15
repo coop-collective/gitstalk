@@ -41,15 +41,19 @@ It is fed by the **`repo-events` queue consumer**, after a batch is indexed in D
 
 The alternative, a `waitUntil` hook from the RunDO's applied events (the `RunStreamDO` pattern, `docs/claude-17-streaming-diffs.md`), would need changes in `run-do.ts`'s step path.
 
-Work inside the DO is serialized with a promise chain, because each step awaits Artifacts reads and the chain must grow in order.
+Work inside the DO is serialized with a promise chain, because each step awaits reads and the chain must grow in order.
+
+Derivation reads git objects (commits, trees, blobs) **through the engine's read index**: the `RepoDerivedDO` calls the engine's `RunDO.readObjects` over Durable Object RPC (`derive/engine-reader.ts`), batching the reads issued together, and the engine serves what its approval gate and warm-up already read from SQLite. Refs and history pages still go to Artifacts. If the engine cannot answer, derivation logs once and reads Artifacts directly, so it never stalls. Design and measurements: `docs/claude-opus/35-caching.md` §12.
 
 `sprout` and `stalk` resolve to the heads the engine's events last reported (`bean.landed`, `bean.reverted`, `stalk.promoted`, `stalk.demoted`), falling back to the branch head in Artifacts. Answers are therefore as of the last indexed landing, like the rest of the forge's indexes.
 
 ### Cost
 
-| Event | Artifacts calls |
+Object reads below go through the engine's read index, so they reach Artifacts only when the engine has not read them already (in the fastify replay, none did).
+
+| Event | Object reads (engine index, else Artifacts) |
 |---|---|
-| Landing | 1 `readCommit` for each new commit, plus the tree walk and the reads of changed blobs (at most 8 at a time) |
+| Landing | 1 `readCommit` for each new commit, plus the tree walk and the reads of changed blobs (at most 8 files at a time), in about 4 engine calls |
 | Revert | The above, plus 1 `readFile` per changed text file at the restored commit |
 | Read | The ref is resolved from stored heads. A file never changed since the base costs 1 `readFile` to count its lines |
 

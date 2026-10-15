@@ -89,7 +89,12 @@ import type { RunnerCapacity } from '../capacity/runner-capacity';
 import { DEFAULT_PRELAND_SANDBOXES, RUNNER_POOL_NAME } from '../capacity/runner-capacity';
 import { leaseSandbox, needsSandboxLease, releaseSandbox } from '../capacity/sandbox-lease';
 import type { ArtifactsPort, RepoRemote } from '../adapters/artifacts';
-import { artifactsPort, selectedArtifactsPort, withRepo } from '../adapters/artifacts';
+import {
+  artifactsPort,
+  call as artifactsCall,
+  selectedArtifactsPort,
+  withRepo,
+} from '../adapters/artifacts';
 import type { SessionCommit } from '../commit/bean-commit';
 import { commitToBean, commitToRepoBean } from '../commit/bean-commit';
 import type { FileSave } from '../commit/file-save';
@@ -119,8 +124,8 @@ import { GatewayError, UpstreamError } from '../errors';
 import type { ObjectStore, ReadCache, RefMemo, RepoReader } from '../repo/object-cache';
 import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
-import type { ObjectTier } from '../repo/object-tier';
-import { objectTier, tieredReader } from '../repo/object-tier';
+import type { ObjectRead } from '../repo/object-reads';
+import { ObjectReadsRequest, serveObjectReads } from '../repo/object-reads';
 import type { ReadPurpose } from '../repo/cache-stats';
 import { readThroughPort } from '../repo/read-through-port';
 import type { Logger } from '../log';
@@ -188,7 +193,6 @@ import {
   emptyMeter,
   infraReport,
   recordCacheRead,
-  recordTierRead,
   recordRunnerCall,
   recordWarmStart,
 } from './infra-meter';
@@ -328,8 +332,6 @@ export class RunDO extends DurableObject<Env> {
   #meter: InfraMeter;
   /** The read index: git objects by id (`repo/object-cache.ts`), and refs read moments ago. */
   #objects: ObjectStore;
-  /** The colo's object tier under the read index (opened on first use; null: none). */
-  #tier: ObjectTier | null | undefined;
   /** A sweep of a run this object never held deleted its storage; tables return on create. */
   #wiped = false;
   /** Fingerprint of the in-memory state for the quiet-step check (null: compute on demand). */
@@ -872,9 +874,7 @@ export class RunDO extends DurableObject<Env> {
     return {
       sql: this.ctx.storage.sql,
       read: (use) =>
-        withRepo(binding, repo.name, (handle) =>
-          use(this.#throughCaches(handle, repo.name, 'demand')),
-        ),
+        withRepo(binding, repo.name, (handle) => use(cachedReader(handle, this.#readCache()))),
       target: async () => ({
         remote: repo.remote,
         token: await this.#tokens.token(repo.name, 'write'),
@@ -1259,6 +1259,37 @@ export class RunDO extends DurableObject<Env> {
     return this.#explore((explorer) => explorer.file(this.#repoRef(ref), path));
   }
 
+  /**
+   * Git objects of the repository this engine drives, by id, through the read index: a hit is
+   * served from SQLite, a miss is read from Artifacts, stored, then served. For the
+   * repository's derived data (`derive/engine-reader.ts`); a Durable Object RPC that no route
+   * reaches. Objects only, never refs or engine state; counted as `derived` on the meter.
+   */
+  async readObjects(request: unknown): Promise<RunResult<ObjectRead[]>> {
+    this.#countRequest();
+    const parsed = ObjectReadsRequest.safeParse(request);
+    if (!parsed.success)
+      return failure('invalid_request', 400, parsed.error.issues[0]?.message ?? 'object reads');
+    const repo = this.#loaded?.stored.repos.repo.name;
+    if (!this.#drivesRepository || repo !== parsed.data.repo)
+      return failure('not_found', 404, `this engine does not drive ${parsed.data.repo}`);
+    const source = {
+      open: () => {
+        this.#setMeter(countArtifactsOps(this.#meter, 1));
+        return artifactsCall(`open ${repo}`, () => this.env.REPOS.get(repo));
+      },
+      cache: this.#readCache('derived'),
+    };
+    try {
+      const value = await artifactsCall('read objects', () =>
+        serveObjectReads(source, parsed.data.reads),
+      );
+      return { ok: true, value };
+    } catch (error: unknown) {
+      return upstreamFailure(error, 'reading objects');
+    }
+  }
+
   async repoDiff(
     from: string,
     to: string,
@@ -1571,25 +1602,6 @@ export class RunDO extends DurableObject<Env> {
     this.#setMeter(countRequest(this.#meter, Date.now()));
   }
 
-  /**
-   * A handle of `repo` read through the read index, and the index's misses through the colo's
-   * object tier (`repo/object-tier.ts`); both count on the meter, apart.
-   */
-  #throughCaches(handle: RepoReader, repo: string, purpose: ReadPurpose): RepoReader {
-    const tier = this.#objectTier();
-    const below = tier === null ? handle : tieredReader(handle, repo, tier);
-    return cachedReader(below, this.#readCache(purpose));
-  }
-
-  #objectTier(): ObjectTier | null {
-    this.#tier ??= objectTier(this.env.PUBLIC_URL, {
-      defer: (write) => this.ctx.waitUntil(write),
-      count: (read) => this.#setMeter(recordTierRead(this.#meter, read)),
-      warn: (message, fields) => this.#log.warn(message, fields),
-    });
-    return this.#tier;
-  }
-
   /** The read index for a cached reader, its hits and misses counted on the meter. */
   #readCache(purpose: ReadPurpose = 'demand'): ReadCache {
     return {
@@ -1608,7 +1620,7 @@ export class RunDO extends DurableObject<Env> {
   #readIndexed<T>(repo: string, use: (reader: RepoReader) => Promise<T>): Promise<T> {
     this.#setMeter(countArtifactsOps(this.#meter, 1));
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return withRepo(binding, repo, (handle) => use(this.#throughCaches(handle, repo, 'demand')));
+    return withRepo(binding, repo, (handle) => use(cachedReader(handle, this.#readCache())));
   }
 
   #recordRunner(call: RunnerCall): void {
@@ -1730,7 +1742,7 @@ export class RunDO extends DurableObject<Env> {
   /** The run repo's explorer, reading through the read index. */
   #explorer(repo: string, purpose: ReadPurpose = 'demand'): RepoExplorer {
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return repoExplorer(binding, repo, (handle) => this.#throughCaches(handle, repo, purpose));
+    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache(purpose)));
   }
 
   /** A read of the run repo for the web app: expected failures become values. */

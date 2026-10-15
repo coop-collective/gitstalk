@@ -5,8 +5,9 @@
  * (`observe`): facts are recorded at once and the eager derivers advance in the background.
  * Reads (`whyLines`, `pathHistory`) advance the derivers they need first (the lazy path), so a
  * missed or failed feed costs one slower read, never a wrong answer. The engine never waits
- * on, reads or writes anything here. Work runs one call at a time (`#serial`), because each
- * step awaits Artifacts reads and the chain must grow in order.
+ * on or writes anything here; derivation reads git objects through the engine's read index
+ * (`engine-reader.ts`), falling back to Artifacts when the engine cannot answer. Work runs one
+ * call at a time (`#serial`), because each step awaits reads and the chain must grow in order.
  */
 import { DurableObject } from 'cloudflare:workers';
 
@@ -26,12 +27,9 @@ import { createLogger } from '../log';
 import { countLines } from '../git/diff-text';
 import type { BlameSpan } from './blame-spans';
 import { wholeFile } from './blame-spans';
-import type { TierStats } from '../repo/cache-stats';
-import { countTierRead, emptyTierStats, tierReport } from '../repo/cache-stats';
-import type { ObjectTier } from '../repo/object-tier';
-import { objectTier, tieredReader } from '../repo/object-tier';
 import type { ChainReader, ChainSource } from './chain-reader';
 import { withChainReader } from './chain-reader';
+import { engineReader } from './engine-reader';
 import type { ChainStore } from './derive-chain';
 import type { Deriver } from './deriver';
 import { DeriveError, advance, extendChain, parentState } from './derive-chain';
@@ -48,16 +46,14 @@ const FEED_BUDGET = 64;
 const DEFAULT_HISTORY = 20;
 const MAX_HISTORY = 100;
 
-export type ObserveInput = { readonly repo: string; readonly events: readonly RepoEvent[] };
-export type DerivedRead<T> = T & { readonly repo: string };
+/** The repository derived for: its Artifacts name, and the engine (RunDO) that drives it. */
+export type DerivedSource = { readonly repo: string; readonly engine: string };
+export type ObserveInput = DerivedSource & { readonly events: readonly RepoEvent[] };
+export type DerivedRead<T> = T & DerivedSource;
 
 export class RepoDerivedDO extends DurableObject<Env> {
   readonly #log: Logger;
   #queue: Promise<unknown> = Promise.resolve();
-  /** The colo's object tier (opened on first use; null: none). */
-  #tier: ObjectTier | null | undefined;
-  /** The tier's hits and misses since they were last logged. */
-  #tierStats: TierStats = emptyTierStats();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -72,7 +68,7 @@ export class RepoDerivedDO extends DurableObject<Env> {
     const landed = recordEvents(this.ctx.storage.sql, input.events);
     if (landed !== null)
       this.#deriveInBackground(
-        input.repo,
+        input,
         'sprout',
         DERIVERS.filter((d) => d.eager),
       );
@@ -140,13 +136,13 @@ export class RepoDerivedDO extends DurableObject<Env> {
 
   /** Resolves the ref onto the chain, runs `read`, and turns expected failures into values. */
   #read<T>(
-    input: { readonly repo: string; readonly path: string; readonly ref?: string | undefined },
+    input: DerivedSource & { readonly path: string; readonly ref?: string | undefined },
     read: (reader: ChainReader, point: ReadPoint) => Promise<T>,
   ): Promise<RpcResult<T>> {
     const ref = input.ref ?? 'sprout';
     return this.#serial(async () => {
       try {
-        const value = await withChainReader(this.#source(input.repo), async (reader) => {
+        const value = await withChainReader(this.#source(input), async (reader) => {
           const sha = await resolve(this.ctx.storage.sql, reader, ref);
           const detached = sha === ref ? 'refuse' : 'restart';
           const commit = await extendChain(this.#store(), reader, { sha, detached });
@@ -160,39 +156,39 @@ export class RepoDerivedDO extends DurableObject<Env> {
         return { ok: true, value };
       } catch (error: unknown) {
         // A read that ran out of budget leaves the rest to the background.
-        if (error instanceof DeriveError && error.code === 'deriving') this.#catchUp(input.repo);
+        if (error instanceof DeriveError && error.code === 'deriving') this.#catchUp(input);
         return failure(error);
-      } finally {
-        this.#logTierCounts();
       }
     });
   }
 
   /** Every deriver, up to the chain's tip, in the background (after a read ran out of budget). */
-  #catchUp(repo: string): void {
+  #catchUp(source: DerivedSource): void {
     const tip = chainTip(this.ctx.storage.sql);
-    if (tip !== null) this.#deriveInBackground(repo, tip.sha, DERIVERS);
+    if (tip !== null) this.#deriveInBackground(source, tip.sha, DERIVERS);
   }
 
   /**
    * Extends the chain to `ref` (`sprout`, or a commit already on the chain) and advances
    * `derivers` to it, round after round, off the caller's path.
    */
-  #deriveInBackground(repo: string, ref: string, derivers: readonly Deriver<unknown>[]): void {
+  #deriveInBackground(
+    source: DerivedSource,
+    ref: string,
+    derivers: readonly Deriver<unknown>[],
+  ): void {
     const work = this.#serial(() =>
-      withChainReader(this.#source(repo), async (reader) => {
+      withChainReader(this.#source(source), async (reader) => {
         const sha = await resolve(this.ctx.storage.sql, reader, ref);
         const commit = await extendChain(this.#store(), reader, { sha, detached: 'restart' });
         const round = { derivers, to: commit.seq, budget: FEED_BUDGET };
         // oxlint-disable-next-line no-await-in-loop -- rounds follow each other until caught up
         for (let done = false; !done; done = await advance(this.#store(), reader, round));
       }),
-    )
-      .catch((error: unknown) => {
-        // The next read derives what this missed.
-        this.#log.warn('deriving in the background failed', { ref, error });
-      })
-      .finally(() => this.#logTierCounts());
+    ).catch((error: unknown) => {
+      // The next read derives what this missed.
+      this.#log.warn('deriving in the background failed', { ref, error });
+    });
     this.ctx.waitUntil(work);
   }
 
@@ -203,27 +199,23 @@ export class RepoDerivedDO extends DurableObject<Env> {
     return sha === null ? null : (commitBySha(sql, sha)?.seq ?? null);
   }
 
-  /** The repository, read through the colo's object tier (`repo/object-tier.ts`). */
-  #source(repo: string): ChainSource {
-    this.#tier ??= objectTier(this.env.PUBLIC_URL, {
-      defer: (write) => this.ctx.waitUntil(write),
-      count: (read) => (this.#tierStats = countTierRead(this.#tierStats, read)),
-      warn: (message, fields) => this.#log.warn(message, fields),
-    });
-    const tier = this.#tier;
-    if (tier === null) return { binding: this.env.REPOS, repo };
-    return { binding: this.env.REPOS, repo, through: (handle) => tieredReader(handle, repo, tier) };
-  }
-
   /**
-   * This object has no infra meter: the tier's counts go to the log (`cache.edge`) after each
-   * read or round that used it, and start again from zero.
+   * The repository, its objects read through the engine's read index (tagged `derived` on the
+   * engine's meter), the rest from Artifacts.
    */
-  #logTierCounts(): void {
-    const edge = tierReport(this.#tierStats);
-    if (edge.objects.hits + edge.objects.misses === 0) return;
-    this.#log.info('object tier', { cache: { edge } });
-    this.#tierStats = emptyTierStats();
+  #source(source: DerivedSource): ChainSource {
+    const engine = this.env.RUNS.getByName(source.engine);
+    return {
+      binding: this.env.REPOS,
+      repo: source.repo,
+      through: (direct) =>
+        engineReader({
+          repo: source.repo,
+          engine: (request) => engine.readObjects(request),
+          direct,
+          warn: (message, fields) => this.#log.warn(message, { ...fields, engine: source.engine }),
+        }),
+    };
   }
 
   #store(): ChainStore {

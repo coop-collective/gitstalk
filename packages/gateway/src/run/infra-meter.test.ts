@@ -12,7 +12,6 @@ import {
   infraReport,
   recordCacheRead,
   recordRunnerCall,
-  recordTierRead,
   recordWarmStart,
 } from './infra-meter';
 import type { InfraMeter } from './infra-meter';
@@ -111,19 +110,20 @@ describe('the read index’s counts on the meter', () => {
     expect(cache.prefetch?.objects).toEqual({ hits: 1, misses: 1, hit_rate: 0.5 });
   });
 
-  it('counts the object tier apart from the read index', () => {
-    const indexed = withReads(emptyMeter(0), [MISS('blob'), MISS('tree'), HIT('blob')]);
-    const meter = recordTierRead(recordTierRead(indexed, { kind: 'blob', outcome: 'hit' }), {
-      kind: 'tree',
-      outcome: 'miss',
-    });
+  it('counts derivation’s reads through the engine apart from the engine’s own', () => {
+    const meter = withReads(emptyMeter(0), [
+      { kind: 'blob', outcome: 'miss', purpose: 'demand' },
+      { kind: 'blob', outcome: 'hit', purpose: 'derived' },
+      { kind: 'tree', outcome: 'hit', purpose: 'derived' },
+      { kind: 'commit', outcome: 'miss', purpose: 'derived' },
+    ]);
 
     const { cache } = infraReport(meter, 0);
 
-    expect(cache.objects).toEqual({ hits: 1, misses: 2, hit_rate: 0.3333 });
-    expect(cache.edge?.objects).toEqual({ hits: 1, misses: 1, hit_rate: 0.5 });
-    expect(cache.edge?.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
-    expect(cache.edge?.commit.hit_rate).toBeNull();
+    expect(cache.objects).toEqual({ hits: 0, misses: 1, hit_rate: 0 });
+    expect(cache.derived?.objects).toEqual({ hits: 2, misses: 1, hit_rate: 0.6667 });
+    expect(cache.derived?.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(cache.prefetch?.objects.hit_rate).toBeNull();
   });
 
   it('reports no rate before anything was read', () => {
@@ -163,22 +163,6 @@ describe('the read index’s counts on the meter', () => {
     expect(infraReport(reloaded ?? emptyMeter(0), 0).cache.objects.hit_rate).toBeNull();
   });
 
-  it('starts the tier counts at zero for counts stored before the tier existed', async () => {
-    const { edge: _edge, ...olderCache } = withReads(emptyMeter(0), [HIT('blob')]).cache;
-
-    const reloaded = await runInDurableObject(
-      env.RUNS.getByName('meter-before-tier-test'),
-      (_, state) => {
-        state.storage.kv.put('infra-meter', { ...emptyMeter(0), cache: olderCache });
-        return loadMeter(state.storage, 1000);
-      },
-    );
-    const { cache } = infraReport(reloaded ?? emptyMeter(0), 0);
-
-    expect(cache.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
-    expect(cache.edge?.objects).toEqual({ hits: 0, misses: 0, hit_rate: null });
-  });
-
   it('starts the prefetch counts at zero for counts stored before purposes existed', async () => {
     const { prefetch: _prefetch, ...demand } = withReads(emptyMeter(0), [HIT('tree')]).cache;
 
@@ -193,5 +177,21 @@ describe('the read index’s counts on the meter', () => {
     const report = infraReport(reloaded ?? emptyMeter(0), 0).cache;
     expect(report.tree.hits).toBe(1);
     expect(report.prefetch?.objects.hit_rate).toBeNull();
+  });
+
+  it('starts the derived counts at zero for counts stored before derivation read through the engine', async () => {
+    const { derived: _derived, ...older } = withReads(emptyMeter(0), [HIT('blob')]).cache;
+
+    const reloaded = await runInDurableObject(
+      env.RUNS.getByName('meter-before-derived-test'),
+      (_, state) => {
+        state.storage.kv.put('infra-meter', { ...emptyMeter(0), cache: older });
+        return loadMeter(state.storage, 1000);
+      },
+    );
+
+    const report = infraReport(reloaded ?? emptyMeter(0), 0).cache;
+    expect(report.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(report.derived?.objects).toEqual({ hits: 0, misses: 0, hit_rate: null });
   });
 });
