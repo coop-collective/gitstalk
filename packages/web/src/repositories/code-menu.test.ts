@@ -15,6 +15,7 @@ import {
 import type { StartConfig } from './paths';
 
 // `next/link` resolves only inside vinext's build: the side column's links render as plain anchors.
+vi.mock('../../components/shell/link-pending', () => ({ LinkPending: () => null }));
 vi.mock('../../components/shell/intent-link', () => ({
   IntentLink: (props: Record<string, unknown>) => createElement('a', props),
 }));

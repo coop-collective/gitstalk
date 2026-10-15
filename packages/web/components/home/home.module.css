@@ -14,6 +14,20 @@
   padding-bottom: 28px;
 }
 
+/* The stalk on its own, as the Code tab's side pane (repo-tabs/code-stalk.tsx). */
+.stalkPane {
+  --leaf: var(--good-fill);
+  --leaf-ink: var(--good);
+  --bean: var(--human-fill);
+  --amber: var(--warn-fill);
+  --red: var(--bad-fill);
+  --line: color-mix(in srgb, var(--rule) 70%, transparent);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 /* ---------- Repo header and tabs ---------- */
 .repohead {
   padding: 14px 24px 0;

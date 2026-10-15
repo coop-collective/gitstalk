@@ -4,6 +4,7 @@
  * growing. Cloning and connecting an agent live behind the bar's Code button.
  */
 import { IntentLink as Link } from '../shell/intent-link';
+import { LinkPending } from '../shell/link-pending';
 import type { ReactNode } from 'react';
 
 import { FileIcon } from '../home/marks';
@@ -99,6 +100,7 @@ export function FolderView(props: {
                   <span />
                   <span className={styles.fileName}>..</span>
                   <span />
+                  <LinkPending />
                 </Link>
               </li>
             )}
@@ -119,6 +121,7 @@ export function FolderView(props: {
                   <span className={styles.size}>
                     {entry.size === null || entry.size === 0 ? '' : sizeText(entry.size)}
                   </span>
+                  <LinkPending />
                 </Link>
               </li>
             ))}

@@ -197,6 +197,45 @@
   }
 }
 
+/* ---------- The side pane's tabs: the stalk, the files ---------- */
+.paneTabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.paneTab {
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink-3);
+  font: 500 13px var(--font-sans);
+  cursor: pointer;
+}
+.paneTab:hover {
+  color: var(--ink);
+}
+.paneTab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--good-fill);
+}
+.paneTab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.panePanel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.panePanel[hidden] {
+  display: none;
+}
+
 /* ---------- The tree ---------- */
 .treePane {
   display: flex;

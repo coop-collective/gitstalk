@@ -150,7 +150,7 @@ Stored Cache API copies carry their own headers (`public, max-age=604800`, no `S
 - One SSE for `RunStatus` polling and the job log; one repository SSE shared across tabs (BroadcastChannel).
 - ~~A per-tab `loading.tsx` that keeps the owner, the name and the current tab.~~ Done differently (§13.3): the header is the repository layout's, so every skeleton sits under the real header.
 - Reusing a hover prefetch for the navigation that follows it (vinext fetches a dynamic page twice: the prefetch and the navigation, §13.3).
-- A revisit after the router's 30 s shows a tab's skeleton: moving the server-rendered tabs' reads (Code's tree and files, History, the runs list) to client queries would remove it (§13.2).
+- A revisit after the router's 30 s shows a tab's skeleton: moving the server-rendered tabs' reads (Code's tree and files, History, the runs list) to client queries would remove it (§13.2). The Code tab has no skeleton any more (`packages/web/README.md`, Status before streaming): a folder or file opened keeps the open page until the next arrives, but each still waits for a server render; reading the open file through a client query (immutable at its sha) would make that wait a cache hit.
 
 ## 10. Where this differs from the plan it came from
 
