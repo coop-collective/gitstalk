@@ -8,15 +8,18 @@
 
 import { z } from 'zod';
 
-import type { CacheRead } from './cache-stats';
+import type { CacheRead, ReadPurpose } from './cache-stats';
 
 /** The calls of an Artifacts repo handle that the explorer reads through. */
 export type RepoReader = Pick<
   ArtifactsRepo,
   'readTree' | 'readBlob' | 'readCommit' | 'readFile' | 'log'
 > & {
-  /** Whether the blob is already held locally (a cached reader only), without reading it. */
-  readonly hasBlob?: (id: string) => boolean;
+  /**
+   * Makes sure the blob is held locally (a cached reader only): a blob already held is not
+   * loaded, one that is not is read from Artifacts and stored. Counted as prefetch.
+   */
+  readonly prefetchBlob?: (id: string) => Promise<void>;
 };
 
 /** Where cached objects live: the RunDO's SQLite, or memory in tests. */
@@ -63,6 +66,8 @@ export type ReadCache = {
   readonly refs: RefMemo;
   readonly now: () => number;
   readonly count?: (read: CacheRead) => void;
+  /** Whose reads these are (`cache-stats.ts`); absent: `demand`. */
+  readonly purpose?: ReadPurpose;
 };
 
 /** Ref heads resolved recently (`log({ ref, limit: 1 })`), by ref; concurrent reads share one. */
@@ -75,12 +80,13 @@ export type RefMemo = Map<
  * A reader that answers object reads from `store` and fills it on a miss. `readFile` is
  * resolved through cached trees and blobs; `log` goes to Artifacts, except a one-commit
  * read of a named ref within `REF_MEMO_MS` of the last one (the ref's head). `count` hears
- * every object read and ref head read as a hit or a miss (`cache-stats.ts`).
+ * every object read and ref head read as a hit or a miss (`cache-stats.ts`), with `purpose`.
  */
 export function cachedReader(handle: RepoReader, cache: ReadCache): RepoReader {
   const { store } = cache;
-  const count = (kind: CacheRead['kind'], isHit: boolean): void =>
-    cache.count?.({ kind, outcome: isHit ? 'hit' : 'miss' });
+  const purpose = cache.purpose ?? 'demand';
+  const count = (kind: CacheRead['kind'], isHit: boolean, as: ReadPurpose = purpose): void =>
+    cache.count?.({ kind, outcome: isHit ? 'hit' : 'miss', purpose: as });
   const readTree = async (id: string): Promise<ArtifactsTreeEntry[] | null> => {
     const cached = store.tree(id);
     count('tree', cached !== undefined);
@@ -89,15 +95,23 @@ export function cachedReader(handle: RepoReader, cache: ReadCache): RepoReader {
     if (entries !== null) store.putTree(id, entries);
     return entries;
   };
-  const readBlob = async (id: string): Promise<Blob | null> => {
-    const cached = store.blob(id);
-    count('blob', cached !== undefined);
-    if (cached !== undefined) return new Blob([cached]);
+  const fetchBlob = async (id: string): Promise<Blob | null> => {
     const blob = await handle.readBlob(id);
     if (blob === null) return null;
     const bytes = new Uint8Array(await blob.arrayBuffer());
     if (bytes.length <= MAX_CACHED_BLOB_BYTES) store.putBlob(id, bytes);
     return new Blob([bytes], { type: blob.type });
+  };
+  const readBlob = async (id: string): Promise<Blob | null> => {
+    const cached = store.blob(id);
+    count('blob', cached !== undefined);
+    return cached === undefined ? fetchBlob(id) : new Blob([cached]);
+  };
+  const prefetchBlob = async (id: string): Promise<void> => {
+    // A blob already held needs no read, and no body loaded to find out.
+    const isHeld = store.hasBlob(id);
+    count('blob', isHeld, 'prefetch');
+    if (!isHeld) await fetchBlob(id);
   };
   const readCommit = async (id: string): Promise<ArtifactsCommitMetadata | null> => {
     const cached = store.commit(id);
@@ -148,7 +162,7 @@ export function cachedReader(handle: RepoReader, cache: ReadCache): RepoReader {
     }
     return null;
   };
-  return { readTree, readBlob, readCommit, readFile, log, hasBlob: (id) => store.hasBlob(id) };
+  return { readTree, readBlob, readCommit, readFile, log, prefetchBlob };
 }
 
 /** The store in the RunDO's SQLite (table `git_objects`, created on first use). */

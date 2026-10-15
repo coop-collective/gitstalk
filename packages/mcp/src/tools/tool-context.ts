@@ -29,17 +29,24 @@ export type AgentSessionContext = {
   readonly userId: string;
   readonly handle: string;
   readonly clientName: string;
+  /**
+   * The agent session as the approval rules' self-approval check compares it with a bean's
+   * pusher: `oauth:<client id>` for an OAuth grant, `token` for a personal token as the bearer.
+   */
+  readonly agentKey: string;
   readonly via: 'oauth' | 'token';
   readonly scopes: readonly Scope[];
   /** The person and scopes, as the gateway's repository RPC takes them. */
   readonly principal: AgentPrincipal;
   /**
    * Mints a short-lived git credential for one repository (its engine id), no wider than the
-   * session and than the person's access there; null when the session has no git scope.
+   * session and than the person's access there; null when the session has no git scope. With
+   * `access: 'create'`, `binding` is `new:owner/name`, an address with no repository yet: the
+   * credential (read, write and create) may create it with a push. Null without those scopes.
    */
   mintGitToken(repository: {
-    readonly engineId: string;
-    readonly access: 'read' | 'write';
+    readonly binding: string;
+    readonly access: 'read' | 'write' | 'create';
     readonly ttlSeconds: number;
   }): Promise<MintedGitToken | null>;
 };

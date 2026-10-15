@@ -216,9 +216,13 @@ function leadOf(record: RepositoryRecord, files: RepositoryFiles | null): string
     case 'template':
       return `Its stalk holds the TypeScript starter${count === null ? '' : `, ${count} files`}, with tests every bean must pass before it lands.`;
     case 'empty':
-      return 'Its stalk holds a README. Push a first bean to grow it.';
+      return record.origin.first_push === undefined
+        ? 'Its stalk holds a README. Push a first bean to grow it.'
+        : 'Its stalk holds a README until the first push: that commit becomes the stalk, history and all.';
     case 'import':
       return `Its stalk is the default branch of ${record.origin.url}.`;
+    case 'push':
+      return `Its stalk starts at the commit pushed as ${record.origin.ref}. Push a bean to grow it.`;
     default:
       return assertNever(record.origin);
   }
@@ -232,6 +236,8 @@ function firstCommitTitle(record: RepositoryRecord): string {
       return 'Initial commit';
     case 'import':
       return 'Imported history';
+    case 'push':
+      return 'Pushed to create it';
     default:
       return assertNever(record.origin);
   }

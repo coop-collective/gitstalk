@@ -146,11 +146,23 @@ export type RepoOwner = z.infer<typeof RepoOwner>;
 
 export type RepoOwnerKind = 'user' | 'org';
 
-/** How a repository began, as recorded. */
+/**
+ * How a repository began, as recorded: the web form's three starts, or a push to an address
+ * that did not exist (push-to-create: the pushed commit is the stalk's first, `ref` is the
+ * branch it was pushed as, such as `main` or `bean/first`).
+ */
 export type RepoOrigin =
-  | { readonly kind: 'empty' }
+  | {
+      readonly kind: 'empty';
+      /**
+       * Created by `repo_create` or the API: the README holds the stalk until the first push,
+       * whose commit then becomes the stalk's first (an existing project's history is kept).
+       */
+      readonly first_push?: 'becomes-stalk' | undefined;
+    }
   | { readonly kind: 'template'; readonly template: RepoTemplate }
-  | { readonly kind: 'import'; readonly url: string };
+  | { readonly kind: 'import'; readonly url: string }
+  | { readonly kind: 'push'; readonly ref: string };
 
 export type RepositoryRecord = {
   /** Stable id; also names the Artifacts repo, so a rename never moves storage. */
@@ -235,7 +247,7 @@ export type RepositoryFiles = {
   readonly files: readonly string[];
   /** README.md at the root, cut at 8,000 characters, or null. */
   readonly readme: string | null;
-  /** The checks file's text (`.gitstalk/checks.toml`, else `.beanstalk/checks.toml`), or null. */
+  /** The checks file's text (the first of `CHECKS_PATHS`: `.gitstalk/checks.yml` first), or null. */
   readonly checks: string | null;
   /** Where `checks` was read from, or null when there is none. */
   readonly checksPath: string | null;

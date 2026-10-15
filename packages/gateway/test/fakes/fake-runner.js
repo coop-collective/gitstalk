@@ -2,7 +2,7 @@
 // RUNNER binding points at in tests. Every squash and revert is clean, every suite green,
 // every ref update accepted; each request body is kept so tests can inspect what the
 // gateway sent. A squash is recorded in the fake trunk repo like the real runner's candidate
-// (`recordSquash`), so a repository engine reads `.beanstalk/checks.toml` from its tree.
+// (`recordSquash`), so a repository engine reads `.gitstalk/checks.yml` from its tree.
 import { DurableObject } from 'cloudflare:workers';
 
 import { recordRefUpdate, recordSquash } from './fake-store.js';

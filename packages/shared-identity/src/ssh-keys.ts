@@ -34,6 +34,8 @@ export async function activeKeyId(
 
 /** What a key may do over SSH: read and push beans, as a person's git always could. */
 export const SSH_KEY_SCOPES: readonly Scope[] = ['read', 'write'];
+/** A key approved with "may create repositories" (setup ticks it): push-to-create as well. */
+export const SSH_KEY_CREATE_SCOPES: readonly Scope[] = [...SSH_KEY_SCOPES, 'create'];
 const TOUCH_AFTER_MS = 60_000;
 const MAX_KEYS_PER_PERSON = 50;
 const FINGERPRINT = /^SHA256:[A-Za-z0-9+/]{43}$/;
@@ -80,7 +82,7 @@ export async function findUserByKey(env: IdentityEnv, lookup: KeyLookup): Promis
   const fingerprint = await lookupFingerprint(lookup);
   if (fingerprint === null) return null;
   const row = await env.IDENTITY_DB.prepare(
-    `SELECT k.id, k.key_type, k.public_key, k.fingerprint, k.last_used_at,
+    `SELECT k.id, k.key_type, k.public_key, k.fingerprint, k.last_used_at, k.may_create,
             u.id AS user_id, u.handle, u.email
        FROM ssh_keys k JOIN users u ON u.id = k.user_id
       WHERE k.fingerprint = ? AND k.removed_at IS NULL AND u.disabled_at IS NULL`,
@@ -91,7 +93,7 @@ export async function findUserByKey(env: IdentityEnv, lookup: KeyLookup): Promis
   if (row === null || blob === null) return null;
   return {
     user: { id: row.user_id, handle: row.handle, email: row.email },
-    scopes: SSH_KEY_SCOPES,
+    scopes: row.may_create === 1 ? SSH_KEY_CREATE_SCOPES : SSH_KEY_SCOPES,
     key: {
       id: row.id,
       fingerprint: row.fingerprint,
@@ -100,6 +102,29 @@ export async function findUserByKey(env: IdentityEnv, lookup: KeyLookup): Promis
       lastUsedAt: row.last_used_at,
     },
   };
+}
+
+/**
+ * Sets whether a person's live key with this fingerprint may create repositories by pushing
+ * (the `create` scope); the person chooses when approving it through setup.
+ */
+export async function setKeyMayCreate(
+  env: IdentityEnv,
+  input: { readonly userId: string; readonly fingerprint: string; readonly mayCreate: boolean },
+): Promise<void> {
+  await env.IDENTITY_DB.prepare(
+    'UPDATE ssh_keys SET may_create = ? WHERE user_id = ? AND fingerprint = ? AND removed_at IS NULL',
+  )
+    .bind(input.mayCreate ? 1 : 0, input.userId, input.fingerprint)
+    .run();
+}
+
+/** Whether a key may create repositories (`setKeyMayCreate`); false for an unknown key. */
+export async function keyMayCreate(env: IdentityEnv, keyId: string): Promise<boolean> {
+  const row = await env.IDENTITY_DB.prepare('SELECT may_create FROM ssh_keys WHERE id = ?')
+    .bind(keyId)
+    .first<{ readonly may_create: number }>();
+  return row?.may_create === 1;
 }
 
 /** Records that a key was used (at most one write a minute per key). */
@@ -258,6 +283,7 @@ type KeyUserRow = {
   readonly public_key: string;
   readonly fingerprint: string;
   readonly last_used_at: number | null;
+  readonly may_create: number;
   readonly user_id: string;
   readonly handle: string;
   readonly email: string | null;

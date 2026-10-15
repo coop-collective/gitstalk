@@ -95,6 +95,21 @@ describe('the read index’s counts on the meter', () => {
     expect(cache.ref_memo).toEqual({ hits: 2, misses: 1, hit_rate: 0.6667 });
   });
 
+  it('keeps the warm-up’s prefetch out of the demand hit rates', () => {
+    const meter = withReads(emptyMeter(0), [
+      { kind: 'blob', outcome: 'miss', purpose: 'prefetch' },
+      { kind: 'tree', outcome: 'hit', purpose: 'prefetch' },
+      { kind: 'blob', outcome: 'hit', purpose: 'demand' },
+    ]);
+
+    const { cache } = infraReport(meter, 0);
+
+    expect(cache.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(cache.tree.hit_rate).toBeNull();
+    expect(cache.prefetch?.blob).toEqual({ hits: 0, misses: 1, hit_rate: 0 });
+    expect(cache.prefetch?.objects).toEqual({ hits: 1, misses: 1, hit_rate: 0.5 });
+  });
+
   it('reports no rate before anything was read', () => {
     expect(infraReport(emptyMeter(0), 0).cache.objects).toEqual({
       hits: 0,
@@ -130,5 +145,21 @@ describe('the read index’s counts on the meter', () => {
 
     expect(reloaded?.requests).toBe(7);
     expect(infraReport(reloaded ?? emptyMeter(0), 0).cache.objects.hit_rate).toBeNull();
+  });
+
+  it('starts the prefetch counts at zero for counts stored before purposes existed', async () => {
+    const { prefetch: _prefetch, ...demand } = withReads(emptyMeter(0), [HIT('tree')]).cache;
+
+    const reloaded = await runInDurableObject(
+      env.RUNS.getByName('meter-purposes-test'),
+      (_, state) => {
+        state.storage.kv.put('infra-meter', { ...emptyMeter(0), cache: demand });
+        return loadMeter(state.storage, 1000);
+      },
+    );
+
+    const report = infraReport(reloaded ?? emptyMeter(0), 0).cache;
+    expect(report.tree.hits).toBe(1);
+    expect(report.prefetch?.objects.hit_rate).toBeNull();
   });
 });

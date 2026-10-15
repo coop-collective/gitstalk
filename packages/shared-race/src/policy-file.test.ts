@@ -10,9 +10,11 @@ import {
   ROUTES,
   policyOf,
   policyView,
+  STARTER_POLICY,
   readApprovalPolicy,
   writeApprovalPolicy,
 } from './policy-file';
+import { classifyChange } from './approval-policy';
 
 const SPEC = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
 groups:
@@ -99,6 +101,16 @@ describe('readApprovalPolicy', () => {
     expect(problems('groups: {}\ngroups: {}\n')[0]?.line).toBe(2);
   });
 
+  it('reads a class description, and refuses an empty or long one', () => {
+    const withDescription = (description: string) =>
+      `classes:\n  - name: lib\n    description: ${description}\n    match: { paths: ["lib/**"] }\n    route: triage\n`;
+    expect(policyOf(readApprovalPolicy(withDescription('The runtime.'))).classes[0]).toMatchObject({
+      description: 'The runtime.',
+    });
+    expect(problems(withDescription('""'))[0]?.field).toBe('classes[0].description');
+    expect(problems(withDescription('x'.repeat(201)))[0]?.field).toBe('classes[0].description');
+  });
+
   it('refuses the built-in class name and duplicate names', () => {
     expect(
       problems('classes:\n  - { name: policy-change, route: auto, match: { paths: [a] } }\n')[0]
@@ -111,6 +123,51 @@ describe('readApprovalPolicy', () => {
     ).toEqual([
       { line: 3, column: 13, field: 'classes[1].name', message: 'two classes are named "a"' },
     ]);
+  });
+
+  it('reads the fallback class', () => {
+    const read = policyOf(
+      readApprovalPolicy(
+        'classes:\n  - name: rest\n    match: { otherwise: true }\n    route: triage\n',
+      ),
+    );
+    expect(read.classes[0]).toMatchObject({ name: 'rest', match: { kind: 'otherwise' } });
+  });
+
+  it('refuses a second fallback where it is written', () => {
+    expect(
+      problems(
+        'classes:\n  - { name: a, route: auto, match: { otherwise: true } }\n  - { name: b, route: card, match: { otherwise: true } }\n',
+      ),
+    ).toEqual([
+      {
+        line: 3,
+        column: 49,
+        field: 'classes[1].match.otherwise',
+        message: 'only one class may be the fallback ({ otherwise: true })',
+      },
+    ]);
+  });
+
+  it('refuses a fallback combined with paths, syntax or class, or not true', () => {
+    const combined = (match: string) =>
+      problems(`classes:\n  - name: a\n    route: auto\n    match: ${match}\n`);
+    for (const match of [
+      '{ otherwise: true, paths: ["src/**"] }',
+      '{ otherwise: true, syntax: comments-and-whitespace }',
+      '{ otherwise: true, class: docs-only }',
+    ])
+      expect(combined(match), match).toEqual([
+        {
+          line: 4,
+          column: 12,
+          field: 'classes[0].match',
+          message:
+            'otherwise cannot be combined with paths, syntax or class: the fallback applies only when no other class matched',
+        },
+      ]);
+    expect(combined('{ otherwise: false }')[0]?.message).toBe('otherwise must be true');
+    expect(combined('{ otherwise: yes }')[0]?.message).toBe('otherwise must be true');
   });
 
   it('never throws, whatever the text', () => {
@@ -130,8 +187,19 @@ const principal = fc.oneof(
   fc.integer({ min: 0, max: 31 }).map((slot) => `agent:a${slot}`),
 );
 const pattern = fc.constantFrom('src/**', 'docs/', '*.md', 'src/auth/**', 'no', 'yes: x', '"q"');
-const policyClass: fc.Arbitrary<Omit<PolicyClass, 'name'>> = fc.record({
-  match: fc.oneof(
+const classOf = (match: fc.Arbitrary<PolicyClass['match']>) =>
+  fc.record(
+    {
+      description: fc.constantFrom('Database migrations.', 'no', 'a: b # not a comment'),
+      match,
+      route: fc.constantFrom(...ROUTES),
+      reviewers: fc.array(principal, { maxLength: 3 }),
+      writers: fc.array(principal, { maxLength: 3 }),
+    },
+    { requiredKeys: ['match', 'route', 'reviewers', 'writers'] },
+  );
+const policyClass: fc.Arbitrary<Omit<PolicyClass, 'name'>> = classOf(
+  fc.oneof(
     fc
       .array(pattern, { minLength: 1, maxLength: 4 })
       .map((paths) => ({ kind: 'paths' as const, paths })),
@@ -140,19 +208,23 @@ const policyClass: fc.Arbitrary<Omit<PolicyClass, 'name'>> = fc.record({
       .constantFrom(...BUILTIN_CLASSES)
       .map((builtin) => ({ kind: 'class' as const, class: builtin })),
   ),
-  route: fc.constantFrom(...ROUTES),
-  reviewers: fc.array(principal, { maxLength: 3 }),
-  writers: fc.array(principal, { maxLength: 3 }),
-});
+);
+const fallbackClass = classOf(fc.constant({ kind: 'otherwise' as const }));
 const policy: fc.Arbitrary<ApprovalPolicy> = fc.record({
   groups: fc.dictionary(name, fc.array(principal, { maxLength: 3 }), { maxKeys: 3 }),
-  classes: fc
-    .uniqueArray(name, { maxLength: 6 })
-    .chain((names) =>
-      fc
-        .tuple(...names.map(() => policyClass))
-        .map((entries) => entries.map((entry, index) => ({ ...entry, name: names[index] ?? 'x' }))),
-    ),
+  classes: fc.uniqueArray(name, { minLength: 1, maxLength: 6 }).chain((names) =>
+    fc
+      .tuple(
+        fc.nat({ max: names.length }),
+        fc.option(fallbackClass, { nil: null }),
+        ...names.map(() => policyClass),
+      )
+      .map(([at, fallback, ...entries]) => {
+        const ordinary = fallback === null ? entries : entries.slice(1);
+        const all = fallback === null ? ordinary : ordinary.toSpliced(at, 0, fallback);
+        return all.map((entry, index) => ({ ...entry, name: names[index] ?? 'x' }));
+      }),
+  ),
 });
 
 describe('writeApprovalPolicy', () => {
@@ -173,6 +245,50 @@ describe('writeApprovalPolicy', () => {
   });
 });
 
+describe('STARTER_POLICY', () => {
+  const starter = policyOf(readApprovalPolicy(STARTER_POLICY));
+  const routeOf = (...paths: string[]) =>
+    classifyChange(
+      starter,
+      paths.map((path) => ({ path, commentOnly: false })),
+    ).route;
+
+  it('is a valid policy', () => {
+    expect(readApprovalPolicy(STARTER_POLICY).kind).toBe('valid');
+  });
+
+  it('lands comments, docs, tests and lockfiles on their tests', () => {
+    expect(classifyChange(starter, [{ path: 'src/a.ts', commentOnly: true }]).route).toBe('auto');
+    expect(routeOf('README.md', 'docs/guide.md')).toBe('auto');
+    expect(routeOf('test/a.test.js')).toBe('auto');
+    expect(routeOf('pnpm-lock.yaml')).toBe('auto');
+  });
+
+  it('holds migrations and auth code for a person, and triages everything else', () => {
+    expect(routeOf('db/migrations/0001_init.sql')).toBe('card');
+    expect(routeOf('src/auth/session.ts')).toBe('card');
+    expect(routeOf('lib/request.js', 'test/request.test.js')).toBe('triage');
+    expect(routeOf('Dockerfile')).toBe('triage');
+    expect(routeOf('README.md', 'scripts/build.sh')).toBe('triage');
+    expect(routeOf('src/auth/session.ts', 'lib/request.js')).toBe('card');
+  });
+
+  it('decides a triage by the fallback class, so Clef reads its description', () => {
+    expect(classifyChange(starter, [{ path: 'build.gradle', commentOnly: false }])).toMatchObject({
+      route: 'triage',
+      decidedBy: 'everything-else',
+    });
+  });
+
+  it('lists no source roots', () => {
+    expect(STARTER_POLICY).not.toContain('src/**');
+  });
+
+  it('holds an agent’s change to the configuration directory (built in)', () => {
+    expect(routeOf('.gitstalk/checks.toml')).toBe('card');
+  });
+});
+
 describe('POLICY_JSON_SCHEMA', () => {
   it('describes the file for editors', () => {
     expect(POLICY_JSON_SCHEMA).toMatchObject({
@@ -180,6 +296,12 @@ describe('POLICY_JSON_SCHEMA', () => {
       additionalProperties: false,
       properties: { groups: { type: 'object' }, classes: { type: 'array' } },
     });
+  });
+
+  it('offers the fallback match', () => {
+    expect(JSON.stringify(POLICY_JSON_SCHEMA)).toContain(
+      '"otherwise":{"type":"boolean","const":true}',
+    );
   });
 });
 

@@ -7,9 +7,9 @@ import { z } from 'zod';
 
 import type { EmittedEvent } from '../engine/model';
 import type { PushBean } from './push-bean';
-import { withNote, withPhase, withRework } from './push-bean';
+import { CheckHold, withNote, withPhase, withRework } from './push-bean';
 import type { VerdictContext } from './push-messages';
-import { decisionLines, landedLines, stoppedLines } from './push-messages';
+import { decisionLines, heldWhy, landedLines, stoppedLines } from './push-messages';
 
 /** What folding needs from the engine's shell. */
 export type FoldContext = {
@@ -25,6 +25,7 @@ const PrelandCheck = z.object({
   failing_tests: z.array(z.string()).default([]),
   check_seconds: z.number().default(0),
   inherited: z.literal(true).optional(),
+  held: CheckHold.optional(),
 });
 const MergeConflict = z.object({ task: z.string().nullable(), files: z.array(z.string()) });
 const Land = z.object({ task: z.string().nullable().optional(), sha: z.string() });
@@ -74,7 +75,8 @@ const HANDLERS: Readonly<Partial<Record<string, (event: unknown, fold: Fold) => 
     const check = PrelandCheck.safeParse(event);
     if (!check.success) return [];
     const lines = [...checkLines(check.data.sha), checkNote(check.data)];
-    return on(check.data.task, (bean) => lines.reduce(withNote, bean));
+    const held = check.data.held ?? null;
+    return on(check.data.task, (bean) => lines.reduce(withNote, { ...bean, held }));
   },
   'merge.conflict': (event, { on }) => {
     const conflict = MergeConflict.safeParse(event);
@@ -166,5 +168,7 @@ function checkNote(check: z.infer<typeof PrelandCheck>): string {
   if (check.green) return `gitstalk: pre-land check green on the merged tree (${seconds} s)`;
   if (check.inherited === true)
     return 'gitstalk: the sprout itself is red here; the bean waits for the sprout to be repaired';
+  if (check.held !== undefined)
+    return `gitstalk: pre-land check held for a person's approval (${heldWhy(check.held)})`;
   return `gitstalk: pre-land check red (${check.failing_tests.length} failing, ${seconds} s)`;
 }

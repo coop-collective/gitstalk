@@ -1,21 +1,19 @@
 /**
  * The Code tab: a folder of the stalk (or the sprout, or a bean's branch) with what last
- * changed it, its README rendered below, and beside it what the repository is, what is
- * growing, and how to clone or connect.
+ * changed it, its README rendered below, and beside it what the repository is and what is
+ * growing. Cloning and connecting an agent live behind the bar's Code button.
  */
 import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
 
 import { FileIcon } from '../home/marks';
-import { ConnectTabs } from '../repository/connect-tabs';
-import type { DeployTokenAccess } from '../repository/connect-tabs';
-import { CopyButton } from '../repository/copy-button';
+import { CodeButton } from '../repository/code-button';
 import type { Change } from '../../src/changes/changes';
 import { authorText } from '../../src/changes/changes';
 import type { CodeView, RefChoice, TreeEntry } from '../../src/code/tree';
 import { codeHref, crumbs, readmeHref, sizeText } from '../../src/code/tree';
 import type { CodeHead } from '../../src/repo-pages/code-data';
-import type { StartGuide } from '../../src/repositories/paths';
+import type { CodeMenu } from '../../src/repositories/code-menu';
 import { timeAgo } from '../../src/repositories/when';
 import { Glyph } from './glyph';
 import { MarkdownView } from './markdown-view';
@@ -30,12 +28,14 @@ export type CodeLocation = {
   readonly sha: string;
 };
 
-/** The bar over a folder or a file: the ref switcher and the path. */
+/** The bar over a folder or a file: the ref switcher, the path, and on a folder the Code button. */
 export function CodeBar(props: {
   readonly at: CodeLocation;
   readonly view: CodeView;
   readonly repoName: string;
   readonly beans: readonly Change[];
+  /** What the Code button offers; null where it is not shown (a file). */
+  readonly menu?: { readonly menu: CodeMenu; readonly slug: string } | null;
 }) {
   const { at } = props;
   const parts = crumbs(at.path);
@@ -65,6 +65,9 @@ export function CodeBar(props: {
           </span>
         ))}
       </nav>
+      {props.menu === undefined || props.menu === null ? null : (
+        <CodeButton menu={props.menu.menu} slug={props.menu.slug} />
+      )}
     </div>
   );
 }
@@ -196,14 +199,12 @@ export function HeadRow(props: {
   );
 }
 
-/** The side column: what the repository is, what is growing, how to clone and connect. */
+/** The side column: what the repository is and what is growing. */
 export function CodeAside(props: {
   readonly base: string;
   readonly description: string;
   readonly changes: readonly Change[];
   readonly onStalk: number;
-  readonly guide: StartGuide;
-  readonly deploy: DeployTokenAccess;
 }) {
   const open = props.changes.filter((change) => change.group === 'open');
   const red = open.filter((change) => change.state === 'red' || change.state === 'conflict');
@@ -230,14 +231,6 @@ export function CodeAside(props: {
             </Fact>
           )}
         </ul>
-      </section>
-      <section aria-label="Clone">
-        <h2>Clone</h2>
-        <div className={styles.cloneUrl}>
-          <input readOnly value={props.guide.cloneUrl} aria-label="Clone URL" spellCheck={false} />
-          <CopyButton text={props.guide.cloneUrl} label="the clone URL" />
-        </div>
-        <ConnectTabs guide={props.guide} deploy={props.deploy} compact />
       </section>
     </aside>
   );

@@ -6,10 +6,13 @@
  * client-safe: it imports types only from the zod-validated modules, so the Changes tab's
  * client components derive their rows with it without carrying a schema library.
  */
+import type { BeanHold } from '@gitstalk/shared-race/bean-approval';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { Bean, BeanPhase } from '@gitstalk/shared-ask/race/race-state';
 import { reduceRace } from '@gitstalk/shared-ask/race/reduce-race';
 
+import type { Clock, JourneyEntry } from './journey';
+import { journeyOf, resubmissionsOf, wallClock } from './journey';
 import type { PushedBean } from './pushed-beans';
 
 /** Who brought a bean: the person who pushed it, or the engine's session slot. */
@@ -19,6 +22,7 @@ export type Author =
 
 export type ChangeState =
   | 'checking'
+  | 'held'
   | 'red'
   | 'conflict'
   | 'waiting'
@@ -30,18 +34,8 @@ export type ChangeState =
 /** The three lists of the tab. */
 export type ChangeGroup = 'open' | 'landed' | 'parked';
 
-export type JourneyTone = 'push' | 'good' | 'bad' | 'rework' | 'land' | 'stalk' | 'decide' | 'wait';
-
-export type JourneyEntry = {
-  /** Epoch milliseconds. */
-  readonly at: number;
-  readonly tone: JourneyTone;
-  readonly text: string;
-  /** Failing tests or conflicted files, one per line. */
-  readonly lines: readonly string[];
-  /** Beans it collided with, linked. */
-  readonly beans: readonly string[];
-};
+/** What the tab shows: a list, or the open beans held for a person's approval. */
+export type ChangeFilter = ChangeGroup | 'held';
 
 export type Change = {
   readonly bean: string;
@@ -61,10 +55,13 @@ export type Change = {
   readonly startedAt: number | null;
   readonly updatedAt: number | null;
   readonly journey: readonly JourneyEntry[];
+  /** The approval rules' hold: held for a person, or approved for its head; null otherwise. */
+  readonly hold: BeanHold | null;
 };
 
 export const GROUP_OF: Readonly<Record<ChangeState, ChangeGroup>> = {
   checking: 'open',
+  held: 'open',
   red: 'open',
   conflict: 'open',
   waiting: 'open',
@@ -101,9 +98,10 @@ export function changesOf(
   return changes.toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 
-/** `?show=` as a group; without one, open when anything is, else landed. */
-export function shownGroup(value: unknown, changes: readonly Change[]): ChangeGroup {
-  if (value === 'open' || value === 'landed' || value === 'parked') return value;
+/** `?show=` as a filter; without one, open when anything is, else landed. */
+export function shownGroup(value: unknown, changes: readonly Change[]): ChangeFilter {
+  if (value === 'open' || value === 'landed' || value === 'parked' || value === 'held')
+    return value;
   return inGroup(changes, 'open').length > 0 ? 'open' : 'landed';
 }
 
@@ -117,6 +115,8 @@ export function stateText(state: ChangeState): string {
   switch (state) {
     case 'checking':
       return 'in check';
+    case 'held':
+      return 'held for approval';
     case 'waiting':
       return 'waiting';
     case 'red':
@@ -144,15 +144,18 @@ export function latestActivityMs(changes: readonly Change[], renderedAtMs: numbe
   return changes.reduce((latest, change) => Math.max(latest, change.updatedAt ?? 0), renderedAtMs);
 }
 
-/** The changes of one group, in the tab's order. */
-export function inGroup(changes: readonly Change[], group: ChangeGroup): readonly Change[] {
-  return changes.filter((change) => change.group === group);
+/** The changes a filter shows, in the tab's order. */
+export function inGroup(changes: readonly Change[], filter: ChangeFilter): readonly Change[] {
+  return filter === 'held'
+    ? changes.filter((change) => change.state === 'held')
+    : changes.filter((change) => change.group === filter);
 }
 
-/** How many beans each group holds. */
-export function groupCounts(changes: readonly Change[]): Readonly<Record<ChangeGroup, number>> {
+/** How many beans each filter shows. */
+export function groupCounts(changes: readonly Change[]): Readonly<Record<ChangeFilter, number>> {
   return {
     open: inGroup(changes, 'open').length,
+    held: inGroup(changes, 'held').length,
     landed: inGroup(changes, 'landed').length,
     parked: inGroup(changes, 'parked').length,
   };
@@ -162,15 +165,6 @@ export function groupCounts(changes: readonly Change[]): Readonly<Record<ChangeG
 export function authorText(author: Author | null): string {
   if (author === null) return 'nobody yet';
   return author.kind === 'person' ? `@${author.handle}` : `session ${author.slot}`;
-}
-
-/** Epoch milliseconds of race second `t` (the log's first event pins the clock). */
-export type Clock = (t: number) => number;
-
-export function wallClock(events: readonly RaceEvent[]): Clock {
-  const first = events[0];
-  const zero = first === undefined ? 0 : Date.parse(first.ts) - first.t * 1000;
-  return (t) => Math.round((Number.isNaN(zero) ? 0 : zero) + t * 1000);
 }
 
 type ChangeInput = {
@@ -183,9 +177,16 @@ type ChangeInput = {
 };
 
 function changeOf({ id, bean, push, title, events, clock }: ChangeInput): Change {
-  const journey = journeyOf(id, events, clock, push?.actor ?? null);
-  const state =
-    push === undefined ? stateOfPhase(bean?.phase ?? 'pending') : PUSHED_STATE[push.phase];
+  const journey = journeyOf({
+    id,
+    events,
+    clock,
+    actor: push?.actor ?? null,
+    approvals: push?.approvals ?? [],
+  });
+  const hold = push?.hold ?? null;
+  const enginePhase = bean?.phase ?? 'pending';
+  const state = push === undefined ? stateOfPhase(enginePhase) : pushedStateOf(push, enginePhase);
   const red = latestRed(id, events);
   const isRed =
     state === 'red' || state === 'conflict' || state === 'parked' || state === 'fell-off';
@@ -196,7 +197,10 @@ function changeOf({ id, bean, push, title, events, clock }: ChangeInput): Change
     state,
     group: GROUP_OF[state],
     reason: push?.reason ?? bean?.dropReason ?? '',
-    pushes: push?.pushes ?? journey.filter((entry) => entry.tone === 'push').length,
+    pushes:
+      push === undefined
+        ? journey.filter((entry) => entry.tone === 'push').length
+        : push.pushes - resubmissionsOf({ id, events }),
     head: push?.head ?? bean?.head ?? null,
     landedSha: push?.landed_sha ?? bean?.landedSha ?? null,
     failing: isRed ? red.failing : [],
@@ -204,7 +208,19 @@ function changeOf({ id, bean, push, title, events, clock }: ChangeInput): Change
     startedAt: bean?.startedAt === null || bean === undefined ? null : clock(bean.startedAt),
     updatedAt: journey.at(-1)?.at ?? null,
     journey,
+    hold,
   };
+}
+
+/**
+ * A pushed bean's state: `held` while it is open and waits for a person's approval, by its hold
+ * or, when the gateway sends none, by the engine's phase (its latest check was a hold).
+ */
+function pushedStateOf(push: PushedBean, enginePhase: BeanPhase): ChangeState {
+  const state = PUSHED_STATE[push.phase];
+  const isHeld =
+    push.hold === null ? enginePhase === 'held' && state === 'red' : push.hold.state === 'held';
+  return isHeld && GROUP_OF[state] === 'open' ? 'held' : state;
 }
 
 function authorOf(push: PushedBean | undefined, bean: Bean | undefined): Author | null {
@@ -224,6 +240,8 @@ function stateOfPhase(phase: BeanPhase): ChangeState {
       return 'fell-off';
     case 'rework':
       return 'red';
+    case 'held':
+      return 'held';
     case 'deciding':
     case 'pending':
       return 'waiting';
@@ -237,110 +255,29 @@ function stateOfPhase(phase: BeanPhase): ChangeState {
   }
 }
 
-/** The latest red check's failing tests, and the beans the rework after it blamed. */
+/**
+ * The latest red check's failing tests, and the beans the rework after it blamed. A hold of the
+ * approval rules is not a red: nothing in it failed.
+ */
 function latestRed(
   id: string,
   events: readonly RaceEvent[],
 ): { readonly failing: readonly string[]; readonly culprits: readonly string[] } {
   let failing: readonly string[] = [];
   let culprits: readonly string[] = [];
+  let isHeld = false;
   for (const event of events) {
-    if (event.type === 'preland.check' && event.task === id && !event.green) {
+    if (event.type === 'preland.check' && event.task === id) isHeld = event.held !== undefined;
+    if (event.type === 'preland.check' && event.task === id && !event.green && !isHeld) {
       failing = event.failing_tests;
       culprits = [];
     }
-    if (event.type === 'rework.start' && event.task === id) {
+    if (event.type === 'rework.start' && event.task === id && !isHeld) {
       if ((event.failing ?? []).length > 0) failing = event.failing ?? [];
       culprits = event.culprits ?? [];
     }
   }
   return { failing, culprits };
-}
-
-/** The bean's story, one entry per event that concerns it, oldest first. */
-export function journeyOf(
-  id: string,
-  events: readonly RaceEvent[],
-  clock: Clock,
-  actor: string | null,
-): readonly JourneyEntry[] {
-  let pushes = 0;
-  return events.flatMap((event): JourneyEntry[] => {
-    const entry: Entry = (tone, text, extra = {}) => [
-      { at: clock(event.t), tone, text, lines: [], beans: [], ...extra },
-    ];
-    if (event.type === 'task.commit' && event.task === id) {
-      pushes += 1;
-      const who = actor === null ? '' : ` from @${actor}`;
-      return entry('push', `Push ${pushes}${who}: ${event.sha.slice(0, 7)}`);
-    }
-    return entryOf(id, event, entry, actor);
-  });
-}
-
-/** What one event (other than a push) adds to bean `id`'s journey. */
-function entryOf(id: string, event: RaceEvent, entry: Entry, actor: string | null): JourneyEntry[] {
-  if (event.type === 'preland.check' && event.task === id) return checkEntry(event, entry);
-  if (event.type === 'preland.recheck' && event.task === id)
-    return entry('wait', 'The sprout moved under it, so it was checked again');
-  if (event.type === 'merge.conflict' && event.task === id)
-    return entry('bad', 'Conflicted with the sprout', { lines: event.files });
-  if (event.type === 'rework.start' && event.task === id) return reworkEntry(event, entry, actor);
-  if (event.type === 'land' && event.task === id)
-    return entry('land', `Landed on the sprout as ${event.sha.slice(0, 7)}`);
-  if (event.type === 'green.promote' && event.tasks.some((task) => task === id))
-    return entry('stalk', `Validated: on the stalk at ${event.sha.slice(0, 7)}`);
-  if (
-    event.type === 'decision.request' &&
-    [event.task, ...event.against].some((task) => task === id)
-  )
-    return entry('decide', `Decision ${event.card} asked: which spec stands`, {
-      beans: [event.task, ...event.against].filter((bean) => bean !== id),
-    });
-  if (event.type === 'decision.made' && (event.winner === id || event.loser === id))
-    return entry(
-      'decide',
-      `Decision ${event.card}: ${event.winner} kept over ${event.loser} (${event.oracle})`,
-    );
-  if (event.type === 'task.parked' && event.task === id)
-    return entry('decide', `Parked: ${event.reason}`);
-  if (event.type === 'task.drop' && event.task === id)
-    return entry('bad', `Fell off: ${event.reason}`);
-  return [];
-}
-
-type Entry = (tone: JourneyTone, text: string, extra?: Partial<JourneyEntry>) => JourneyEntry[];
-
-function checkEntry(
-  event: Extract<RaceEvent, { type: 'preland.check' }>,
-  entry: Entry,
-): JourneyEntry[] {
-  const seconds = `${event.check_seconds.toFixed(1)} s`;
-  if (event.green) return entry('good', `Pre-land check green on the merged tree (${seconds})`);
-  if (event.inherited === true)
-    return entry('wait', 'The sprout itself was red; it waited for the sprout to be repaired');
-  const count = event.failing_tests.length;
-  return entry(
-    'bad',
-    `Pre-land check red: ${count} failing ${count === 1 ? 'test' : 'tests'} (${seconds})`,
-    {
-      lines: event.failing_tests,
-    },
-  );
-}
-
-function reworkEntry(
-  event: Extract<RaceEvent, { type: 'rework.start' }>,
-  entry: Entry,
-  actor: string | null,
-): JourneyEntry[] {
-  const to = actor === null ? 'its author' : `@${actor}`;
-  const culprits = event.culprits ?? [];
-  const text =
-    culprits.length > 0
-      ? `Sent back to ${to}: it collided with ${culprits.length === 1 ? 'a landed bean' : 'landed beans'}`
-      : `Sent back to ${to} to fix and push again`;
-  return entry('rework', text, { beans: culprits });
 }
 
 function assertNever(value: never): never {

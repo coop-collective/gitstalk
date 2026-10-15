@@ -225,6 +225,14 @@ const RevertConflict = event('revert.conflict', {
   task: NullableTask,
   files: Paths,
 });
+/** Why the approval rules held a bean at a check (`preland.check.held`). */
+export const CheckHold = z.object({
+  classes: z.array(z.string()),
+  class: z.string().nullable(),
+  by: z.enum(['policy', 'clef', 'rules']),
+});
+export type CheckHold = z.infer<typeof CheckHold>;
+
 const PrelandCheck = event('preland.check', {
   task: TaskId,
   green: z.boolean(),
@@ -232,6 +240,8 @@ const PrelandCheck = event('preland.check', {
   check_seconds: z.number(),
   /** v2.2: the red was the sprout's, not the bean's; no rework round is spent. */
   inherited: z.literal(true).optional(),
+  /** The approval rules held it for a person: a hold, not a failure; nothing to fix. */
+  held: CheckHold.optional(),
 });
 const PrelandRecheck = event('preland.recheck', { task: TaskId, attempt: z.number().int() });
 const PrelandOptimistic = event('preland.optimistic', {

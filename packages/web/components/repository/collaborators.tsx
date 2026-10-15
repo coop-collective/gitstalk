@@ -231,10 +231,12 @@ const AUDIT_VERBS: Readonly<Record<string, string>> = {
   'collaborator.leave': 'left',
   'repository.visibility': 'changed visibility',
   'repository.transfer': 'transferred the repository',
+  'repository.create': 'created the repository',
   'actions-secret-set': 'saved the Actions secret',
   'actions-secret-deleted': 'deleted the Actions secret',
   'actions-variable-set': 'saved the Actions variable',
   'actions-variable-deleted': 'deleted the Actions variable',
+  'bean.approve': 'approved a held bean',
 };
 
 function auditText(event: AuditEvent): string {

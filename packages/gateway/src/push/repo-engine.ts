@@ -26,9 +26,9 @@ export const RepoEngineOverrides = z.strictObject({
   evidence_read_sets: z.enum(['complete', 'static']).optional(),
   affected_validation: z.boolean().optional(),
   audit_every: z.number().int().min(0).max(100).optional(),
-  /** `suite`: run the engine's suite and ignore `.gitstalk/checks.toml` (the default reads it). */
+  /** `suite`: run the engine's suite and ignore `.gitstalk/checks.yml` (the default reads it). */
   checks_source: z.enum(['suite', 'repository']).optional(),
-  /** Approval rules from `.gitstalk/policy.toml` on the stalk; absent: on with repository checks. */
+  /** Approval rules from `.gitstalk/policy.yml` on the stalk; absent: on with repository checks. */
   approval_rules: z.boolean().optional(),
 });
 export type RepoEngineOverrides = z.infer<typeof RepoEngineOverrides>;
@@ -42,7 +42,7 @@ export const OpenRepoEngineInput = z.strictObject({
   settings: z
     .strictObject({
       /**
-       * An operator's suite for every check, instead of the repository's `.gitstalk/checks.toml`
+       * An operator's suite for every check, instead of the repository's `.gitstalk/checks.yml`
        * (`checks_source: suite`; load tests and paired comparisons).
        */
       suite: RunSuite.optional(),
@@ -84,6 +84,15 @@ export async function repoEngineId(owner: string, repo: string): Promise<RunId> 
  */
 export async function registryEngineId(artifactsRepo: string): Promise<RunId> {
   return engineIdOf(`#registry/${artifactsRepo}`);
+}
+
+/**
+ * The engine a repository created empty gets when its first push becomes its stalk (§10 of
+ * the repositories doc): a new engine starts from that commit, and the one that held the seed
+ * is closed.
+ */
+export async function firstPushEngineId(artifactsRepo: string): Promise<RunId> {
+  return engineIdOf(`#registry/${artifactsRepo}#first-push`);
 }
 
 async function engineIdOf(key: string): Promise<RunId> {

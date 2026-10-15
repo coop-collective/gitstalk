@@ -7,7 +7,7 @@
 import type { Sha, SlotId, TaskId } from '@gitstalk/shared-race/ids';
 
 import { compareText } from '../repo/paths';
-import type { RaceEvent, RaceEventOf } from './race-events';
+import type { CheckHold, RaceEvent, RaceEventOf } from './race-events';
 import type {
   Batch,
   Bean,
@@ -400,7 +400,8 @@ function startInvocation(draft: Draft, event: RaceEventOf<'invocation.start'>): 
   const target = bean(draft, event.task);
   target.invocations += 1;
   if (event.agent !== null) target.agent = event.agent;
-  if (event.kind !== 'initial') setPhase(draft, event.task, 'rework', event.t);
+  if (event.kind !== 'initial' && target.phase !== 'held')
+    setPhase(draft, event.task, 'rework', event.t);
 }
 
 /**
@@ -425,12 +426,16 @@ function endInvocation(draft: Draft, event: RaceEventOf<'invocation.end'>): void
 
 function commitBean(draft: Draft, event: RaceEventOf<'task.commit'>): void {
   const target = bean(draft, event.task);
+  // A held bean's same head again is its approval's re-submission, not a new push.
+  const isApproval = target.phase === 'held' && target.head === event.sha;
   target.head = event.sha;
   target.files = ownFiles(target.files, event, draft.lineFiles);
   addStep(draft, event.task, {
     t: event.t,
-    kind: 'committed',
-    detail: `${event.kind}: ${plural(event.files.length, 'file')}`,
+    kind: isApproval ? 'approved' : 'committed',
+    detail: isApproval
+      ? `at ${event.sha.slice(0, 7)}`
+      : `${event.kind}: ${plural(event.files.length, 'file')}`,
   });
   if (draft.meta?.policy === 'queue') return;
   setPhase(draft, event.task, 'checking', event.t);
@@ -472,12 +477,24 @@ function parkBean(draft: Draft, event: RaceEventOf<'task.parked'>): void {
 function recordCheck(draft: Draft, event: RaceEventOf<'preland.check'>): void {
   const target = bean(draft, event.task);
   target.checks += 1;
+  if (event.held !== undefined) {
+    setPhase(draft, event.task, 'held', event.t);
+    addStep(draft, event.task, { t: event.t, kind: 'held', detail: heldDetail(event.held) });
+    return;
+  }
   if (!event.green) target.redChecks += 1;
   addStep(draft, event.task, {
     t: event.t,
     kind: event.green ? 'check-green' : 'check-red',
     detail: checkDetail(event),
   });
+}
+
+/** `class auth, decided by policy`, or the classes when no class's rule decided. */
+function heldDetail(hold: CheckHold): string {
+  const why =
+    hold.class === null ? `classes ${hold.classes.join(', ') || 'none'}` : `class ${hold.class}`;
+  return `${why}, decided by ${hold.by}`;
 }
 
 function checkDetail(event: RaceEventOf<'preland.check'>): string {
@@ -498,6 +515,8 @@ function recordConflict(draft: Draft, event: RaceEventOf<'merge.conflict'>): voi
 function startRework(draft: Draft, event: RaceEventOf<'rework.start'>): void {
   if (event.task === null) return;
   const target = bean(draft, event.task);
+  // A hold waits for a person, not for its author: no rework round, nothing sent back.
+  if (target.phase === 'held') return;
   target.reworks += 1;
   setPhase(draft, event.task, 'rework', event.t);
   const culprits = event.culprits ?? [];

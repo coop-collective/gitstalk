@@ -31,7 +31,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
 | `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk |
 | `/<owner>/<repo>/ask`, `/files` | Ask, the generated explorer: a question becomes a view spec with removable chips, then a fixed arrangement of files, beans, decisions and checks |
-| `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, landed, parked) and a bean's detail; stalk and sprout history with validation verdicts; who has access |
+| `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, held for approval, landed, parked) and a bean's detail (a held bean's page has the Held panel where owners and maintainers approve it); stalk and sprout history with validation verdicts; who has access |
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
 | `/<owner>/<repo>/settings/*` | General, visibility, branches, checks, collaborators, deploy tokens, secrets, Actions, social image, danger zone |
 | `/orgs`, `/orgs/new`, `/orgs/<org>/settings/*` | Organisations: members, repository defaults, secrets, audit log, danger zone |
@@ -129,6 +129,12 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
     placeholder in the final layout: a finished job's stored log and the annotations read from
     it (`RunView`, `JobLogPending`), a bean's diff (`StreamedBeanDiff`).
   - `app/[owner]/(profile)/` (unknown owner), `app/orgs/(list)/` (`/orgs` signed out).
+  - Every layout under `[repo]/` starts with `if (await repositoryLayoutAnswers(params))
+    return null;`. vinext probes layouts innermost first and renders a layout's 404 inside the
+    layouts above it; a nested layout that threw for a missing or unreadable repository made
+    the repository layout throw again inside that page, and the response was a bare `Not Found`
+    text instead of `app/not-found.tsx`. Deferring lets the repository layout answer (404 or
+    redirect) inside the root layout alone. Nothing streams either way: the probe runs first.
 
   `src/server/route-tree.test.ts` reads the tree: no layout under a loading file, and no page
   under one calls `notFound`, `redirect` or a status helper unless a layout above the boundary

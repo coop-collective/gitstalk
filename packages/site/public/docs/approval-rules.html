@@ -171,14 +171,18 @@
           <p class="lede">
             Let comment-only and docs changes land on their own, and send risky paths to a person.
             One file on your stalk, <code>.gitstalk/policy.yml</code>, says which kinds of change
-            land by themselves, which a small model triages, and which wait for a human.
+            land by themselves, which a small model triages, and which wait for a human. Like the
+            checks and automations, it is YAML: all <code>.gitstalk/</code> configuration is.
           </p>
           <aside class="callout note">
             <p class="callout-title">Beta</p>
             <p>
               Merged on 14 October 2026. The code is in the repository; whether the hosted service
-              already runs it was not confirmed when this page was written. A few pieces are not
-              built yet, listed <a href="#not-done">at the bottom</a>.
+              already runs it was not confirmed when this page was written. Approving a held bean
+              (the Held panel and <code>bean_approve</code>, <a href="#approve">below</a>) came
+              after it and is <span class="badge beta">beta</span>: tested, not yet confirmed on the
+              hosted service. A few pieces are not built yet, listed
+              <a href="#not-done">at the bottom</a>.
             </p>
           </aside>
 
@@ -276,6 +280,9 @@ classes:
     writers: ["@security"]
   - name: api
     match: { paths: ["src/api/**"] }
+    route: triage
+  - name: everything-else
+    match: { otherwise: true }
     route: triage</code></pre>
           </div>
           <div class="tbl">
@@ -299,14 +306,22 @@ classes:
                   </td>
                 </tr>
                 <tr>
+                  <td><code>description</code></td>
+                  <td>
+                    Optional: what the class is, in a sentence (at most 200 characters). Clef reads
+                    it when it triages the class's beans.
+                  </td>
+                </tr>
+                <tr>
                   <td><code>match</code></td>
                   <td>
                     One of <code>{ paths: [...] }</code> (any changed file matches a pattern; the
                     patterns are the same as <a href="/docs/checks#format">protected paths</a>),
                     <code>{ syntax: comments-and-whitespace }</code> (every changed file differs
-                    only in comments and whitespace), or
+                    only in comments and whitespace),
                     <code>{ class: docs-only | tests-only | lockfile | comment-only }</code> (a
-                    built-in class).
+                    built-in class), or <code>{ otherwise: true }</code> (the
+                    <a href="#fallback">fallback class</a>: everything no other class matched).
                   </td>
                 </tr>
                 <tr>
@@ -391,6 +406,60 @@ classes:
             is the decision and the other classes route it. The policy file is also always a
             <a href="/docs/checks#protected">protected path</a>.
           </p>
+          <h3 id="fallback">Everything else: the fallback class</h3>
+          <p>
+            A class with <code>match: { otherwise: true }</code> applies
+            <strong>only when no other class matched</strong>, so "everything else is triaged" needs
+            no list of source folders. When another class matches, the fallback stays out of it
+            entirely: its route, reviewers and writers do not count. An agent's change to
+            <code>.gitstalk/</code> is still a card, and a change made only inside
+            <code>.gitstalk/</code> (your own save from Settings, an agent ticking the backlog) is
+            never routed by it. The built-in classes count only when one of your classes names them:
+            without a docs class, a docs-only change takes the fallback's route.
+          </p>
+          <p>
+            A file may have one fallback class, and <code>otherwise</code> cannot be combined with
+            <code>paths</code>, <code>syntax</code> or <code>class</code>; either mistake is shown
+            with its line and column. The fallback is an ordinary class otherwise: it has a name on
+            receipts, a <code>description</code> for Clef, and may have reviewers and writers.
+          </p>
+          <h3 id="starter">Starter rules</h3>
+          <p>
+            A repository without a file opens Settings, Approval rules on these recommended rules;
+            nothing changes until you save them.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>.gitstalk/policy.yml</span></header>
+            <pre class="url"><code>classes:
+  - name: comments
+    description: Only comments and whitespace changed.
+    match: { syntax: comments-and-whitespace }
+    route: auto
+  - name: docs
+    description: Documentation only.
+    match: { class: docs-only }
+    route: auto
+  - name: tests
+    description: Tests only.
+    match: { class: tests-only }
+    route: auto
+  - name: lockfile
+    description: A package manager's lockfile only.
+    match: { class: lockfile }
+    route: auto
+  - name: migrations
+    description: Database schema and data migrations.
+    match: { paths: ["**/migrations/**", "**/*.sql"] }
+    route: card
+  - name: auth
+    description: Authentication, sessions, permissions and secrets handling.
+    match: { paths: ["**/auth/**", "**/permissions/**", "**/security/**"] }
+    route: card
+  - name: everything-else
+    description: Any other change.
+    match: { otherwise: true }
+    route: triage</code></pre>
+          </div>
 
           <h2 id="routes">Routes</h2>
           <ol class="flow" aria-label="A bean is classified, then routed auto, triage or card">
@@ -402,7 +471,9 @@ classes:
           <p>
             When several classes match, the strictest route wins: card over triage over auto. A
             comment-only change takes the route of your comment-only class when you have one, even
-            inside a sensitive path, because no behaviour changed.
+            inside a sensitive path, because no behaviour changed. When none matches, the
+            <a href="#fallback">fallback class</a> routes the bean if you have one; otherwise it is
+            <code>auto</code>.
           </p>
           <div class="tbl">
             <table>
@@ -420,7 +491,8 @@ classes:
                 <tr>
                   <td><code>triage</code></td>
                   <td>
-                    Clef, a small model that only sees class names and paths (never contents), picks
+                    Clef, a small model that sees the classes and their descriptions, the paths and
+                    the diff's size (never contents), picks
                     <code>auto</code> or <code>card</code> within 2.5 seconds. If it is late or
                     unavailable, fixed rules decide: auto when the bean is also comment-only,
                     docs-only or tests-only, otherwise card. Clef holds a bean only when it is at
@@ -430,7 +502,8 @@ classes:
                 <tr>
                   <td><code>card</code></td>
                   <td>
-                    Held before landing until a person approves. The check answers a red,
+                    Held before landing until an owner or maintainer approves it (the
+                    <a href="#approve">Held panel</a> on the bean's page). The check answers a red,
                     <em>awaits approval by a person</em>, that says nothing needs fixing. The
                     approval is for that exact revision; a new push needs a new approval.
                   </td>
@@ -481,8 +554,9 @@ classes:
             Every judged bean leaves a receipt: its classes, the route, which class decided, who
             decided (<code>policy</code>, <code>clef</code> or <code>rules</code>), Clef's
             probability, the approval state, and the policy file and stalk commit it was judged by.
-            The push prints it on its remote lines, and the MCP <code>bean_status</code> tool
-            reports the route and a next step when a bean is held.
+            The push prints it on its remote lines, the bean's page shows it in the Held panel, and
+            the MCP <code>bean_status</code> tool reports it with <code>held: true</code>, the
+            page's address (<code>approve_url</code>) and a next step when a bean is held.
           </p>
           <figure class="mock" aria-label="A terminal: a push routed to a person by approval rules">
             <div class="mock-bar" aria-hidden="true">
@@ -503,6 +577,118 @@ remote: gitstalk: awaiting a person's approval
             </figcaption>
           </figure>
 
+          <h2 id="approve">Approving a held bean</h2>
+          <p>
+            A held bean shows a <strong>Held</strong> badge in its repository's Changes list, and a
+            Held filter lists only those beans. Its page opens with the Held panel: the classes, the
+            rule and who decided (the policy, Clef with its probability, or the triage rule), the
+            revision waiting with a link to its diff, and the reviewers the policy names.
+          </p>
+          <figure
+            class="mock"
+            aria-label="A bean page: the Held for approval panel with why it was held, the revision, the reviewers, a note and an Approve button"
+          >
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/changes/token-refresh</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-decision">
+                <span class="ms held">held for approval</span>
+                <p class="q">
+                  Revision <code>4e1c9a2</code> waits for a person. Nothing in it needs fixing.
+                </p>
+                <div class="opts">
+                  <div class="opt pick"><b>Classes</b><span>protected, tests-only</span></div>
+                  <div class="opt">
+                    <b>Rule</b><span>class protected in .gitstalk/policy.yml, by the policy</span>
+                  </div>
+                  <div class="opt">
+                    <b>Reviewers</b><span>@security (named, not required)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Note for the record</b><span>Optional; kept with the approval.</span>
+                </div>
+                <div class="m-input">Checked the token expiry change.</div>
+              </div>
+              <div class="m-field">
+                <div class="label">
+                  <b>Approve 4e1c9a2</b
+                  ><span>Asks once more, then the pre-land check runs again.</span>
+                </div>
+                <span class="m-btn primary">Approve</span>
+              </div>
+            </div>
+            <figcaption>
+              Owners and maintainers see Approve. Everyone else reads who can approve.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Who approves</td>
+                  <td>
+                    The repository's owner and maintainers (for an organization's repository, its
+                    owners too). Named <code>reviewers</code> are shown, not required.
+                  </td>
+                </tr>
+                <tr>
+                  <td>What is approved</td>
+                  <td>
+                    One revision, the bean's pushed head. The page sends the revision it showed; if
+                    a new push arrived meanwhile, the approval is refused as stale. A new push needs
+                    a new approval.
+                  </td>
+                </tr>
+                <tr>
+                  <td>What happens next</td>
+                  <td>
+                    The bean is checked again at once and lands on the sprout if it passes. The page
+                    shows who approved and when, without a reload.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Where it is recorded</td>
+                  <td>
+                    The repository's access log (Settings, Collaborators, for the owner): who
+                    approved, the client (web or MCP and its name), the revision and the note.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="agents">From an agent: <code>bean_approve</code></h3>
+          <p>
+            An agent session with the <code>write</code> scope, acting for an owner or maintainer,
+            can approve for its person with <code>bean_approve</code> (see
+            <a href="/docs/mcp#approve">MCP tools</a>). Approving is the person's decision, so the
+            tool tells agents to ask first and never to approve on their own initiative. The web
+            button and the tool make the same call, with the same checks.
+          </p>
+          <aside class="callout warning">
+            <p class="callout-title">An agent never approves its own bean by itself</p>
+            <p>
+              <code>bean_approve</code> is refused when the bean's latest push was made for the same
+              person and Gitstalk cannot show it came from a different agent session: a push by this
+              same agent client, by the person's SSH key or personal token (agents on your machine
+              push with those), or by a credential that was not recorded. The agent may retry with
+              <code>confirm_owner_intent: true</code> only after you told it to. A bean pushed by
+              someone else, saved in the web editor, or pushed by another agent client's session is
+              approved without it. Automations never approve.
+            </p>
+          </aside>
+
           <h2 id="where">Where the rules are read from</h2>
           <p>
             Always from the <strong>stalk</strong>, never from the bean being judged. A bean cannot
@@ -513,17 +699,11 @@ remote: gitstalk: awaiting a person's approval
           <h2 id="not-done">Not done yet</h2>
           <ul>
             <li>
-              <strong>No approve button in the web.</strong> Approvals go through a gateway call
-              (<code>approveBean</code>); there is no button on the bean page and no MCP tool yet.
-              Until one ships, a <code>card</code> route is best read as a stop sign, not a
-              workflow.
+              <code>reviewers</code> are shown, not enforced: any owner or maintainer approves.
             </li>
             <li>
-              <code>reviewers</code> are shown, not enforced: any person who may decide approves.
-            </li>
-            <li>
-              The bean view in the web has no approval-rules label yet; the receipt is on the push
-              lines and in <code>bean_status</code>.
+              Approvals are for repositories. A benchmark race has no approve path, which is why
+              races keep the rules off.
             </li>
             <li>Clef's answers are not yet compared with later human decisions.</li>
           </ul>

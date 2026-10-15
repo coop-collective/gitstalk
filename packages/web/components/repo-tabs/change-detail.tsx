@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 
+import type { ApproveAccess } from '../../src/changes/approval-client';
 import type { RepoScope } from '../../src/changes/change-feed';
 import type { Change } from '../../src/changes/changes';
 import { isSettledState } from '../../src/changes/changes';
@@ -22,6 +23,8 @@ export function ChangeDetail(props: {
   readonly openChanges: number;
   /** The bean's diff (`StreamedBeanDiff`), in its place under the journey. */
   readonly diff: ReactNode;
+  /** Whether the viewer may approve the bean if the approval rules hold it. */
+  readonly approveAccess: ApproveAccess;
   readonly nowMs: number;
 }) {
   const { tab, change } = props;
@@ -33,6 +36,7 @@ export function ChangeDetail(props: {
         bean={change.bean}
         filesHref={codeHref(tab.base, 'tree', '', { kind: 'bean', name: change.bean })}
         settled={isSettledState(change.state)}
+        approveAccess={props.approveAccess}
         nowMs={props.nowMs}
       />
     </RepositoryShell>

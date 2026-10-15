@@ -96,10 +96,12 @@ export type RepositoryAuditAction =
   | 'collaborator.leave'
   | 'repository.visibility'
   | 'repository.transfer'
+  | 'repository.create'
   | 'actions-secret-set'
   | 'actions-secret-deleted'
   | 'actions-variable-set'
-  | 'actions-variable-deleted';
+  | 'actions-variable-deleted'
+  | 'bean.approve';
 
 /** Who is on a repository, as a member sees it; the owner also sees invitations and the log. */
 export type RepositoryPeople = {
@@ -132,6 +134,12 @@ export type AgentPrincipal = {
   readonly scopes: readonly string[];
   /** The client the person approved ("Claude Code"), for the repository's sessions list. */
   readonly label: string;
+  /**
+   * The agent session, as the approval rules' self-approval check compares it: `oauth:<client
+   * id>` for an OAuth session, `token` for a personal token used as the bearer. Absent from
+   * callers before it; a bean it commits then reads as `mcp` (unknown session).
+   */
+  readonly session?: string;
 };
 
 /**

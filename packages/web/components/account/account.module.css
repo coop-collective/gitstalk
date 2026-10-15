@@ -271,6 +271,12 @@
   overflow-x: auto;
   padding-bottom: 2px;
 }
+.installPrompt {
+  quotes: none;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 .installCode code:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

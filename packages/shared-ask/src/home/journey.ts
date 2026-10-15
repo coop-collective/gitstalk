@@ -13,7 +13,11 @@ export type JourneyTone =
   | 'rework'
   | 'land'
   | 'stalk'
-  | 'decide';
+  | 'decide'
+  /** Held for a person's approval: violet, never the red of a failure. */
+  | 'held'
+  /** A person approved it. */
+  | 'approved';
 
 export type JourneyStep = {
   readonly t: number;
@@ -36,6 +40,10 @@ function sentenceOf(step: BeanStep): string {
       return 'Pre-land check passed on the merged tree';
     case 'check-red':
       return `Pre-land check red${detail === '' ? '' : `: ${detail}`}`;
+    case 'held':
+      return `Held for approval: ${detail}; nothing in it needs fixing`;
+    case 'approved':
+      return `Approved by a person; checking ${detail.replace(/^at /, '')} again`;
     case 'recheck':
       return `The sprout moved under it, so it was checked again (${detail})`;
     case 'optimistic':
@@ -96,6 +104,10 @@ function toneOf(kind: BeanStepKind): JourneyTone {
       return 'bad';
     case 'rework':
       return 'rework';
+    case 'held':
+      return 'held';
+    case 'approved':
+      return 'approved';
     case 'landed':
       return 'land';
     case 'green':

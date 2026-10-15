@@ -14,13 +14,20 @@
  *   memory and disk while the instance is up, which is each call plus the `sleepAfter` tail,
  *   overlapping tails counted once per instance.
  * - The read index (`repo/object-cache.ts`): hits and misses by object kind and of the ref
- *   memo (`repo/cache-stats.ts`). Free in itself; each miss is an Artifacts operation above.
+ *   memo (`repo/cache-stats.ts`), demand reads apart from the warm-up's prefetch. Free in
+ *   itself. Its misses are binding reads inside the port calls counted above (one per call),
+ *   or the warm-up's, which the Artifacts count leaves out.
  */
 import type { CacheView } from '@gitstalk/shared-race/rpc';
 
 import { roundTo } from '../engine/numbers';
 import type { CacheRead, CacheStats } from '../repo/cache-stats';
-import { cacheReport, countCacheRead, emptyCacheStats } from '../repo/cache-stats';
+import {
+  cacheReport,
+  countCacheRead,
+  emptyCacheStats,
+  restoredCacheStats,
+} from '../repo/cache-stats';
 import { RUNNER_SLEEP_AFTER_SECONDS } from '../runner/runner-container';
 
 /** List prices, Workers Paid, 2026-10 (developers.cloudflare.com, each product's pricing page). */
@@ -93,7 +100,7 @@ export function emptyMeter(nowMs: number): InfraMeter {
  * starting from zero.
  */
 export function restoredMeter(stored: Partial<InfraMeter>, nowMs: number): InfraMeter {
-  return { ...emptyMeter(nowMs), ...stored };
+  return { ...emptyMeter(nowMs), ...stored, cache: restoredCacheStats(stored.cache) };
 }
 
 export function countRequest(meter: InfraMeter, nowMs: number): InfraMeter {

@@ -6,6 +6,7 @@ import type { KeyRequestView } from '@gitstalk/shared-identity/ssh-key-requests'
 import { describeKeyRequest, normalUserCode } from '@gitstalk/shared-identity/ssh-key-requests';
 
 import styles from '../../../../components/account/account.module.css';
+import { keyApprovalChoices } from '../../../../src/auth/scope-choices';
 import { currentSession } from '../../../../src/auth/user';
 
 export const metadata = { title: 'Add an SSH key' };
@@ -86,10 +87,22 @@ function Consent(props: {
             It may read your repositories and push beans (never land on the stalk, never change
             settings).
             {view.wantsHttpsToken
-              ? ` Until git over SSH is live, ${view.name} also gets an HTTPS token (read and write, 90 days), listed under Tokens.`
+              ? ` Until git over SSH is live, ${view.name} also gets an HTTPS token (read and write, and create when ticked below; 90 days), listed under Tokens.`
               : ''}{' '}
             Remove it any time in Settings, SSH keys.
           </p>
+          {keyApprovalChoices(view).map((choice) => (
+            <label key={choice.scope} className={styles.scope}>
+              <input
+                type="checkbox"
+                name={choice.scope}
+                value="yes"
+                defaultChecked={choice.checked}
+              />
+              <span className={styles.scopeName}>{choice.scope}</span>
+              <span className={styles.scopeDetail}>{choice.text}</span>
+            </label>
+          ))}
           <div className={styles.actions}>
             <button type="submit" name="decision" value="deny" className={styles.secondary}>
               Deny

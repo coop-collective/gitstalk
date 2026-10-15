@@ -24,10 +24,10 @@ import {
   checksSourceOf,
 } from '@gitstalk/shared-race/run-config';
 import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
+import type { ApprovedBean, BeanHold, RevisionApproval } from '@gitstalk/shared-race/bean-approval';
 import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
 import { policyView, resolvePolicyFile } from '@gitstalk/shared-race/policy-file';
-import { CHECKS_PATHS } from '@gitstalk/shared-race/checks-config';
-import { readFirstPresent } from '@gitstalk/shared-race/config-dir';
+import { readChecksFile } from '@gitstalk/shared-race/checks-config';
 
 import type {
   BeanDetail,
@@ -116,9 +116,11 @@ import { buildSummary } from '../engine/summary';
 import { runView } from '../engine/view';
 import { readConfig } from '../config';
 import { GatewayError, UpstreamError } from '../errors';
-import type { ObjectStore, ReadCache, RefMemo } from '../repo/object-cache';
+import type { ObjectStore, ReadCache, RefMemo, RepoReader } from '../repo/object-cache';
 import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
+import type { ReadPurpose } from '../repo/cache-stats';
+import { readThroughPort } from '../repo/read-through-port';
 import type { Logger } from '../log';
 import { createLogger } from '../log';
 import type { RunnerPort } from '../runner/runner-client';
@@ -139,7 +141,15 @@ import {
   optionalAi,
   readStalkPolicy,
 } from '../approval/approval-host';
-import { migrateApprovalStore, readRoute, saveApproval } from '../approval/approval-store';
+import {
+  migrateApprovalStore,
+  readApproval,
+  readApprovals,
+  readRoute,
+} from '../approval/approval-store';
+import type { EngineApproval } from '../approval/approve-bean';
+import { approveHeldBean } from '../approval/approve-bean';
+import { holdOf, shownApproval } from '../approval/bean-hold';
 import type { Refusable, Reservation, TaskStanding } from '../agent/agent-store';
 import {
   claimTask,
@@ -266,6 +276,13 @@ export type RunResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: RunFailure };
 
+/** A pushed bean with its approval hold (`approval/bean-hold.ts`). */
+export type HeldPushBean = PushBean & {
+  readonly hold: BeanHold | null;
+  /** Every approval of its revisions, oldest first. */
+  readonly approvals: readonly RevisionApproval[];
+};
+
 export type GitGrant =
   | {
       readonly ok: true;
@@ -296,6 +313,8 @@ export class RunDO extends DurableObject<Env> {
   readonly #commitQueue = keyQueue();
   readonly #log: Logger;
   readonly #artifacts: ArtifactsPort;
+  /** `#artifacts` with reads by commit id through the read index: what jobs read with. */
+  readonly #indexedArtifacts: ArtifactsPort;
   /**
    * Whether this object drives a person's repository (REPOS namespace) rather than a race
    * (ARTIFACTS namespace). Known from storage on wake, or from `openRepoEngine`.
@@ -350,6 +369,9 @@ export class RunDO extends DurableObject<Env> {
     this.#artifacts = meteredArtifacts(
       selectedArtifactsPort(() => (this.#drivesRepository ? repositories : races)),
       () => this.#setMeter(countArtifactsOps(this.#meter, 1)),
+    );
+    this.#indexedArtifacts = readThroughPort(this.#artifacts, (repo, use) =>
+      this.#readIndexed(repo, use),
     );
     this.#runner = runnerPort((instance) =>
       meteredRunner(instance, env.RUNNER.getByName(instance), (call) => this.#recordRunner(call)),
@@ -612,17 +634,22 @@ export class RunDO extends DurableObject<Env> {
     return { ok: true, value: { phase: this.#requireLoaded().stored.state.phase } };
   }
 
-  /** Every pushed bean, as its status ref and the pushes see it. */
-  pushedBeans(): readonly PushBean[] {
-    this.#countRequest();
-    return listPushBeans(this.ctx.storage.sql);
-  }
-
-  /** One bean as an agent sees it: pushed (with its rework facts), reserved, or neither. */
-  agentBean(bean: string): { pushed: PushBean | null; reservation: Reservation | null } {
+  /** Every pushed bean, as its status ref and the pushes see it, with its approval hold. */
+  pushedBeans(): readonly HeldPushBean[] {
     this.#countRequest();
     const sql = this.ctx.storage.sql;
-    return { pushed: readPushBean(sql, bean), reservation: readReservation(sql, bean, Date.now()) };
+    return listPushBeans(sql).map((bean) => withHold(sql, bean));
+  }
+
+  /** One bean as an agent sees it: pushed (with its rework facts and hold), reserved, or neither. */
+  agentBean(bean: string): { pushed: HeldPushBean | null; reservation: Reservation | null } {
+    this.#countRequest();
+    const sql = this.ctx.storage.sql;
+    const pushed = readPushBean(sql, bean);
+    return {
+      pushed: pushed === null ? null : withHold(sql, pushed),
+      reservation: readReservation(sql, bean, Date.now()),
+    };
   }
 
   /** Reserves a bean name with its intent for `actor` (`bean_open`), claiming its task. */
@@ -1114,24 +1141,37 @@ export class RunDO extends DurableObject<Env> {
 
   /**
    * A person approves a bean held by a `card` route, for its current revision (its pushed
-   * head). A repository's bean waiting for its author is re-submitted at that head, so its
-   * check runs again and passes the gate; a race's bean passes at its next submission. Who may
-   * approve is the caller's decision (the web asks `mayUseEngine`'s `decide`).
+   * head; `approval/approve-bean.ts` makes the checks). A bean waiting for its author is
+   * re-submitted at that head, so its check runs again and passes the gate. Who may approve is
+   * the RPC's decision (`decide`: owners and maintainers). Repository engines only: a race's
+   * beans have no pushes, and races keep the rules off.
    */
-  approveBean(bean: string, actor: string): RunResult<{ approved: true; resubmitted: boolean }> {
+  approveBean(bean: string, request: EngineApproval): RunResult<ApprovedBean> {
     this.#countRequest();
     const loaded = this.#loaded;
     if (loaded === null) return notFound();
+    if (!loaded.stored.config.continuous)
+      return failure('invalid_state', 409, 'approvals are for a repository engine’s pushed beans');
     const sql = this.ctx.storage.sql;
-    const route = readRoute(sql, bean)?.receipt ?? null;
-    if (route === null || route.route !== 'card')
-      return failure('invalid_state', 409, `bean ${bean} is not waiting for an approval`);
-    const pushed = loaded.stored.config.continuous ? readPushBean(sql, bean) : null;
-    const revision = pushed?.head ?? null;
-    saveApproval(sql, { bean, revision, approval: { actor, atMs: Date.now() } });
-    this.#log.info('bean approved', { bean, actor, revision });
+    const pushed = readPushBean(sql, bean);
+    const outcome = approveHeldBean(sql, { pushed, request });
+    if (outcome.kind === 'refused') return failure(outcome.code, outcome.status, outcome.message);
+    const answer = {
+      bean,
+      revision: outcome.revision,
+      approval: shownApproval(outcome.approval),
+      replayed: outcome.replayed,
+      hold: outcome.hold,
+    };
+    if (outcome.replayed) return { ok: true, value: { ...answer, resubmitted: false } };
+    this.#log.info('bean approved', {
+      bean,
+      actor: request.actor,
+      revision: outcome.revision,
+      client: outcome.approval.client,
+    });
     if (pushed === null || pushed.awaiting === null)
-      return { ok: true, value: { approved: true, resubmitted: false } };
+      return { ok: true, value: { ...answer, resubmitted: false } };
     const submitted = this.#push.submit({
       bean: pushed.bean,
       head: pushed.head,
@@ -1143,7 +1183,7 @@ export class RunDO extends DurableObject<Env> {
     });
     if (!submitted.ok)
       this.#log.warn('re-submitting an approved bean failed', { bean, reason: submitted.reason });
-    return { ok: true, value: { approved: true, resubmitted: submitted.ok } };
+    return { ok: true, value: { ...answer, resubmitted: submitted.ok } };
   }
 
   /** Decision cards, optionally only those touching `paths`. */
@@ -1525,13 +1565,24 @@ export class RunDO extends DurableObject<Env> {
   }
 
   /** The read index for a cached reader, its hits and misses counted on the meter. */
-  #readCache(): ReadCache {
+  #readCache(purpose: ReadPurpose = 'demand'): ReadCache {
     return {
       store: this.#objects,
       refs: this.#refs,
       now: Date.now,
       count: (read) => this.#setMeter(recordCacheRead(this.#meter, read)),
+      purpose,
     };
+  }
+
+  /**
+   * Opens the run repo with a reader over the read index (`#indexedArtifacts`). Metered as one
+   * Artifacts operation per call, as the port it stands in for is.
+   */
+  #readIndexed<T>(repo: string, use: (reader: RepoReader) => Promise<T>): Promise<T> {
+    this.#setMeter(countArtifactsOps(this.#meter, 1));
+    const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
+    return withRepo(binding, repo, (handle) => use(cachedReader(handle, this.#readCache())));
   }
 
   #recordRunner(call: RunnerCall): void {
@@ -1651,9 +1702,9 @@ export class RunDO extends DurableObject<Env> {
   }
 
   /** The run repo's explorer, reading through the read index. */
-  #explorer(repo: string): RepoExplorer {
+  #explorer(repo: string, purpose: ReadPurpose = 'demand'): RepoExplorer {
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache()));
+    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache(purpose)));
   }
 
   /** A read of the run repo for the web app: expected failures become values. */
@@ -1706,7 +1757,7 @@ export class RunDO extends DurableObject<Env> {
     if (loaded === null) return;
     const { config, repos } = loaded.stored;
     try {
-      await this.#explorer(repos.repo.name).warm(
+      await this.#explorer(repos.repo.name, 'prefetch').warm(
         config.policy === 'queue' ? STALK_BRANCH : SPROUT_BRANCH,
       );
     } catch (error: unknown) {
@@ -1774,7 +1825,7 @@ export class RunDO extends DurableObject<Env> {
     try {
       outcome = await executeJob(spec, {
         run,
-        artifacts: this.#artifacts,
+        artifacts: this.#indexedArtifacts,
         runner: this.#runner,
         tokens: this.#tokens,
         log,
@@ -1791,7 +1842,7 @@ export class RunDO extends DurableObject<Env> {
           ? {
               approval: approvalJobHost({
                 sql: this.ctx.storage.sql,
-                artifacts: this.#artifacts,
+                artifacts: this.#indexedArtifacts,
                 repo: loaded.stored.repos.repo.name,
                 engine: config.continuous ? 'continuous' : 'race',
                 ai: optionalAi(this.env),
@@ -1817,9 +1868,10 @@ export class RunDO extends DurableObject<Env> {
     const sql = this.ctx.storage.sql;
     return {
       readChecks: async (sha) => {
-        if ((await this.#artifacts.commitMessage(repo, sha)) === null)
+        const reads = this.#indexedArtifacts;
+        if ((await reads.commitMessage(repo, sha)) === null)
           throw new UpstreamError(`commit ${sha} is not readable yet`, true);
-        return readFirstPresent(CHECKS_PATHS, (path) => this.#artifacts.readFile(repo, sha, path));
+        return readChecksFile((path) => reads.readFile(repo, sha, path));
       },
       saveLandingTree: (tree) => saveLandingTree(sql, tree, Date.now()),
       landingTree: (sha) => readLandingTree(sql, sha),
@@ -2101,6 +2153,16 @@ export class RunDO extends DurableObject<Env> {
       return upstreamFailure(error, 'reading the run repo');
     }
   }
+}
+
+/** The bean with the approval rules' hold on its current head. */
+function withHold(sql: SqlStorage, bean: PushBean): HeldPushBean {
+  const receipt = readRoute(sql, bean.bean)?.receipt ?? null;
+  const approval = receipt?.route === 'card' ? readApproval(sql, bean.bean, bean.head) : null;
+  const approvals = readApprovals(sql, bean.bean).map(({ revision, approval: given }) =>
+    Object.assign(shownApproval(given), { revision }),
+  );
+  return { ...bean, hold: holdOf({ receipt, approval, pushed: bean }), approvals };
 }
 
 function failure(

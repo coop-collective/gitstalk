@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { RepositoryParams } from '../../../../src/server/repository-page';
+import { repositoryLayoutAnswers } from '../../../../src/server/repository-page';
 import { settingsAccess } from '../../../../src/server/repository-settings';
 
 /** Per person and per request: never prerendered or cached. */
@@ -18,6 +19,8 @@ export default async function RepositorySettingsLayout({
   readonly children: ReactNode;
   readonly params: RepositoryParams;
 }) {
+  // A missing or unreadable repository is the repository layout's 404 (see the helper).
+  if (await repositoryLayoutAnswers(params)) return null;
   await settingsAccess(params);
   return children;
 }

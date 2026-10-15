@@ -117,10 +117,10 @@ export async function digest(text: string): Promise<string> {
 }
 
 /** The checks `requireChecks` lands: the fake runner's suite. */
-export const NODE_CHECKS = 'command = ["node", "--test"]\n';
+export const NODE_CHECKS = 'run: [node, --test]\n';
 
 /**
- * Lands `.beanstalk/checks.toml` as the repository's owner (a personal token may change the
+ * Lands `.gitstalk/checks.yml` as the repository's owner (a personal token may change the
  * checks), so later beans run the fake runner's suite instead of no checks at all.
  */
 export async function requireChecks(record: RepositoryRecord, ownerToken: string): Promise<void> {
@@ -132,7 +132,7 @@ export async function requireChecks(record: RepositoryRecord, ownerToken: string
       bean: 'require-checks',
       newSha: await digest(`checks:${repoPath}`),
       options: ['wait'],
-      files: { '.beanstalk/checks.toml': NODE_CHECKS },
+      files: { '.gitstalk/checks.yml': NODE_CHECKS },
     }),
   );
   if (!landed.remote.includes('LANDED')) throw new Error(`checks bean: ${landed.remote}`);

@@ -272,7 +272,8 @@
                   <td>Checks</td>
                   <td>
                     What counts as green, read from the stalk. Changed by a bean that edits
-                    <code>.gitstalk/checks.toml</code>.
+                    <code>.gitstalk/checks.yml</code>; a repository still on
+                    <code>checks.toml</code> gets a Convert to YAML button (owners and maintainers).
                   </td>
                   <td>anyone with a role</td>
                   <td><a href="/docs/checks">Checks</a></td>
@@ -296,7 +297,10 @@
                 </tr>
                 <tr>
                   <td>Collaborators</td>
-                  <td>Invite by handle, change roles, remove, and the access log.</td>
+                  <td>
+                    Invite by handle, change roles, remove, and the access log (which also records
+                    approvals of held beans).
+                  </td>
                   <td>owner</td>
                   <td><a href="/docs/collaborators#invite">Invite people</a></td>
                 </tr>
@@ -340,7 +344,8 @@
             <p class="callout-title">Old links still work</p>
             <p>
               Settings used to be one long page. A link such as <code>…/settings#secrets</code> or
-              <code>#archive</code> still lands on the right section.
+              <code>#archive</code> still lands on the right section for anyone with a role on the
+              repository; everyone else gets the not-found page.
             </p>
           </aside>
 

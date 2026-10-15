@@ -402,7 +402,7 @@ const CheckedFields = z
     continuous: z.boolean().default(false),
     /**
      * Where a continuous engine's checks come from (`checks-config.ts`, backlog 2.3):
-     * `repository` reads `.gitstalk/checks.toml` from every tree it checks; `suite` always runs
+     * `repository` reads `.gitstalk/checks.yml` from every tree it checks; `suite` always runs
      * `suite` (races, and engines an operator opened with a suite). Absent: `checksSourceOf`.
      */
     checks_source: z.enum(['suite', 'repository']).optional(),

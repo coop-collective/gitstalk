@@ -175,17 +175,15 @@ describe('the read index', () => {
     });
   });
 
-  it('tells whether a blob is held without reading it from Artifacts', async () => {
+  it('prefetches a blob it does not hold, and skips one it holds without loading it', async () => {
     const repo = countingRepo();
-    const cached = cachedReader(repo.reader, {
-      store: memoryObjectStore(),
-      refs: new Map(),
-      now: () => 0,
-    });
+    const store = memoryObjectStore();
+    const cached = cachedReader(repo.reader, { store, refs: new Map(), now: () => 0 });
 
-    expect(cached.hasBlob?.(BLOB)).toBe(false);
+    await cached.prefetchBlob?.(BLOB);
+    expect(store.hasBlob(BLOB)).toBe(true);
+    await cached.prefetchBlob?.(BLOB);
     await cached.readBlob(BLOB);
-    expect(cached.hasBlob?.(BLOB)).toBe(true);
     expect(repo.calls).toEqual(['readBlob c']);
   });
 
@@ -227,12 +225,12 @@ describe('the read index’s hit and miss counts', () => {
     await cached.readCommit(NEXT);
 
     expect(reads).toEqual([
-      { kind: 'tree', outcome: 'miss' },
-      { kind: 'tree', outcome: 'hit' },
-      { kind: 'blob', outcome: 'miss' },
-      { kind: 'blob', outcome: 'hit' },
-      { kind: 'commit', outcome: 'miss' },
-      { kind: 'commit', outcome: 'hit' },
+      { kind: 'tree', outcome: 'miss', purpose: 'demand' },
+      { kind: 'tree', outcome: 'hit', purpose: 'demand' },
+      { kind: 'blob', outcome: 'miss', purpose: 'demand' },
+      { kind: 'blob', outcome: 'hit', purpose: 'demand' },
+      { kind: 'commit', outcome: 'miss', purpose: 'demand' },
+      { kind: 'commit', outcome: 'hit', purpose: 'demand' },
     ]);
   });
 
@@ -246,9 +244,9 @@ describe('the read index’s hit and miss counts', () => {
     await cached.log({ ref: 'sprout', limit: 1 });
 
     expect(reads).toEqual([
-      { kind: 'ref', outcome: 'miss' },
-      { kind: 'ref', outcome: 'hit' },
-      { kind: 'ref', outcome: 'miss' },
+      { kind: 'ref', outcome: 'miss', purpose: 'demand' },
+      { kind: 'ref', outcome: 'hit', purpose: 'demand' },
+      { kind: 'ref', outcome: 'miss', purpose: 'demand' },
     ]);
   });
 
@@ -257,8 +255,41 @@ describe('the read index’s hit and miss counts', () => {
 
     await cached.log({ ref: 'sprout', limit: 100 });
     await cached.log({ ref: COMMIT, limit: 1 });
-    cached.hasBlob?.(BLOB);
 
     expect(reads).toEqual([]);
+  });
+
+  it('counts a prefetch apart from demand reads: a fetch as a miss, a held blob as a hit', async () => {
+    const { cached, reads } = countedReader();
+
+    await cached.prefetchBlob?.(BLOB);
+    await cached.prefetchBlob?.(BLOB);
+    await cached.readBlob(BLOB);
+
+    expect(reads).toEqual([
+      { kind: 'blob', outcome: 'miss', purpose: 'prefetch' },
+      { kind: 'blob', outcome: 'hit', purpose: 'prefetch' },
+      { kind: 'blob', outcome: 'hit', purpose: 'demand' },
+    ]);
+  });
+
+  it('counts every read of a prefetching reader as prefetch', async () => {
+    const repo = countingRepo();
+    const reads: CacheRead[] = [];
+    const cached = cachedReader(repo.reader, {
+      store: memoryObjectStore(),
+      refs: new Map(),
+      now: () => 0,
+      count: (read) => reads.push(read),
+      purpose: 'prefetch',
+    });
+
+    await cached.readTree(ROOT);
+    await cached.log({ ref: 'sprout', limit: 1 });
+
+    expect(reads).toEqual([
+      { kind: 'tree', outcome: 'miss', purpose: 'prefetch' },
+      { kind: 'ref', outcome: 'miss', purpose: 'prefetch' },
+    ]);
   });
 });

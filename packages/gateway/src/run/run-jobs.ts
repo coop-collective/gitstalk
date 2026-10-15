@@ -89,7 +89,7 @@ export type JobContext = {
   readonly onSuiteTimeout?: () => void;
   /**
    * A repository's own checks (`checks_source: repository`): each check reads
-   * `.gitstalk/checks.toml` from its tree, and `suite` is not used. Absent: `suite` always.
+   * `.gitstalk/checks.yml` from its tree, and `suite` is not used. Absent: `suite` always.
    */
   readonly checks?: RepositoryChecksHost;
   /**

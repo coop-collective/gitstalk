@@ -305,6 +305,8 @@ describe('invitations', () => {
       'collaborator.invite',
       'collaborator.decline',
       'collaborator.invite',
+      // Every repository's audit begins with its creation (and the client: web here).
+      'repository.create',
     ]);
   });
 });

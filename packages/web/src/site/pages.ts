@@ -38,6 +38,7 @@ export const DOCS_PAGES: ReadonlyArray<string> = [
   'quickstart',
   'repositories',
   'research',
+  'runners',
   'secrets',
   'self-hosting',
   'settings',

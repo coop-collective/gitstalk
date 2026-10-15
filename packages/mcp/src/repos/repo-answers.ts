@@ -11,6 +11,7 @@ import type { PushedBeanStatus } from '@gitstalk/shared-race/rpc';
 
 import { ToolError } from '../mcp/tool-result';
 import { withInbox } from '../tools/collaboration';
+import { heldLines } from '../tools/bean-approve';
 import { runStatus } from '../tools/run-status';
 import type { ToolScope } from '../tools/tool-context';
 import { RepositoryAnswer, parsed, valueOf } from './agent-gateway';
@@ -77,7 +78,11 @@ export async function repoStatus(scope: ToolScope, repo: string | undefined): Pr
   const beans = valueOf(pushed);
   const stalkRuns = await runsAt(scope, { repo, sha: lines.stalk.sha });
   const inFlight = beans.filter((bean) => IN_FLIGHT.has(bean.phase)).map(beanLine);
-  const sentBack = beans.filter((bean) => SENT_BACK.has(bean.phase)).map(beanLine);
+  // A hold of the approval rules is red to git, but nothing was sent back: it waits for a person.
+  const held = beans.filter((bean) => bean.hold?.state === 'held').map(beanLine);
+  const sentBack = beans
+    .filter((bean) => SENT_BACK.has(bean.phase) && bean.hold?.state !== 'held')
+    .map(beanLine);
   return {
     repo,
     stalk: lines.stalk.sha,
@@ -85,6 +90,7 @@ export async function repoStatus(scope: ToolScope, repo: string | undefined): Pr
     window: lines.window,
     in_flight: inFlight,
     sent_back: sentBack,
+    held_for_approval: held,
     recent_reds: lines.red_validations.recent,
     open_cards: lines.open_cards,
     stalk_runs: stalkRuns,
@@ -93,6 +99,7 @@ export async function repoStatus(scope: ToolScope, repo: string | undefined): Pr
     summary: [
       `${inFlight.length} in flight`,
       `${sentBack.length} sent back`,
+      `${held.length} held for approval`,
       `window ${lines.window.unvalidated}${lines.window.size === null ? '' : `/${lines.window.size}`}`,
       `${lines.red_validations.count} red validations`,
       `${lines.open_cards.length} open cards`,
@@ -199,7 +206,7 @@ export async function beanWait(
       seconds: input.timeout_s ?? DEFAULT_WAIT_SECONDS,
     }),
   );
-  return withNext(waited, input.bean);
+  return { ...withNext(waited, input.bean), ...heldLines(waited, scope.webUrl) };
 }
 
 export async function taskList(scope: ToolScope, repo: string): Promise<object> {

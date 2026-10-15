@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { RunParams } from '../../../../../../src/server/run-page';
+import { repositoryLayoutAnswers } from '../../../../../../src/server/repository-page';
 import { runPage } from '../../../../../../src/server/run-page';
 
 /**
@@ -14,6 +15,8 @@ export default async function RunLayout({
   readonly children: ReactNode;
   readonly params: RunParams;
 }) {
+  // A missing or unreadable repository is the repository layout's 404 (see the helper).
+  if (await repositoryLayoutAnswers(params)) return null;
   await runPage(params);
   return children;
 }

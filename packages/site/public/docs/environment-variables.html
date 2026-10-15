@@ -6,14 +6,14 @@
     <title>Environment variables: Gitstalk docs</title>
     <meta
       name="description"
-      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.toml, deploy tokens, the setup script, and what a run sees."
+      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.yml, deploy tokens, the setup script, and what a run sees."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Gitstalk" />
     <meta property="og:title" content="Environment variables: Gitstalk docs" />
     <meta
       property="og:description"
-      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.toml, deploy tokens, the setup script, and what a run sees."
+      content="Where to set an environment variable on Gitstalk: secrets, variables, workflow env, checks.yml, deploy tokens, the setup script, and what a run sees."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image:width" content="1200" />
@@ -201,7 +201,7 @@
                 </tr>
                 <tr>
                   <td>Tests during a pre-land check</td>
-                  <td><code>[env]</code> in <code>.gitstalk/checks.toml</code></td>
+                  <td><code>env</code> in <code>.gitstalk/checks.yml</code></td>
                   <td>The test process environment</td>
                 </tr>
                 <tr>
@@ -226,7 +226,7 @@
             <p class="callout-title">Variables are not secret</p>
             <p>
               Anyone with a role sees a variable's value, and job logs print it unmasked. A value in
-              <code>env:</code> or in <code>checks.toml</code> is visible to everyone who can read
+              <code>env:</code> or in <code>checks.yml</code> is visible to everyone who can read
               the repository. Put credentials in secrets.
             </p>
           </aside>
@@ -255,13 +255,13 @@ jobs:
           <h2 id="checks">In a pre-land check</h2>
           <p>
             <a href="/docs/checks">Pre-land checks</a> run your tests on the merged tree. Their
-            environment comes from the <code>[env]</code> table:
+            environment comes from the <code>env</code> map:
           </p>
           <div class="cmd" data-copyable>
-            <header><span>.gitstalk/checks.toml</span></header>
-            <pre class="url"><code>[env]
-TZ = "UTC"
-FEATURE_FLAGS = "billing-v2"</code></pre>
+            <header><span>.gitstalk/checks.yml</span></header>
+            <pre class="url"><code>env:
+  TZ: UTC
+  FEATURE_FLAGS: billing-v2</code></pre>
           </div>
           <ul>
             <li>
@@ -281,8 +281,8 @@ FEATURE_FLAGS = "billing-v2"</code></pre>
           <p>
             A deploy token opens one repository, read or read and write, and expires. The
             repository's start page has a <strong>Connect git</strong> step with an
-            <strong>Env vars</strong> tab, and Settings has <strong>Deploy tokens</strong>. The tab
-            shows the block below, filled in for your repository.
+            <strong>Env vars</strong> tab, and Settings has <strong>Deploy tokens</strong>. Both
+            show the block below, filled in for your repository.
           </p>
           <figure class="mock" aria-label="The start page, Env vars tab">
             <div class="mock-bar" aria-hidden="true">

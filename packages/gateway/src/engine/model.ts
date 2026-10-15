@@ -7,6 +7,7 @@ import type {
   WorkspaceMerge,
 } from '@gitstalk/shared-race/driver';
 import type {
+  CheckHold,
   CiMeta,
   EventEnvelope,
   Json,
@@ -224,6 +225,16 @@ export type CheckResult = {
    * or `mapsFrom` of a `ReadMapIndex` query about this tree.
    */
   readonly mappedTree?: string;
+  /**
+   * The approval rules held the bean for a person (`approval/approval-gate.ts`): a red that says
+   * nothing failed. A continuous engine spends no rework round on it (`v2-landing.ts`).
+   */
+  readonly awaitsApproval?: true;
+  /**
+   * The hold itself (classes, deciding class, who decided); the `preland.check` event carries it
+   * as `held`.
+   */
+  readonly held?: CheckHold;
 };
 
 export type CiPurpose = 'batch' | 'bisect' | 'validate' | 'final';

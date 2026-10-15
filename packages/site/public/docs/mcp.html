@@ -179,10 +179,10 @@
               The server, sign-in and scopes are <span class="badge live">live</span>. The tools
               added on 14 October 2026 (<code>why_lines</code>, <code>repo_read</code>,
               <code>bean_commit</code>, <code>actions_config_*</code>, and
-              <code>bean_status</code> and <code>repo_status</code> in their new form) are
-              <span class="badge beta">beta</span>: they are merged and tested, but the hosted
-              server may still list older names until its deploy is confirmed. See
-              <a href="#names">Names that changed</a>.
+              <code>bean_status</code> and <code>repo_status</code> in their new form) and
+              <code>bean_approve</code>, added after them, are <span class="badge beta">beta</span>:
+              they are merged and tested, but the hosted server may still list older names until its
+              deploy is confirmed. See <a href="#names">Names that changed</a>.
             </p>
           </aside>
 
@@ -229,7 +229,7 @@
           <h2 id="consent">The consent screen</h2>
           <figure
             class="mock"
-            aria-label="The consent screen that asks whether an agent may use your account, with four scope rows"
+            aria-label="The consent screen that asks whether an agent may use your account, with five scope rows"
           >
             <div class="mock-bar" aria-hidden="true">
               <i></i><i></i><i></i><span class="mock-url">gitstalk.io/connect</span>
@@ -278,6 +278,16 @@
                   </div>
                   <div class="m-input">[ ] never pre-ticked</div>
                 </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>create</b
+                    ><span
+                      >Create repositories in your namespace and in organizations whose members may
+                      create them (private unless you ask).</span
+                    >
+                  </div>
+                  <div class="m-input">[x] ticked when the agent asks for it</div>
+                </div>
               </div>
               <div><span class="m-btn">Deny</span> <span class="m-btn primary">Allow</span></div>
             </div>
@@ -288,7 +298,8 @@
           <p>
             The screen shows who published the client, where the access goes and which account the
             agent acts as. <code>read</code> cannot be unticked. <code>secrets</code> stays unticked
-            even when the agent asks for it: you opt in yourself.
+            even when the agent asks for it: you opt in yourself. <code>create</code> is ticked only
+            when the agent asks for it.
           </p>
 
           <h2 id="scopes">Scopes and roles</h2>
@@ -329,9 +340,11 @@
                   <td><code>write</code></td>
                   <td>
                     Open beans, commit to them, claim tasks. Run, re-run and cancel workflows and
-                    automations.
+                    automations. Approve a held bean when you tell the agent to.
                   </td>
-                  <td>Write to push beans; maintain to run, re-run or cancel workflows</td>
+                  <td>
+                    Write to push beans; maintain to run, re-run or cancel workflows and to approve
+                  </td>
                   <td>Yes</td>
                 </tr>
                 <tr>
@@ -342,6 +355,18 @@
                   </td>
                   <td>No: you tick it</td>
                 </tr>
+                <tr>
+                  <td><code>create</code></td>
+                  <td>
+                    Create repositories with <code>repo_create</code>, or with
+                    <code>git_credentials</code> for a new address and a push.
+                  </td>
+                  <td>
+                    Your own namespace; in an organization, the role its repository-creation setting
+                    asks for
+                  </td>
+                  <td>When the agent asks for it</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -351,13 +376,17 @@
               Merging to the stalk, answering a decision card and changing repository settings are
               not grantable to any token. The server offers no tool for them, whatever the scopes.
               Changes to protected paths are refused when an agent makes them: only an owner or
-              maintainer pushing with their own credential may change those files.
+              maintainer pushing with their own credential may change those files. Approving a bean
+              the approval rules hold (<code>bean_approve</code>) is your decision, carried out by
+              the agent only when you ask, and refused for a bean the agent may have pushed itself
+              unless you confirmed it.
             </p>
           </aside>
           <p>
             An agent is offered only the tools its scopes allow. Without <code>write</code> it sees
             no tool that opens beans or starts runs; without <code>secrets</code> it cannot touch
-            secrets. If your agent is missing a tool, reconnect it and tick the scope. See
+            secrets; without <code>create</code> it cannot create repositories. If your agent is
+            missing a tool, reconnect it and tick the scope. See
             <a href="/docs/troubleshooting#missing-tool">troubleshooting</a>.
           </p>
 
@@ -408,12 +437,25 @@
                 <tr>
                   <td>Bean and backlog writes</td>
                   <td>
-                    <code>bean_open</code>, <code>bean_commit</code>, <code>task_claim</code>,
-                    <code>task_release</code>
+                    <code>bean_open</code>, <code>bean_commit</code>, <code>bean_approve</code>,
+                    <code>task_claim</code>
                   </td>
                   <td>
                     Reserve a bean name with its intent; commit files to a bean with no checkout;
-                    claim a backlog task so no other agent takes it; give it back.
+                    approve a held bean for your person (<a href="#approve">below</a>); claim a
+                    backlog task so no other agent takes it, or give it back with
+                    <code>release: true</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>New repositories (<code>create</code>)</td>
+                  <td><code>repo_create</code></td>
+                  <td>
+                    Create a repository, private and empty unless asked; answers
+                    <code>full_name</code>, <code>clone_url</code>, <code>web_url</code>,
+                    <code>stalk</code>, <code>visibility</code> and <code>next</code>. The agent
+                    asks you first before a public one or one in an organization. See
+                    <a href="/docs/repositories#create-elsewhere">Repositories</a>.
                   </td>
                 </tr>
                 <tr>
@@ -509,6 +551,11 @@
                   </td>
                   <td class="num">29</td>
                 </tr>
+                <tr>
+                  <td>Your session, every scope</td>
+                  <td>The above, <code>repo_create</code></td>
+                  <td class="num">30</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -581,6 +628,47 @@
             </li>
           </ul>
 
+          <h3 id="approve">Approve a held bean: <code>bean_approve</code></h3>
+          <p>
+            When a repository's <a href="/docs/approval-rules">approval rules</a> hold a bean for a
+            person, <code>bean_status</code> answers <code>held: true</code>, an
+            <code>approve_url</code> (the bean's page, with its Held panel) and a next step. An
+            agent tells its person and waits; it approves only when the person says so.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Tool call</span></header>
+            <pre class="chat"><code>bean_approve {
+  "repo": "acme/api",
+  "bean": "token-refresh",
+  "revision": "4e1c9a2f0b7d3e5a8c1f6b2d9e0a7c4b3f5d8e1a",
+  "note": "Ada read the expiry change and said approve it.",
+  "idempotency_key": "approve-token-refresh-1"
+}</code></pre>
+          </div>
+          <ul>
+            <li>
+              <strong>Who.</strong> The session needs <code>write</code>, and its person the
+              maintain role or ownership. It must act for a person; an automation never approves.
+            </li>
+            <li>
+              <strong><code>revision</code></strong> defaults to the bean's pushed head. A revision
+              that is no longer the head is refused: a new push needs a new approval.
+            </li>
+            <li>
+              <strong>Its own bean.</strong> When the bean's latest push was made for the same
+              person and Gitstalk cannot show another agent session made it (this agent client, the
+              person's SSH key or personal token), the call is refused.
+              <code>confirm_owner_intent: true</code> lets it through, and an agent sets it only
+              after its person confirmed.
+            </li>
+            <li>
+              <strong>The answer</strong> is the receipt (who, when, client, revision, note) and the
+              next step: the bean's check runs again, and <code>bean_wait</code> wakes at its
+              verdict. The approval goes into the repository's access log as "via MCP
+              (&lt;client&gt;)". Reuse <code>idempotency_key</code> only for an exact retry.
+            </li>
+          </ul>
+
           <h3 id="read">Read code: <code>repo_read</code></h3>
           <div class="cmd" data-copyable>
             <header><span>Tool calls</span></header>
@@ -629,8 +717,9 @@ repo_read { "repo": "acme/api", "grep": "/retry\\w+/", "glob": "src/**/*.ts" }</
           <p>
             <code>task_claim</code> holds a task for two hours so no other agent takes it. Claim
             again, or <code>bean_open</code> with <code>task</code>, to keep it. A bean you pushed
-            for the task holds it until it lands. <code>task_release</code> gives it back. Changing
-            the backlog is a bean like any other change.
+            for the task holds it until it lands. <code>task_claim</code> with
+            <code>release: true</code> gives it back. Changing the backlog is a bean like any other
+            change.
           </p>
 
           <h2 id="names">Names that changed on 14 October 2026</h2>
@@ -671,8 +760,16 @@ repo_read { "repo": "acme/api", "grep": "/retry\\w+/", "glob": "src/**/*.ts" }</
                   <td><span class="badge beta">beta</span></td>
                 </tr>
                 <tr>
+                  <td><code>task_release</code></td>
+                  <td><code>task_claim</code> with <code>release: true</code></td>
+                  <td><span class="badge beta">beta</span></td>
+                </tr>
+                <tr>
                   <td>(none)</td>
-                  <td><code>why_lines</code>, <code>repo_read</code>, <code>bean_commit</code></td>
+                  <td>
+                    <code>why_lines</code>, <code>repo_read</code>, <code>bean_commit</code>,
+                    <code>repo_create</code>
+                  </td>
                   <td><span class="badge beta">beta</span></td>
                 </tr>
               </tbody>

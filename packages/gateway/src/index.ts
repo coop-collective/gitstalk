@@ -46,12 +46,14 @@ import type {
   ViewTokenClaims,
 } from '@gitstalk/shared-race/rpc';
 import type { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
+import type { ApproveBeanRequest, ApprovedBean } from '@gitstalk/shared-race/bean-approval';
 import type {
   RulesEditorRpc,
   RulesSource,
   SaveRulesInput,
 } from '@gitstalk/shared-race/rules-editor';
 import type { ApprovalPolicyView } from '@gitstalk/shared-race/policy-file';
+import type { ChecksEditorRpc, ConvertChecksInput } from '@gitstalk/shared-race/checks-editor';
 
 import type {
   CreateRepositoryInput,
@@ -146,6 +148,7 @@ import { repositoryStorage } from './adapters/repository-storage';
 import { accountsRpc } from './repos/accounts-rpc';
 import { automationEditorRpc } from './automations/editor-rpc';
 import { rulesEditorRpc } from './approval/rules-editor-rpc';
+import { checksEditorRpc } from './checks/checks-editor-rpc';
 import { agentActionsRpc } from './agent/agent-actions-rpc';
 import { agentReposRpc } from './agent/agent-repos-rpc';
 import { consumeRepoEvents } from './repo-events/consumer';
@@ -165,7 +168,9 @@ import { engineFeedRpc } from './repos/engine-feed';
 import { peopleDirectory } from './repos/people';
 import { repoEnginePort } from './repos/engine-port';
 import { d1Registry } from './repos/registry';
-import { newRepositoryId, repositoriesRpc } from './repos/repositories-rpc';
+import { repositoriesDepsFrom } from './repos/repositories-deps';
+import { repoCreateRpc, repositoriesRpc } from './repos/repositories-rpc';
+import type { CreatedRepository, RepoCreateRequest } from '@gitstalk/shared-race/repo-create';
 import { cleanupPortsFrom, repositoryCleanup } from './repos/repository-cleanup';
 import { createDeps } from './deps';
 import type { GatewayRpcSurface } from './rpc/gateway-rpc';
@@ -207,7 +212,8 @@ export default class Gateway
     DerivedRpc,
     AccountsRpc,
     AutomationEditorRpc,
-    RulesEditorRpc
+    RulesEditorRpc,
+    ChecksEditorRpc
 {
   override async fetch(request: Request): Promise<Response> {
     return withHsts(request, await app.fetch(request, this.env, this.ctx));
@@ -363,9 +369,9 @@ export default class Gateway
   approveBean(
     run: string,
     bean: string,
-    actor: string,
-  ): Promise<RpcResult<{ readonly approved: true; readonly resubmitted: boolean }>> {
-    return this.#rpc().approveBean(run, bean, actor);
+    request: ApproveBeanRequest,
+  ): Promise<RpcResult<ApprovedBean>> {
+    return this.#rpc().approveBean(run, bean, request);
   }
 
   decisions(run: string, paths?: readonly string[]): Promise<RpcResult<readonly DecisionRecord[]>> {
@@ -435,6 +441,19 @@ export default class Gateway
     input: CreateRepositoryInput,
   ): Promise<RpcResult<RepositoryRecord>> {
     return this.#repositories().createRepository(owner, input);
+  }
+
+  /** `repo_create` (the MCP Worker) and `POST /api/repos` (the web app): needs `create`. */
+  createRepositoryAs(
+    principal: AgentPrincipal,
+    request: RepoCreateRequest,
+    via: 'repo_create' | 'api',
+  ): Promise<RpcResult<CreatedRepository>> {
+    return repoCreateRpc(repositoriesDepsFrom(this.env)).createRepositoryAs(
+      principal,
+      request,
+      via,
+    );
   }
 
   listRepositories(
@@ -636,18 +655,7 @@ export default class Gateway
   }
 
   #repositories(): RepositoriesRpc {
-    return repositoriesRpc({
-      registry: d1Registry(this.env.FORGE, this.env),
-      collaborators: d1Collaborators(this.env.FORGE, () => Date.now(), this.env),
-      identity: this.env,
-      storage: repositoryStorage(this.env.REPOS),
-      engine: repoEnginePort(createDeps(this.env)),
-      cleanup: this.#repositoryCleanup(),
-      log: createLogger(readConfig(this.env).logLevel, { component: 'repositories' }),
-      now: () => Date.now(),
-      newId: newRepositoryId,
-      webUrl: readConfig(this.env).webUrl,
-    });
+    return repositoriesRpc(repositoriesDepsFrom(this.env));
   }
 
   openRepoEngine(input: OpenRepoEngineInput): Promise<RpcResult<RepoEngineOpened>> {
@@ -925,6 +933,18 @@ export default class Gateway
     return rulesEditorRpc(this.env, createDeps(this.env));
   }
 
+  convertChecks(
+    viewer: Viewer,
+    repoId: string,
+    input: ConvertChecksInput,
+  ): Promise<RpcResult<SaveAutomationResult>> {
+    return this.#checks().convertChecks(viewer, repoId, input);
+  }
+
+  #checks(): ChecksEditorRpc {
+    return checksEditorRpc(this.env, createDeps(this.env));
+  }
+
   #automations(): AutomationEditorRpc {
     return automationEditorRpc(this.env, createDeps(this.env));
   }
@@ -947,7 +967,11 @@ export default class Gateway
   }
 
   #ssh(): SshDeps {
-    return { deps: createDeps(this.env), keys: sshKeyStore(this.env) };
+    return {
+      deps: createDeps(this.env),
+      keys: sshKeyStore(this.env),
+      repositories: repositoriesDepsFrom(this.env),
+    };
   }
 
   #rpc(): GatewayRpcSurface {

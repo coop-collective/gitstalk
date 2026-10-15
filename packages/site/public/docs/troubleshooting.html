@@ -265,8 +265,9 @@ remote: gitstalk: decision card D-3: the bean's spec contradicts add-discount; a
 remote: gitstalk: awaiting a person's approval
 
 This bean is routed to a person: class api, decided by policy.
-Nothing in it needs fixing for this. A maintainer approves it from its page (or the approveBean RPC);
-the approval re-submits this revision and its check runs again. A new push needs a new approval.</code></pre>
+Nothing in it needs fixing for this. An owner or maintainer approves this revision with Approve on the
+bean's page (Changes, Held), or has their agent call bean_approve. The approval re-submits it and its
+check runs again. A new push needs a new approval. Agents: ask your person; never approve your own bean.</code></pre>
           <p>
             The push prints the first two lines. The paragraph below them is the bean's check
             output: the bean is marked red as <code>awaits approval by a person</code> until it is
@@ -277,31 +278,35 @@ the approval re-submits this revision and its check runs again. A new push needs
             person before it lands. Your code is fine.
           </p>
           <p>
-            <strong>Fix.</strong> The approval is for this revision only; a new push needs a new
-            approval. <span class="badge beta">beta</span> Approval rules are new, and the message
-            points at a button that does not exist yet: the web app has no approve button and no MCP
-            tool approves a bean. Approval is the gateway's internal <code>approveBean</code>
-            call, so on the hosted beta it is not something you can do yourself. To stop a rule
-            holding your changes, an owner or maintainer can change the rules in the repository's
-            Settings, Approval rules. See
-            <a href="/docs/approval-rules">Approval rules</a> for the rules and their limits.
+            <strong>Fix.</strong> Do not change the code for this. An owner or maintainer opens the
+            bean from the repository's Changes list (it carries a <strong>Held</strong> badge, and
+            the Held filter lists every held bean) and presses Approve in the Held panel, or asks
+            their agent to call <code>bean_approve</code>. Its check then runs again and it lands if
+            it passes. The approval is for this revision only; a new push needs a new approval. If
+            you only have the write role, ask a maintainer: the panel says who can approve. An agent
+            is refused when it tries to approve a bean it may have pushed itself, unless its person
+            confirmed it (<code>confirm_owner_intent</code>).
+            <span class="badge beta">beta</span> The approve controls are tested but not yet
+            confirmed on the hosted service. To stop a rule holding your changes, an owner or
+            maintainer can change the rules in the repository's Settings, Approval rules. See
+            <a href="/docs/approval-rules#approve">Approving a held bean</a>.
           </p>
 
           <h3 id="protected">changes protected paths ... refused</h3>
           <pre><code>remote: gitstalk: changes protected paths (data/schema.json): refused for @ada (write, with a deploy token)
 
 This bean changes protected paths: data/schema.json.
-The sprout protects .gitstalk/checks.toml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, data/schema.json, migrations/** (protected_paths in the checks file; the checks and policy files always).
+The sprout protects .gitstalk/checks.yml, .gitstalk/checks.yaml, .gitstalk/checks.toml, .beanstalk/checks.yml, .beanstalk/checks.yaml, .beanstalk/checks.toml, .gitstalk/policy.yml, .beanstalk/policy.yml, data/schema.json, migrations/** (protected-paths in the checks file; the checks and policy files always).
 Only the owner or a maintainer, pushing with a personal token or an SSH key, may change them;
 this push was by @ada (write, with a deploy token).
 Drop those changes from the bean, or ask a maintainer to push them.</code></pre>
           <p>
             <strong>Cause.</strong> The repository lists those paths in
-            <code>protected_paths</code>, and <code>.gitstalk/checks.toml</code> and
-            <code>.gitstalk/policy.yml</code> are always protected. The bean's check goes red with
-            "changes a protected path". Only an owner or maintainer using their own personal token
-            or SSH key may change them. Agent sessions, deploy tokens and engine tokens never can,
-            whoever they act for.
+            <code>protected-paths</code>, and every checks file (<code>.gitstalk/checks.yml</code>
+            and its fallbacks) and <code>.gitstalk/policy.yml</code> are always protected. The
+            bean's check goes red with "changes a protected path". Only an owner or maintainer using
+            their own personal token or SSH key may change them. Agent sessions, deploy tokens and
+            engine tokens never can, whoever they act for.
           </p>
           <p>
             <strong>Fix.</strong> Drop those changes from the bean, or have a maintainer push them.
@@ -488,25 +493,26 @@ Drop those changes from the bean, or ask a maintainer to push them.</code></pre>
           </p>
 
           <h2 id="checks-and-actions">Checks and Actions</h2>
-          <h3 id="invalid-checks">.gitstalk/checks.toml is invalid</h3>
-          <pre><code>.gitstalk/checks.toml on the merged tree is invalid, so no tests ran:
-  unknown key "comand" (did you mean "command"?)
+          <h3 id="invalid-checks">.gitstalk/checks.yml is invalid</h3>
+          <pre><code>.gitstalk/checks.yml on the merged tree is invalid, so no tests ran:
+  line 3, column 1: unknown key "command": checks.yml spells it "run"
 Fix the file in this bean; see /docs/checks for the format.</code></pre>
           <p>
             <strong>Cause.</strong> The file is read from the exact merged tree and any problem is
-            red without running a test. A problem with the key or value names the key; a TOML syntax
-            error gives the line and column. <strong>Fix.</strong> Correct the file in the same
-            bean. The format is in <a href="/docs/checks">Checks</a>.
+            red without running a test. Each problem gives its line, column and key (an older
+            <code>checks.toml</code> names the key, and the line and column of a syntax error).
+            <strong>Fix.</strong> Correct the file in the same bean. The format is in
+            <a href="/docs/checks">Checks</a>.
           </p>
           <h3 id="node-only">The check says it only runs node</h3>
-          <pre><code>image: "python" is not available: the runner image ships Node 25.8.1 only, so the one image is "node" (see /docs/checks)
-command: must start with "node": the runner reads node's test reporter (other test runners need another image; see /docs/checks)
-command: must run node --test</code></pre>
+          <pre><code>line 1, column 8: image: "python" is not available: the runner image ships Node 25.8.1 only, so the one image is "node" (see /docs/checks)
+line 2, column 6: run: must start with "node": the runner reads node's test reporter (other test runners need another image; see /docs/checks)
+line 2, column 6: run: must run node --test</code></pre>
           <p>
             <strong>Cause.</strong> Checks run <code>node --test</code> in one image today, with
-            nothing installed at check time. A command is an argv, never a shell, so
-            <code>npm test</code> is refused. <strong>Fix.</strong> Use a command such as
-            <code>["node", "--test", "spec/**/*.spec.mjs"]</code>. Other languages and test runners
+            nothing installed at check time. <code>run</code> is a list of arguments, never a shell,
+            so <code>npm test</code> is refused. <strong>Fix.</strong> Use a command such as
+            <code>run: [node, --test, "spec/**/*.spec.mjs"]</code>. Other languages and test runners
             are not supported yet.
           </p>
           <h3 id="minutes">Actions minutes for the month are spent</h3>
@@ -558,9 +564,10 @@ this repository's 100 Actions minutes for the month are used</code></pre>
             <strong>What still works.</strong> <code>BEANSTALK_WEB</code>,
             <code>BEANSTALK_NO_BROWSER</code> and the other <code>BEANSTALK_*</code> settings are
             read when the <code>GITSTALK_*</code> one is unset;
-            <code>.beanstalk/checks.toml</code> and <code>.beanstalk/automations/</code> are read
-            when there is no <code>.gitstalk/</code> file; and an old plugin install keeps working
-            after you update it. See <a href="/docs/agents#upgrading">upgrading</a>.
+            <code>.beanstalk/checks.yml</code> (or <code>checks.toml</code>) and
+            <code>.beanstalk/automations/</code> are read when there is no
+            <code>.gitstalk/</code> file; and an old plugin install keeps working after you update
+            it. See <a href="/docs/agents#upgrading">upgrading</a>.
           </p>
 
           <section class="sources">

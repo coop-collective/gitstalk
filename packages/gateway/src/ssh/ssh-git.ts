@@ -9,10 +9,16 @@ import type { GitCredential } from '../auth/git-credential';
 import type { SshKeyOwner, SshKeyStore } from '../auth/ssh-keys';
 import { sshGitScopes } from '../auth/ssh-keys';
 import type { Deps } from '../deps';
+import type { RepositoriesDeps } from '../repos/repositories-deps';
 import { parseGitPath } from '../git/git-path';
 import { repoGit } from '../push/push-proxy';
 
-export type SshDeps = { readonly deps: Deps; readonly keys: SshKeyStore };
+export type SshDeps = {
+  readonly deps: Deps;
+  readonly keys: SshKeyStore;
+  /** The creation path: a key with `create` may push-to-create, as over HTTPS. */
+  readonly repositories?: RepositoriesDeps;
+};
 
 /** Whose key a public key line is. `confirm` marks a signature-checked use (the key is touched). */
 export type SshKeyLookup = { readonly publicKey: string; readonly confirm: boolean };
@@ -41,7 +47,7 @@ export async function lookupSshKey(
 /** One smart-HTTP request made over SSH with `publicKey`. */
 export async function serveSshGit(
   input: { readonly publicKey: string; readonly request: Request },
-  { deps, keys }: SshDeps,
+  { deps, keys, repositories }: SshDeps,
   ctx: Pick<ExecutionContext, 'waitUntil'>,
 ): Promise<Response> {
   const found = await ownerOf(input.publicKey, keys);
@@ -56,6 +62,7 @@ export async function serveSshGit(
     credential: sshCredential(found.owner),
     deps,
     ctx,
+    ...(repositories === undefined ? {} : { repositories }),
   });
 }
 

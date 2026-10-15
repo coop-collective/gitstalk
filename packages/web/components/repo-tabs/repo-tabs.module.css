@@ -53,6 +53,9 @@
 .glyph[data-kind='bean'] {
   color: var(--bean);
 }
+.glyph[data-kind='held'] {
+  color: var(--human-fill);
+}
 .glyph[data-kind='red'] {
   color: var(--red);
 }
@@ -419,21 +422,6 @@
   gap: 8px;
   align-items: center;
 }
-.cloneUrl {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.cloneUrl input {
-  flex: 1;
-  min-width: 0;
-  font: 12.5px var(--font-mono);
-  padding: 6px 8px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  color: var(--ink);
-}
 
 /* ---------- Changes ---------- */
 .filters {
@@ -466,6 +454,27 @@
 .count {
   font: 500 11.5px var(--font-mono);
   color: var(--ink-3);
+}
+.filter[data-filter='held'] {
+  color: var(--human);
+  border-color: color-mix(in srgb, var(--human-fill) 55%, var(--rule));
+}
+.filter[data-filter='held'][aria-current='page'] {
+  border-color: var(--human-fill);
+  background: var(--human-wash);
+}
+.filter[data-filter='held'] .count {
+  color: var(--human);
+}
+.heldLine {
+  grid-column: 2 / -1;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-left: 3px solid var(--human-fill);
+  background: var(--human-wash);
+  border-radius: 0 6px 6px 0;
+  font-size: 12.5px;
+  color: var(--ink);
 }
 .changes {
   list-style: none;
@@ -541,6 +550,12 @@
   border-color: var(--bad-fill);
   background: var(--bad-wash);
 }
+/* Held for a person: violet, the colour of people's decisions, never the red of a failure. */
+.state[data-state='held'] {
+  color: var(--human);
+  border-color: var(--human-fill);
+  background: var(--human-wash);
+}
 .state[data-state='landed'] {
   color: var(--ink);
   border-color: var(--sprout);
@@ -549,6 +564,9 @@
   color: var(--good);
   border-color: var(--good-fill);
   background: var(--good-wash);
+}
+.diffAnchor {
+  scroll-margin-top: 16px;
 }
 .empty {
   padding: 22px 16px;
@@ -656,6 +674,22 @@
 }
 .dot[data-tone='decide'] {
   background: var(--human-fill);
+}
+/* Held for a person's approval: the held panel's hollow violet bean, never a red dot. */
+.stepGlyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0 3px;
+  border-radius: 50%;
+  background: var(--sheet);
+}
+.dot[data-tone='approved'] {
+  background: var(--human-fill);
+  box-shadow: 0 0 0 2px var(--human-wash);
 }
 .stepText {
   font-size: var(--step--1);

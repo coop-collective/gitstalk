@@ -73,6 +73,10 @@ const KNOWN_LATE: Readonly<Record<string, string>> = {
     'an org deleted between the layout resolving its handle and the page reading it',
 };
 
+/** The repository layout's directory, and the line every layout under it starts with. */
+const REPOSITORY = '[owner]/[repo]';
+const DEFERS_TO_REPOSITORY_LAYOUT = 'if (await repositoryLayoutAnswers(params)) return null;';
+
 const webDir = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const appDir = join(webDir, 'app');
 
@@ -107,6 +111,27 @@ describe('the app routes', () => {
       ['orgs/(list)/layout.tsx', 'signedInUser('],
     ] as const;
     for (const [layout, check] of gates) expect(tree.get(layout), layout).toContain(check);
+  });
+
+  it('leave a missing or unreadable repository to the repository layout', () => {
+    // vinext probes a route's layouts innermost first and renders a layout's 404 inside the
+    // layouts above it. A nested layout that threw for a missing repository made the repository
+    // layout throw again inside that 404 page, and the answer was a bare "Not Found" text
+    // (/<owner>/<repo>/settings, /settings/secrets, /changes) instead of app/not-found.tsx.
+    const nested = dirsWith('layout.tsx').filter((dir) => isStrictlyInside(dir, REPOSITORY));
+    const reported = ['settings', 'settings/secrets', 'changes/(list)'].map(
+      (page) => `${REPOSITORY}/${page}`,
+    );
+    for (const page of reported) {
+      expect(tree.has(`${page}/page.tsx`), page).toBe(true);
+      expect(nested.filter((layout) => isInsideOrSelf(page, layout)).length, page).toBe(1);
+    }
+    for (const dir of nested) {
+      const source = tree.get(`${dir}/layout.tsx`) ?? '';
+      const deferral = source.indexOf(DEFERS_TO_REPOSITORY_LAYOUT);
+      expect(deferral, dir).toBeGreaterThan(-1);
+      expect(firstStatusCall(source), dir).toBeGreaterThan(deferral);
+    }
   });
 
   it('put repository settings, run pages and a bean under no skeleton', () => {
@@ -214,6 +239,14 @@ function lateStatusCalls(tree: ReadonlyMap<string, string>): string[] {
 
 function calls(source: string, name: string): boolean {
   return new RegExp(`\\b${name}\\(`).test(source);
+}
+
+/** Where the first status call in `source` starts, or -1 without one. */
+function firstStatusCall(source: string): number {
+  const starts = Object.keys(STATUS_CALLS)
+    .map((name) => new RegExp(`\\b${name}\\(`).exec(source)?.index)
+    .filter((index) => index !== undefined);
+  return starts.length === 0 ? -1 : Math.min(...starts);
 }
 
 function importsStatusCall(source: string): boolean {

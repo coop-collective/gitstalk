@@ -19,5 +19,6 @@ const GLYPHS: Readonly<Record<ChangeState, GlyphKind>> = {
   'fell-off': 'red',
   parked: 'parked',
   checking: 'bean',
+  held: 'held',
   waiting: 'bean',
 };

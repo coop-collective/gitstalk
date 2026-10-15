@@ -22,23 +22,21 @@
  *     match: { paths: ["src/auth/**"] }
  *     route: card
  *     writers: ["@security"]
+ *   - name: everything-else
+ *     match: { otherwise: true }
+ *     route: triage
  * ```
+ *
+ * `match: { otherwise: true }` makes the fallback class: it applies only when no other class
+ * matched (at most one per file; `approval-policy.ts`).
  */
-import {
-  LineCounter,
-  isAlias,
-  isMap,
-  isNode,
-  isScalar,
-  parseDocument,
-  stringify,
-  visit,
-} from 'yaml';
-import type { Document } from 'yaml';
+import { stringify } from 'yaml';
 import { z } from 'zod';
 
 import { configPaths } from './config-dir';
 import type { ConfigFile } from './config-dir';
+import { fieldOf, parseStrictYaml, yamlPathOf } from './strict-yaml';
+import type { YamlLocator, YamlPosition } from './strict-yaml';
 
 /** Where the policy lives, in lookup order: `.gitstalk/` wins over `.beanstalk/`. */
 export const POLICY_PATHS: readonly string[] = configPaths('policy.yml');
@@ -63,10 +61,14 @@ export const POLICY_CHANGE_CLASS = 'policy-change';
 export type ClassMatch =
   | { readonly kind: 'paths'; readonly paths: readonly string[] }
   | { readonly kind: 'syntax'; readonly syntax: 'comments-and-whitespace' }
-  | { readonly kind: 'class'; readonly class: BuiltinClass };
+  | { readonly kind: 'class'; readonly class: BuiltinClass }
+  /** The fallback: applies only when no other class matched (`approval-policy.ts`). */
+  | { readonly kind: 'otherwise' };
 
 export type PolicyClass = {
   readonly name: string;
+  /** What the class is, in a sentence: shown to Clef when it triages the class's beans. */
+  readonly description?: string;
   readonly match: ClassMatch;
   readonly route: Route;
   /** Who should decide its cards (shown on the card; the repository's deciders still decide). */
@@ -98,6 +100,49 @@ export type PolicyResolution =
     }
   | { readonly kind: 'valid'; readonly path: string; readonly policy: ApprovalPolicy };
 
+/**
+ * The recommended starter rules, offered by Settings → Approval rules when a repository has no
+ * file: comments, docs, tests and lockfiles land on their tests; migrations and auth code wait
+ * for a person; everything else is triaged by Clef (the fallback class). An agent's change to
+ * `.gitstalk/` is held for a person by the built-in `policy-change` class, so it needs no class
+ * here (and a class there would hold a maintainer's own save from Settings too).
+ */
+export const STARTER_POLICY = `# yaml-language-server: $schema=${POLICY_SCHEMA_URL}
+# Recommended starter rules (docs: /docs/approval-rules). A bean takes the strictest route of
+# the classes it matches; a comment-only change takes the comments class's route; the
+# everything-else class applies only when no other class matched. An agent's change to
+# .gitstalk/ always waits for a person (built in).
+classes:
+  - name: comments
+    description: Only comments and whitespace changed.
+    match: { syntax: comments-and-whitespace }
+    route: auto
+  - name: docs
+    description: Documentation only.
+    match: { class: docs-only }
+    route: auto
+  - name: tests
+    description: Tests only.
+    match: { class: tests-only }
+    route: auto
+  - name: lockfile
+    description: A package manager's lockfile only.
+    match: { class: lockfile }
+    route: auto
+  - name: migrations
+    description: Database schema and data migrations.
+    match: { paths: ["**/migrations/**", "**/*.sql"] }
+    route: card
+  - name: auth
+    description: Authentication, sessions, permissions and secrets handling.
+    match: { paths: ["**/auth/**", "**/permissions/**", "**/security/**"] }
+    route: card
+  - name: everything-else
+    description: Any other change.
+    match: { otherwise: true }
+    route: triage
+`;
+
 /** The policy a repository without a file (or with an invalid one) has: no classes. */
 export const EMPTY_POLICY: ApprovalPolicy = { classes: [], groups: {} };
 
@@ -106,6 +151,7 @@ const MAX_CLASSES = 50;
 const MAX_PATTERNS = 100;
 const MAX_PRINCIPALS = 100;
 const MAX_PROBLEMS = 20;
+const MAX_DESCRIPTION_CHARS = 200;
 const NAME = /^[a-z0-9][a-z0-9-]{0,39}$/u;
 /** `@handle` (a person, or a group of the file), or `agent:a3` (a race's agent slot). */
 const PRINCIPAL = /^(?:@[A-Za-z0-9][A-Za-z0-9_.-]{0,38}|agent:a\d{1,2})$/u;
@@ -129,6 +175,9 @@ const Principals = z
   .array(Principal, { error: 'must be a list of principals' })
   .max(MAX_PRINCIPALS, `must have at most ${MAX_PRINCIPALS} entries`);
 
+const MATCH_SHAPES =
+  'must be { paths: [...] }, { syntax: comments-and-whitespace }, { class: docs-only | tests-only | lockfile | comment-only } or { otherwise: true }';
+
 const Match = z.union(
   [
     z.strictObject({
@@ -139,15 +188,18 @@ const Match = z.union(
     }),
     z.strictObject({ syntax: z.literal('comments-and-whitespace') }),
     z.strictObject({ class: z.enum(BUILTIN_CLASSES) }),
+    z.strictObject({ otherwise: z.literal(true) }),
   ],
-  {
-    error:
-      'must be { paths: [...] }, { syntax: comments-and-whitespace } or { class: docs-only | tests-only | lockfile | comment-only }',
-  },
+  { error: (issue) => matchProblem(issue.input) },
 );
 
 const ClassEntry = z.strictObject({
   name: Name.refine((name) => name !== POLICY_CHANGE_CLASS, `"${POLICY_CHANGE_CLASS}" is built in`),
+  description: z
+    .string({ error: 'must be a string' })
+    .min(1, 'must not be empty')
+    .max(MAX_DESCRIPTION_CHARS, `must be at most ${MAX_DESCRIPTION_CHARS} characters`)
+    .optional(),
   match: Match,
   route: z.enum(ROUTES, { error: 'must be auto, triage or card' }),
   reviewers: Principals.default([]),
@@ -177,44 +229,46 @@ export function readApprovalPolicy(text: string | null, path = POLICY_PATH): Pol
   if (text === null) return { kind: 'missing' };
   if (text.length > MAX_FILE_CHARS)
     return invalid(path, [at(null, '', `longer than ${MAX_FILE_CHARS} characters`)]);
-  const counter = new LineCounter();
-  const document = parseDocument(text, {
-    version: '1.2',
-    schema: 'core',
-    strict: true,
-    uniqueKeys: true,
-    merge: false,
-    prettyErrors: false,
-    lineCounter: counter,
-  });
-  const syntax = [...document.errors, ...document.warnings].map((error) =>
-    at(counter.linePos(error.pos[0]), '', firstLine(error.message)),
-  );
-  const shared = syntax.length === 0 ? anchorsAndAliases(document, counter) : [];
-  if (syntax.length > 0 || shared.length > 0) return invalid(path, [...syntax, ...shared]);
-  const parsed = PolicyFile.safeParse(document.toJS() ?? {});
-  if (!parsed.success)
+  const parsed = parseStrictYaml(text);
+  if (!parsed.ok)
     return invalid(
       path,
-      parsed.error.issues
-        .slice(0, MAX_PROBLEMS)
-        .map((issue) => problemOf(issue, document, counter)),
+      parsed.problems.map((problem) => at(problem.position, '', problem.message)),
     );
-  const duplicate = duplicateName(parsed.data.classes.map((entry) => entry.name));
+  const file = PolicyFile.safeParse(parsed.value ?? {});
+  if (!file.success)
+    return invalid(
+      path,
+      file.error.issues.slice(0, MAX_PROBLEMS).map((issue) => problemOf(issue, parsed.at)),
+    );
+  const duplicate = duplicateName(file.data.classes.map((entry) => entry.name));
   if (duplicate !== null)
     return invalid(path, [
       at(
-        locate(document, counter, ['classes', duplicate.index, 'name']),
+        parsed.at.value(['classes', duplicate.index, 'name']),
         `classes[${duplicate.index}].name`,
         `two classes are named "${duplicate.name}"`,
+      ),
+    ]);
+  const second = secondFallback(file.data.classes.map((entry) => entry.match));
+  if (second !== null)
+    return invalid(path, [
+      at(
+        parsed.at.value(['classes', second, 'match', 'otherwise']),
+        `classes[${second}].match.otherwise`,
+        'only one class may be the fallback ({ otherwise: true })',
       ),
     ]);
   return {
     kind: 'valid',
     path,
     policy: {
-      groups: parsed.data.groups,
-      classes: parsed.data.classes.map((entry) => ({ ...entry, match: matchOf(entry.match) })),
+      groups: file.data.groups,
+      classes: file.data.classes.map(({ description, ...entry }) => ({
+        ...entry,
+        ...(description === undefined ? {} : { description }),
+        match: matchOf(entry.match),
+      })),
     },
   };
 }
@@ -238,6 +292,7 @@ export function writeApprovalPolicy(policy: ApprovalPolicy): string {
     ...(Object.keys(policy.groups).length === 0 ? {} : { groups: policy.groups }),
     classes: policy.classes.map((entry) => ({
       name: entry.name,
+      ...(entry.description === undefined ? {} : { description: entry.description }),
       match: matchInput(entry.match),
       route: entry.route,
       ...(entry.reviewers.length === 0 ? {} : { reviewers: entry.reviewers }),
@@ -273,96 +328,19 @@ export function policyView(
   }
 }
 
-type Position = { readonly line: number; readonly col: number } | null;
-
-function at(position: Position, field: string, message: string): PolicyProblem {
-  return { line: position?.line ?? null, column: position?.col ?? null, field, message };
+function at(position: YamlPosition | null, field: string, message: string): PolicyProblem {
+  return { line: position?.line ?? null, column: position?.column ?? null, field, message };
 }
 
-function firstLine(message: string): string {
-  return message.split('\n')[0] ?? message;
-}
-
-/** Anchors (`&a`) and aliases (`*a`, which `<<` merge keys need) are refused: rules read as written. */
-function anchorsAndAliases(document: Document, counter: LineCounter): PolicyProblem[] {
-  const problems: PolicyProblem[] = [];
-  visit(document, (_key, node) => {
-    if (isAlias(node))
-      problems.push(
-        at(
-          rangeStart(node.range, counter),
-          '',
-          'aliases (*name) and merge keys are not allowed; write each value out',
-        ),
-      );
-    else if (isNode(node) && node.anchor !== undefined)
-      problems.push(
-        at(
-          rangeStart(node.range, counter),
-          '',
-          'anchors (&name) are not allowed; write each value out',
-        ),
-      );
-  });
-  return problems;
-}
-
-function rangeStart(range: readonly number[] | null | undefined, counter: LineCounter): Position {
-  const start = range?.[0];
-  return start === undefined ? null : counter.linePos(start);
-}
-
-function problemOf(
-  issue: z.core.$ZodIssue,
-  document: Document,
-  counter: LineCounter,
-): PolicyProblem {
-  const path = issue.path.filter((part) => typeof part !== 'symbol');
+function problemOf(issue: z.core.$ZodIssue, where: YamlLocator): PolicyProblem {
+  const path = yamlPathOf(issue.path);
   if (issue.code === 'unrecognized_keys') {
     const keys = issue.keys.map((key) => `"${key}"`).join(', ');
     const first = issue.keys[0];
-    const where =
-      first === undefined
-        ? locate(document, counter, path)
-        : keyPosition(document, counter, [...path, first]);
-    return at(where, fieldOf(path), `unknown key ${keys}`);
+    const position = first === undefined ? where.value(path) : where.key([...path, first]);
+    return at(position, fieldOf(path), `unknown key ${keys}`);
   }
-  return at(locate(document, counter, path), fieldOf(path), issue.message);
-}
-
-/** The position of the value at `path`, or of the nearest ancestor the document has. */
-function locate(
-  document: Document,
-  counter: LineCounter,
-  path: readonly (string | number)[],
-): Position {
-  for (let depth = path.length; depth >= 0; depth -= 1) {
-    const node: unknown = document.getIn(path.slice(0, depth), true);
-    if (isNode(node)) return rangeStart(node.range, counter);
-  }
-  return null;
-}
-
-/** The position of the key at the end of `path` (an unknown key's name). */
-function keyPosition(
-  document: Document,
-  counter: LineCounter,
-  path: readonly (string | number)[],
-): Position {
-  const parent: unknown = document.getIn(path.slice(0, -1), true);
-  const key = path.at(-1);
-  if (isMap(parent)) {
-    const pair = parent.items.find((item) => isScalar(item.key) && item.key.value === key);
-    if (pair !== undefined && isNode(pair.key)) return rangeStart(pair.key.range, counter);
-  }
-  return locate(document, counter, path.slice(0, -1));
-}
-
-function fieldOf(path: readonly (string | number)[]): string {
-  return path.reduce<string>((text, part) => {
-    if (typeof part === 'number') return `${text}[${part}]`;
-    return text === '' ? part : `${text}.${part}`;
-  }, '');
+  return at(where.value(path), fieldOf(path), issue.message);
 }
 
 type ParsedMatch = z.infer<typeof Match>;
@@ -370,7 +348,22 @@ type ParsedMatch = z.infer<typeof Match>;
 function matchOf(match: ParsedMatch): ClassMatch {
   if ('paths' in match) return { kind: 'paths', paths: match.paths };
   if ('syntax' in match) return { kind: 'syntax', syntax: match.syntax };
+  if ('otherwise' in match) return { kind: 'otherwise' };
   return { kind: 'class', class: match.class };
+}
+
+/** Why a `match` is none of its shapes: a misused `otherwise` gets its own message. */
+function matchProblem(input: unknown): string {
+  if (typeof input !== 'object' || input === null || !('otherwise' in input)) return MATCH_SHAPES;
+  if (Object.keys(input).length > 1)
+    return 'otherwise cannot be combined with paths, syntax or class: the fallback applies only when no other class matched';
+  return input.otherwise === true ? MATCH_SHAPES : 'otherwise must be true';
+}
+
+/** The index of the second fallback class, or null when there is at most one. */
+function secondFallback(matches: readonly ParsedMatch[]): number | null {
+  const fallbacks = [...matches.entries()].filter(([, match]) => 'otherwise' in match);
+  return fallbacks[1]?.[0] ?? null;
 }
 
 function matchInput(match: ClassMatch): ParsedMatch {
@@ -381,6 +374,8 @@ function matchInput(match: ClassMatch): ParsedMatch {
       return { syntax: match.syntax };
     case 'class':
       return { class: match.class };
+    case 'otherwise':
+      return { otherwise: true };
     default:
       return assertNever(match);
   }

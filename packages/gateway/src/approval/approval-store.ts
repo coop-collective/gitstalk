@@ -2,14 +2,23 @@
  * What an engine remembers about approval rules, in its RunDO's SQLite: each bean's latest
  * route receipt (with the fingerprint of the change it judged, so a re-check of the same
  * change reuses a triage instead of asking Clef again), and the approvals people gave, per
- * bean revision (its pushed head; '' in a race, where beans have no pushes).
+ * bean revision (its pushed head; '' in a race, where beans have no pushes), with the note,
+ * the client it came through and its idempotency key beside them (`bean_approval_notes`, a
+ * table of its own so engines that already have `bean_approvals` need no column migration).
  */
 import { RouteReceipt } from '@gitstalk/shared-race/approval-policy';
 
 const KEPT_ROWS = 1000;
 
 /** A person's approval of one bean revision. */
-export type Approval = { readonly actor: string; readonly atMs: number };
+export type Approval = {
+  readonly actor: string;
+  readonly atMs: number;
+  readonly note: string | null;
+  /** `web` or `MCP (<client>)`; '' for approvals stored before it was kept. */
+  readonly client: string;
+  readonly idempotencyKey: string | null;
+};
 
 export function migrateApprovalStore(sql: SqlStorage): void {
   sql.exec(
@@ -17,6 +26,9 @@ export function migrateApprovalStore(sql: SqlStorage): void {
   );
   sql.exec(
     'CREATE TABLE IF NOT EXISTS bean_approvals (bean TEXT NOT NULL, revision TEXT NOT NULL, actor TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (bean, revision))',
+  );
+  sql.exec(
+    'CREATE TABLE IF NOT EXISTS bean_approval_notes (bean TEXT NOT NULL, revision TEXT NOT NULL, note TEXT, client TEXT NOT NULL, idempotency_key TEXT, PRIMARY KEY (bean, revision))',
   );
 }
 
@@ -64,7 +76,27 @@ export function saveApproval(
     entry.approval.actor,
     entry.approval.atMs,
   );
+  sql.exec(
+    'INSERT OR REPLACE INTO bean_approval_notes (bean, revision, note, client, idempotency_key) VALUES (?, ?, ?, ?, ?)',
+    entry.bean,
+    entry.revision ?? '',
+    entry.approval.note,
+    entry.approval.client,
+    entry.approval.idempotencyKey,
+  );
 }
+
+const APPROVAL_COLUMNS =
+  'a.revision, a.actor, a.at, n.note, n.client, n.idempotency_key FROM bean_approvals a LEFT JOIN bean_approval_notes n ON n.bean = a.bean AND n.revision = a.revision';
+
+type ApprovalRow = {
+  revision: string;
+  actor: string;
+  at: number;
+  note: string | null;
+  client: string | null;
+  idempotency_key: string | null;
+};
 
 export function readApproval(
   sql: SqlStorage,
@@ -72,11 +104,48 @@ export function readApproval(
   revision: string | null,
 ): Approval | null {
   const row = sql
-    .exec<{ actor: string; at: number }>(
-      'SELECT actor, at FROM bean_approvals WHERE bean = ? AND revision = ?',
+    .exec<ApprovalRow>(
+      `SELECT ${APPROVAL_COLUMNS} WHERE a.bean = ? AND a.revision = ?`,
       bean,
       revision ?? '',
     )
     .toArray()[0];
-  return row === undefined ? null : { actor: row.actor, atMs: row.at };
+  return row === undefined ? null : approvalOf(row);
+}
+
+/** The approval of `bean` that idempotency key `key` made, and its revision; null when none. */
+export function readApprovalByKey(
+  sql: SqlStorage,
+  bean: string,
+  key: string,
+): { readonly revision: string; readonly approval: Approval } | null {
+  const row = sql
+    .exec<ApprovalRow>(
+      `SELECT ${APPROVAL_COLUMNS} WHERE a.bean = ? AND n.idempotency_key = ?`,
+      bean,
+      key,
+    )
+    .toArray()[0];
+  return row === undefined ? null : { revision: row.revision, approval: approvalOf(row) };
+}
+
+/** Every approval of `bean`'s revisions, oldest first: its journey names each one. */
+export function readApprovals(
+  sql: SqlStorage,
+  bean: string,
+): readonly { readonly revision: string; readonly approval: Approval }[] {
+  return sql
+    .exec<ApprovalRow>(`SELECT ${APPROVAL_COLUMNS} WHERE a.bean = ? ORDER BY a.at`, bean)
+    .toArray()
+    .map((row) => ({ revision: row.revision, approval: approvalOf(row) }));
+}
+
+function approvalOf(row: ApprovalRow): Approval {
+  return {
+    actor: row.actor,
+    atMs: row.at,
+    note: row.note,
+    client: row.client ?? '',
+    idempotencyKey: row.idempotency_key,
+  };
 }

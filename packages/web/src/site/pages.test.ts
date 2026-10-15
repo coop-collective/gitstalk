@@ -29,6 +29,7 @@ describe('the public pages the sitemap lists', () => {
     expect(paths.slice(0, 3)).toEqual(['/', '/about', '/agent']);
     expect(paths).toContain('/docs/');
     expect(paths).toContain('/docs/self-hosting');
+    expect(paths).toContain('/docs/runners');
     expect(paths.some((path) => path.endsWith('.html'))).toBe(false);
   });
 });

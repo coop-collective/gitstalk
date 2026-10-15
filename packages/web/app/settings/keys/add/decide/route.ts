@@ -18,6 +18,7 @@ export async function POST(request: Request): Promise<Response> {
     userId: checked.session.user.id,
     decision,
     ip: clientIp(request),
+    mayCreate: checked.form.get('create') === 'yes',
   });
   if (!decided.ok)
     return seeOther(request, `/settings/keys?error=${encodeURIComponent(decided.reason)}`);

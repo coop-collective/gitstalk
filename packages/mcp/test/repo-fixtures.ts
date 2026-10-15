@@ -62,7 +62,7 @@ export async function repository(
 export async function collaborator(
   owner: Person,
   repo: Repository,
-  role: 'read' | 'write',
+  role: 'read' | 'write' | 'maintain',
 ): Promise<Person> {
   const member = await person('mcp-member');
   const invited = await gatewayCall('inviteCollaborator', owner, repo.id, {
@@ -152,7 +152,7 @@ export async function gitPush(
 }
 
 /**
- * Lands `.beanstalk/checks.toml` as the repository's owner (`token` is the owner's personal
+ * Lands `.gitstalk/checks.yml` as the repository's owner (`token` is the owner's personal
  * token, which may change the checks), so later beans run the fake runner's suite.
  */
 export async function requireChecks(repo: Repository, token: string): Promise<void> {
@@ -160,7 +160,7 @@ export async function requireChecks(repo: Repository, token: string): Promise<vo
     bean: 'require-checks',
     newSha: await digest(`checks:${repo.id}`),
     options: ['wait'],
-    files: { '.beanstalk/checks.toml': 'command = ["node", "--test"]\n' },
+    files: { '.gitstalk/checks.yml': 'run: [node, --test]\n' },
   });
   if (!landed.remote.includes('LANDED')) throw new Error(`checks bean: ${landed.remote}`);
 }

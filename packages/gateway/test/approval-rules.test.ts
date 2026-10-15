@@ -95,7 +95,7 @@ describe('approval rules', () => {
     ]);
   });
 
-  it('holds a card bean until a person approves it, then lands it with a receipt', async () => {
+  it('holds a card bean for a person, with a receipt (approving it: bean-approval.test.ts)', async () => {
     const { opened, token } = await withPolicy('rules-card');
     const remote = await pushFiles(opened, token, {
       name: 'login',
@@ -103,7 +103,10 @@ describe('approval rules', () => {
     });
     expect(remote).toContain('approval rules: protected -> card (policy)');
     expect(remote).toContain("awaiting a person's approval");
-    expect(remote).toContain('RED: login was not landed');
+    expect(remote).toContain(
+      "HELD: login waits for a person's approval (class protected, decided by policy); nothing in it needs fixing",
+    );
+    expect(remote).not.toMatch(/RED:|fix:/u);
     await until(opened.engineId, 'login', ['red']);
 
     const held = await gateway.beanRoute(opened.engineId, 'login');
@@ -117,11 +120,41 @@ describe('approval rules', () => {
       policy: { path: '.gitstalk/policy.yml', valid: true },
     });
 
-    const approved = await gateway.approveBean(opened.engineId, 'login', 'acme');
-    expect(approved).toEqual({ ok: true, value: { approved: true, resubmitted: true } });
-    await until(opened.engineId, 'login', ['landed', 'green']);
-    const route = await gateway.beanRoute(opened.engineId, 'login');
-    expect(route.ok && route.value?.approval).toEqual({ state: 'approved', actor: 'acme' });
+    const pushed = await gateway.pushedBeans(opened.engineId);
+    const login = pushed.ok ? pushed.value.find((bean) => bean.bean === 'login') : undefined;
+    expect(login?.hold).toMatchObject({ state: 'held', class: 'protected', reviewers: ['@acme'] });
+    // An engine with no repository record (opened by an operator) has nobody to approve it.
+    const refusal = await gateway.approveBean(opened.engineId, 'login', {
+      approver: 'u1',
+      client: { kind: 'web' },
+    });
+    expect(refusal).toMatchObject({ ok: false, error: { code: 'not_found' } });
+  });
+
+  it('spends no rework round on a hold: the bean waits for a person, not a fix', async () => {
+    const { opened, token } = await withPolicy('rules-rounds');
+    for (const version of [1, 2]) {
+      // oxlint-disable-next-line no-await-in-loop -- the author pushes again after each hold
+      const remote = await pushFiles(opened, token, {
+        name: 'session',
+        files: { 'src/auth/session.ts': `export const session = ${version};\n` },
+      });
+      expect(remote).toContain("awaiting a person's approval");
+      // oxlint-disable-next-line no-await-in-loop -- each hold settles before the next push
+      await until(opened.engineId, 'session', ['red']);
+    }
+    const page = await gateway.runEvents(opened.engineId, 0, 1000);
+    expect(page.ok).toBe(true);
+    const reworks = (page.ok ? page.value.events : [])
+      .map((line): unknown => JSON.parse(line))
+      .filter(
+        (event) =>
+          typeof event === 'object' &&
+          event !== null &&
+          Reflect.get(event, 'type') === 'rework.start' &&
+          Reflect.get(event, 'task') === 'session',
+      );
+    expect(reworks.map((event) => Reflect.get(Object(event), 'attempt'))).toEqual([0, 0]);
   });
 
   it('refuses a bean from outside the writers of a class', async () => {
@@ -134,8 +167,8 @@ describe('approval rules', () => {
     expect(remote).toContain('changes a class it may not write');
     const route = await gateway.beanRoute(opened.engineId, 'pay');
     expect(route.ok && route.value?.refused).toBe('@coop may not change class billing');
-    const refusal = await gateway.approveBean(opened.engineId, 'pay', 'acme');
-    expect(refusal.ok).toBe(false);
+    const pushed = await gateway.pushedBeans(opened.engineId);
+    expect(pushed.ok && pushed.value.find((bean) => bean.bean === 'pay')?.hold).toBeNull();
   });
 
   it('triages by rule when Clef cannot answer, and always cards a policy change', async () => {

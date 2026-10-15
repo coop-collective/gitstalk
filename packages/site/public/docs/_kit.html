@@ -424,6 +424,34 @@ remote: gitstalk: <span class="ok">validated: on the stalk</span></pre>
               <p>Watch a change take shape as it is written.</p>
             </a>
           </div>
+
+          <h2 id="toc">On this page</h2>
+          <p>
+            Nothing to write: <code>docs.js</code> builds this from a page's h2 and h3 headings when
+            it has three or more, adds a hover <code>#</code> link to each heading, and highlights
+            the section in view. From 1200px it is a sticky right-hand column; narrower, it folds
+            into this disclosure above the article. The kit itself gets none; this is a static copy.
+            Give a heading an <code>id</code> when another page links to it; otherwise the id is its
+            text, slugified.
+          </p>
+          <details class="toc">
+            <summary>On this page</summary>
+            <nav aria-label="On this page (example)">
+              <p class="toc-title" aria-hidden="true">On this page</p>
+              <ul>
+                <li><a href="#badges">Badges</a></li>
+                <li><a href="#callouts" aria-current="true">Callouts</a></li>
+                <li>
+                  <a href="#mocks">UI mocks</a>
+                  <ul>
+                    <li><a href="#mocks">Bean status rows</a></li>
+                    <li><a href="#mocks">Decision card</a></li>
+                  </ul>
+                </li>
+                <li><a href="#toc">On this page</a></li>
+              </ul>
+            </nav>
+          </details>
         </article>
       </div>
     </main>

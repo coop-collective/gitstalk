@@ -25,7 +25,7 @@ import type {
 import type { EngineState } from '../engine/state';
 import type { Logger } from '../log';
 import { pushedBeanRef } from './bean-refs';
-import type { PushBean, PushProgress } from './push-bean';
+import type { CheckHold, PushBean, PushProgress } from './push-bean';
 import {
   progressOf,
   pushRefusal,
@@ -38,7 +38,7 @@ import { foldEvents } from './push-events';
 import type { PushIntent } from './push-intent';
 import type { ProtectedAccess } from '../checks/protected-access';
 import type { BeanRef, ReworkFacts } from './push-messages';
-import { conflictLines, redLines } from './push-messages';
+import { conflictLines, heldLines, heldWhy, redLines } from './push-messages';
 
 const INTERNAL_POLL = 'push:';
 /** Poll rounds per drain: a slot that keeps being answered `wait` is not polled forever. */
@@ -261,25 +261,22 @@ export class PushDriver {
     this.#apply(invocation, pushResult(bean));
   }
 
-  /** A red or a conflict: the rework waits for the author; its verdict is the push's answer. */
+  /**
+   * A red, a conflict or a hold of the approval rules: the rework waits for the author (or, for
+   * a hold, for a person's approval, which re-submits the same head); its verdict is the push's
+   * answer.
+   */
   #hold(bean: PushBean, invocation: EngineInstruction, slot: SlotId): void {
-    const facts = this.#facts(bean);
     const context = { bean: bean.bean, link: this.#host.link(bean.bean) };
-    const isConflict = facts.reason === 'conflict';
-    const lines = verdictLines({ context, facts, prompt: invocation.prompt });
-    const held = {
+    const waiting = {
       ...bean,
       awaiting: { inv: invocation.inv, slot, kind: invocation.kind, prompt: invocation.prompt },
     };
-    this.#save(
-      withPhase(held, {
-        phase: isConflict ? 'conflict' : 'red',
-        reason: isConflict
-          ? `conflicts with the sprout in ${facts.conflicts.join(', ')}`
-          : `${facts.failing.length} failing test(s) on the merged tree`,
-        lines,
-      }),
-    );
+    const verdict =
+      bean.held === null
+        ? reworkVerdict({ context, facts: this.#facts(bean), prompt: invocation.prompt })
+        : heldVerdict(context, bean.held);
+    this.#save(withPhase(waiting, verdict));
   }
 
   #facts(bean: PushBean): ReworkFacts {
@@ -365,6 +362,39 @@ function noCommit(): InvocationResult {
     head_sha: null,
     new_commit: false,
   });
+}
+
+type Verdict = {
+  readonly phase: 'red' | 'conflict';
+  readonly reason: string;
+  readonly lines: readonly string[];
+};
+
+/** A red or a conflict the author fixes. */
+function reworkVerdict(input: {
+  context: { bean: string; link: string | null };
+  facts: ReworkFacts;
+  prompt: string;
+}): Verdict {
+  const { facts } = input;
+  const isConflict = facts.reason === 'conflict';
+  return {
+    phase: isConflict ? 'conflict' : 'red',
+    reason: isConflict
+      ? `conflicts with the sprout in ${facts.conflicts.join(', ')}`
+      : `${facts.failing.length} failing test(s) on the merged tree`,
+    lines: verdictLines(input),
+  };
+}
+
+/** A hold: red to git (the push's wait ends), but nothing for the author to fix. */
+function heldVerdict(context: { bean: string; link: string | null }, held: CheckHold): Verdict {
+  const why = heldWhy(held);
+  return {
+    phase: 'red',
+    reason: `held for a person's approval (${why})`,
+    lines: heldLines(context, why),
+  };
 }
 
 function verdictLines(input: {
