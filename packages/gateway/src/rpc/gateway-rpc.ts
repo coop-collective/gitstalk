@@ -22,7 +22,7 @@ import { issueToken, verifyToken } from '../auth/tokens';
 import type { Deps } from '../deps';
 import { GatewayError, UpstreamError } from '../errors';
 import type { RunResult } from '../run/run-do';
-import { MAX_LISTED_RUNS, RUN_INDEX_NAME } from '../run/run-index';
+import { MAX_LISTED_RUNS, listRunPage } from '../run/run-list';
 import { collaborationRpc } from './collaboration-rpc';
 
 /** View tokens minted for the web app's live socket live an hour. */
@@ -33,6 +33,11 @@ const MAX_PATHS = 100;
 const MAX_EVENTS_PAGE = 5000;
 /** Characters of an actor's name (the log records `human:<actor>`). */
 const MAX_ACTOR = 64;
+
+const RunListCursor = z.object({
+  created_at: z.string().max(64),
+  run: z.string().max(64),
+});
 
 const Ref = z.string().regex(REPO_REF_PATTERN, 'sprout, stalk, beans/<task> or a commit sha');
 const Path = z.string().max(512).refine(isSafeRepoPath, 'a relative path inside the repo');
@@ -45,10 +50,11 @@ export type GatewayRpcSurface = GatewayRpc &
 export function gatewayRpc(env: Env, deps: Deps): GatewayRpcSurface {
   return {
     ...collaborationRpc(deps),
-    async listRuns(limit = 50) {
-      const index = env.RUN_INDEX.getByName(RUN_INDEX_NAME);
-      return index.list(Math.min(limit, MAX_LISTED_RUNS));
-    },
+    listRuns: (limit = 50, before) =>
+      listRunPage(env.FORGE, {
+        limit: Number.isFinite(limit) ? limit : MAX_LISTED_RUNS,
+        before: before === undefined ? undefined : RunListCursor.parse(before),
+      }),
     runView: (run) => forRun(run, async (id) => fromRun(await deps.run(id).view())),
     runEvents: (run, after, limit) =>
       forRun(run, async (id) => {

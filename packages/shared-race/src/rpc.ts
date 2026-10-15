@@ -78,6 +78,9 @@ export type RunListItem = {
   readonly spent_usd: number;
 };
 
+/** Where a page of `listRuns` ends: the last row's `created_at` and `run`. */
+export type RunListCursor = { readonly created_at: string; readonly run: string };
+
 export type SlotView = {
   readonly slot: string;
   readonly activity: 'busy' | 'blocked' | 'idle';
@@ -544,7 +547,8 @@ export type TestCoverage = {
 
 /** The methods the web app calls on its `GATEWAY` service binding. */
 export type GatewayRpc = Partial<CollaborationRpc> & {
-  listRuns(limit?: number): Promise<readonly RunListItem[]>;
+  /** The newest runs first; `before` (the last row of a page) asks for the next page. */
+  listRuns(limit?: number, before?: RunListCursor): Promise<readonly RunListItem[]>;
   runView(run: string): Promise<RpcResult<RunView>>;
   runEvents(run: string, after: number, limit: number): Promise<RpcResult<RunEventsPage>>;
   decide(

@@ -1,10 +1,22 @@
-import { env, runInDurableObject } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 import { RunId } from '@gitstalk/shared-race/ids';
 
+import { REPO_MAX_AGE_MS } from '../src/run/spend-guards';
+
 import type { CreatedRun } from './helpers';
-import { ADMIN, arenaTask, call, createRun, driveSlot, json, pushBase } from './helpers';
+import {
+  ADMIN,
+  arenaTask,
+  call,
+  createRun,
+  driveSlot,
+  fireCron,
+  json,
+  listedRun,
+  pushBase,
+} from './helpers';
 
 const BASE = 'f'.repeat(40);
 
@@ -125,15 +137,26 @@ describe('the hourly sweep', () => {
       `repo-${name}`,
     );
   });
+});
 
-  it('is scheduled once runs are indexed', async () => {
-    await createRun();
+describe('the hourly cron trigger', () => {
+  it('sweeps old runs and orphaned repos and leaves fresh ones', async () => {
+    const orphan = `s${crypto.randomUUID().replaceAll('-', '').slice(0, 11)}`;
+    await env.ARTIFACTS.create(`race-${orphan}`);
+    const old = await createRun({ keep_repo: true });
+    const fresh = await createRun({ keep_repo: true });
+    const [oldRow, freshRow] = await Promise.all([listedRun(old.run), listedRun(fresh.run)]);
+    const freshStartedMs = Date.parse(freshRow.created_at);
 
-    const alarm = await runInDurableObject(env.RUN_INDEX.getByName('runs'), (_, state) =>
-      state.storage.getAlarm(),
-    );
+    // The trigger fires one day after the fresh run began: it is just young enough to stay.
+    await fireCron(freshStartedMs + REPO_MAX_AGE_MS);
+    const remaining = (await env.ARTIFACTS.list()).repos.map((repo) => repo.name);
 
-    expect(alarm).not.toBeNull();
+    expect(Date.parse(oldRow.created_at)).toBeLessThan(freshStartedMs);
+    expect(remaining).not.toContain(`race-${orphan}`);
+    expect(remaining).not.toContain(old.repo.name);
+    expect(remaining).toContain(fresh.repo.name);
+    expect(await repoNames(fresh)).toEqual([fresh.repo.name]);
   });
 });
 
@@ -154,6 +177,7 @@ describe('the spend cap', () => {
 describe('the kill switch', () => {
   it('stops runs in flight and refuses new ones until it is turned off', async () => {
     const waiting = await createRun();
+    await listedRun(waiting.run);
 
     const halted = await call('POST', '/v1/admin/halt', { token: ADMIN, body: { reason: 'bill' } });
     const refused = await call('POST', '/v1/runs', {
