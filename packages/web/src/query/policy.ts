@@ -7,8 +7,12 @@
  * useQuery({ queryKey: keys.bean(name), queryFn, ...freshness('immutable', { visibility }) });
  * ```
  *
- * - `immutable`: content addressed by a sha (a tree, a file, the diff of a landed bean, a
+ * - `immutable`: content addressed by a sha (a tree, a folder, the diff of a landed bean, a
  *   finished run). Never stale; an event can still invalidate it.
+ * - `immutableBlob`: a file's contents at a sha (the Code tab's file reads). Never stale, like
+ *   `immutable`, but kept in memory only and for the default time: one file can be most of the
+ *   few MB of sessionStorage that every persisted query shares, and a write over the quota
+ *   drops the whole persisted cache.
  * - `appendOnly`: the engine's event log. Never stale while its live feed is open (the feed
  *   appends to it), 15 s otherwise. Kept in memory only: the feed changes it every second
  *   while live, a persisted copy would be re-serialised whole each time, and every page that
@@ -29,7 +33,7 @@ import { DEFAULT_GC_TIME_MS, DEFAULT_STALE_TIME_MS } from './make-query-client';
 import { PERSIST_MAX_AGE_MS } from './persistence';
 import { OFFLINE_STALE_TIME_MS } from './use-live-feed';
 
-export type FreshnessClass = 'immutable' | 'appendOnly' | 'mutable' | 'perViewer';
+export type FreshnessClass = 'immutable' | 'immutableBlob' | 'appendOnly' | 'mutable' | 'perViewer';
 
 /** A repository's visibility, as its record names it. */
 export type Visibility = 'public' | 'private' | 'internal';
@@ -53,6 +57,8 @@ export function freshness(kind: FreshnessClass, input: FreshnessInput = {}): Fre
   switch (kind) {
     case 'immutable':
       return kept(Number.POSITIVE_INFINITY, input.visibility);
+    case 'immutableBlob':
+      return { staleTime: Number.POSITIVE_INFINITY, gcTime: DEFAULT_GC_TIME_MS, meta: {} };
     case 'appendOnly':
       return {
         staleTime: input.live === true ? Number.POSITIVE_INFINITY : OFFLINE_STALE_TIME_MS,

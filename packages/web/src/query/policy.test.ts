@@ -36,6 +36,15 @@ describe('the freshness policy', () => {
     expect(persisted()).toBe(false);
   });
 
+  it('never lets a file’s contents go stale, nor persists them, whatever the visibility', () => {
+    for (const visibility of ['public', 'private', 'internal'] as const)
+      expect(freshness('immutableBlob', { visibility })).toEqual({
+        staleTime: NEVER,
+        gcTime: DEFAULT_GC_TIME_MS,
+        meta: {},
+      });
+  });
+
   it('never persists the event log, repository state that moves, or the viewer’s own data', () => {
     const kinds: readonly FreshnessClass[] = ['appendOnly', 'mutable', 'perViewer'];
     for (const kind of kinds)
