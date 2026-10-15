@@ -29,7 +29,7 @@ the stable line that only moves to validated sprout commits. See the public
 | `/login`, `/signup`, `/signup/agent` | One sign-in flow (`components/account/sign-in-flow.tsx`): continue with a passkey (autofill where supported) or an email and six-digit code; a new address picks a handle, then is offered a passkey; `/signup` also creates an account from a handle and a passkey. Turnstile when configured; `next` is kept on every step. Sign-up through your agent's own OAuth flow |
 | `/connect` | OAuth consent for an agent, opened by `gitstalk-mcp`'s `/authorize` |
 | `/new`, `/<owner>` | Create a repository; a person's or organisation's page |
-| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk: the file tree beside the open file or folder (`components/repo-tabs/code-workspace.tsx`, `file-tree.tsx`, `go-to-file.tsx`; model in `src/code/file-tree.ts`), its folders read through `/api/repos/<owner>/<repo>/code/folder` and Go to file through `/code/paths` |
+| `/<owner>/<repo>` | The start page until the first bean, then the Code tab (`tree`, `blob`) on the stalk: the beanstalk beside a folder and the file tree beside a file, tabs for both (`components/repo-tabs/code-workspace.tsx`, `code-stalk.tsx`, `file-tree.tsx`, `go-to-file.tsx`; model in `src/code/file-tree.ts`), its folders read through `/api/repos/<owner>/<repo>/code/folder` and Go to file through `/code/paths` |
 | `/<owner>/<repo>/ask`, `/files` | Ask, the generated explorer: a question becomes a view spec with removable chips, then a fixed arrangement of files, beans, decisions and checks |
 | `/<owner>/<repo>/changes`, `/history`, `/people` | Beans (open, held for approval, landed, parked) and a bean's detail (a held bean's page has the Held panel where owners and maintainers approve it); stalk and sprout history with validation verdicts; who has access |
 | `/<owner>/<repo>/actions`, `/automations` | Workflows and their runs (job logs streamed); automations defined in `.gitstalk/automations/`, with a builder and editor |
@@ -116,8 +116,14 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   not-found page inside a 200. So a 404 or redirect that must be the response's status lives
   either in a layout at or above the loading file, or in a page no loading file encloses:
   - `app/[owner]/[repo]/layout.tsx`: the repository access check (every repository route).
-  - `[repo]/(tabs)/`: the skeleton for the tabs with no check of their own (Code, tree, blob,
-    Files, People, Actions, Automations, New automation).
+  - `[repo]/(tabs)/actions/`, `automations/`, `files/`, `people/`: the skeleton for the tabs
+    with no check of their own (Files, People, Actions, Automations, New automation).
+  - The Code tab (`(tabs)/page.tsx`, `tree/`, `blob/`) has no skeleton, on purpose: a page
+    under a loading file sits in a Suspense boundary keyed by its params, so every folder or
+    file opened would swap the whole tab for the skeleton and back. Without one the router
+    keeps the open page on screen until the next is ready, the clicked row pulses meanwhile
+    (`LinkPending`), and the stalk pane shows the stalk last drawn while its own streams in
+    (`CodeStalkFallback`). A hard load waits for the tab's reads before its first byte.
   - `[repo]/changes/` and `history/`: a layout redirects home when the engine is unusable
     (`engineTab`), above their skeletons; a bean's page (`changes/[bean]`) has none, so an
     unknown bean is a 404. `ask/`: the layout redirects to the start page until something

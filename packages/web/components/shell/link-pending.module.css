@@ -1,0 +1,26 @@
+/* A link whose page is loading (link-pending.tsx): it pulses until the page arrives. The mark
+   itself takes no room, so it fits any row layout. */
+.mark {
+  display: none;
+}
+
+a:has(> .mark) {
+  cursor: progress;
+  animation: pending 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes pending {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a:has(> .mark) {
+    animation: none;
+    opacity: 0.6;
+  }
+}

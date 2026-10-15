@@ -32,6 +32,7 @@ import type { TreeMemory } from '../../src/code/tree-layout';
 import { memoryKey, readMemory } from '../../src/code/tree-layout';
 import { FileIcon } from '../home/marks';
 import { IntentLink as Link } from '../shell/intent-link';
+import { LinkPending } from '../shell/link-pending';
 import { cssVars } from './css-vars';
 import styles from './file-tree.module.css';
 import { readStored, writeStored } from './tree-storage';
@@ -397,6 +398,7 @@ function TreeItem(props: {
         </span>
         <span className={styles.name}>{row.entry.name}</span>
         <RowNote state={row.folder} failed={props.failed} />
+        <LinkPending />
       </Link>
     </li>
   );

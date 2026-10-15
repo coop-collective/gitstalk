@@ -1,6 +1,7 @@
 /**
  * The Code tab, laid out as an editor: the bar (ref switcher, path, Code button) over two
- * panes, the file tree on the left and the open file or folder on the right (code-workspace).
+ * panes, the side pane on the left and the open file or folder on the right (code-workspace).
+ * The side pane shows the beanstalk on a folder and the file tree on a file, with tabs for both.
  * A folder keeps the side column (About) beside its listing while there is room.
  */
 import { groupCounts } from '../../src/changes/changes';
@@ -10,6 +11,7 @@ import type { RepositoryTab } from '../../src/server/repository-tab';
 import { BlobView } from './blob-view';
 import type { CodeLocation } from './code-browser';
 import { CodeAside, CodeBar, FolderView } from './code-browser';
+import { CodeStalk } from './code-stalk';
 import { CodeWorkspace } from './code-workspace';
 import treeStyles from './file-tree.module.css';
 import styles from './repo-tabs.module.css';
@@ -81,6 +83,7 @@ export function CodeTab(props: {
           at={{ ref: props.browsing, sha: data.sha, path: props.path, view: props.view }}
           folders={data.folders}
           bar={bar}
+          stalk={<CodeStalk tab={tab} scope={repoScopeOf(tab)} />}
         >
           {main}
         </CodeWorkspace>

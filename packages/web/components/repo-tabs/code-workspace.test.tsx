@@ -10,6 +10,7 @@ import { CodeWorkspace } from './code-workspace';
 
 // The app router and its links come from vinext at build time; a plain anchor stands in.
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('../shell/link-pending', () => ({ LinkPending: () => null }));
 vi.mock('../shell/intent-link', () => ({
   IntentLink: (props: { readonly href: string; readonly children: ReactNode }) => (
     <a {...props} href={props.href} />
@@ -42,6 +43,7 @@ function render(path: string, view: CodeView): string {
         at={{ ref: { kind: 'sprout' }, sha: SHA, path, view }}
         folders={foldersAlong(FILES, path, view)}
         bar={<nav aria-label="Path">bar</nav>}
+        stalk={<p>the stalk</p>}
       >
         <section aria-label="The open file">file</section>
       </CodeWorkspace>
@@ -152,11 +154,36 @@ describe('the Code tab’s workspace, server-rendered', () => {
     expect(toggle.get('aria-controls')).toBe('code-files');
     expect(toggle.get('aria-expanded')).toBe('true');
     expect(toggle.get('href')).toBe('#code-files');
-    expect(tag(html, /<aside [^>]*>/).get('aria-label')).toBe('File tree');
+    expect(tag(html, /<aside [^>]*>/).get('aria-label')).toBe('Stalk and files');
     const handle = tag(html, /<div [^>]*role="separator"[^>]*>/);
     expect(handle.get('aria-label')).toBe('Resize the file tree');
     expect(handle.get('aria-valuenow')).toBe('280');
     expect(handle.get('tabindex')).toBe('0');
+  });
+
+  it('shows the stalk on a folder and the file tree on a file, each a tab away', () => {
+    const tabs = (html: string) =>
+      [...html.matchAll(/<button [^>]*role="tab"[^>]*>(\w+)<\/button>/g)].map((match) => ({
+        label: match[1],
+        selected: tag(match[0], /<button [^>]*>/).get('aria-selected'),
+      }));
+    const panel = (html: string, pane: string) =>
+      tag(html, new RegExp(`<div [^>]*id="code-files-${pane}"[^>]*>`));
+    const folder = render('', 'tree');
+    expect(tabs(folder)).toEqual([
+      { label: 'Stalk', selected: 'true' },
+      { label: 'Files', selected: 'false' },
+    ]);
+    expect(panel(folder, 'stalk').has('hidden')).toBe(false);
+    expect(panel(folder, 'files').has('hidden')).toBe(true);
+    expect(folder).toContain('<p>the stalk</p>');
+    const file = render('README.md', 'blob');
+    expect(tabs(file)).toEqual([
+      { label: 'Stalk', selected: 'false' },
+      { label: 'Files', selected: 'true' },
+    ]);
+    expect(panel(file, 'stalk').has('hidden')).toBe(true);
+    expect(panel(file, 'files').has('hidden')).toBe(false);
   });
 
   it('keeps the bar and the open file in the page', () => {

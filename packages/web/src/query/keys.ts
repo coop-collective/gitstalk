@@ -70,6 +70,11 @@ export const qk = {
       /** Every file's path at a commit sha (Go to file). */
       paths: (sha: string) => [...all, 'paths', sha] as const,
       /**
+       * The Code tab's stalk as last drawn, so the next page shows it while its own streams in.
+       * Kept in memory only: it moves with every landing.
+       */
+      stalk: () => [...all, 'stalk'] as const,
+      /**
        * The events after `seq`, for a page that watches the feed without the whole log (the
        * Code and History tabs' head watcher).
        */
