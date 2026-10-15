@@ -34,7 +34,7 @@ Each package's README explains how to run it locally, which bindings and secrets
 | `pnpm test` | vitest in every package, mostly on Miniflare with real bindings |
 | `pnpm rust:check` | `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` for the container crates |
 
-If you change the benchmark harness, also run its Python tests: `cd research/race && python3 -m unittest discover -s tests`. If you change the public docs in `packages/site/public/docs/`, `node scripts/check-docs.mjs` must pass (it is part of `pnpm test`).
+If you change the benchmark harness, also run its Python tests: `cd research/race && python3 -m unittest discover -s tests`. If you change the public docs in `packages/site/public/docs/`, `node scripts/check-docs.mjs` must pass (it is part of `pnpm test`, as are the tests of the repository scripts, `node --test scripts/*.test.mjs`).
 
 CI ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs all of the above on every pull request. It needs no secrets.
 
@@ -64,11 +64,36 @@ Keep unrelated changes in separate commits. Add a body when the reason for a cha
 
 Gitstalk is a git forge, but this repository itself is developed on plain GitHub: [github.com/coop-collective/gitstalk](https://github.com/coop-collective/gitstalk). Contributions use ordinary GitHub forks, branches and pull requests, not beans.
 
-1. For anything larger than a small fix, open an issue first to discuss the approach.
-2. Fork the repository and create a branch from `main`.
-3. Make your change, with tests and docs, and run `pnpm check`.
-4. Open a pull request against `main`. Describe what changed, why, and how you verified it. Link the issue it addresses.
-5. A maintainer reviews it. Keep the pull request focused; address review comments with new commits.
+**Small fixes** (a bug with an obvious fix, a typo, a test, a docs correction): open a pull request directly.
+
+**Anything larger:** a feature, a new package, a change to the engine, the security model, the data model or the public API. Open a **proposal pull request** first:
+
+1. Pick the work. [`ROADMAP.md`](ROADMAP.md) lists what is in progress and what has not started, each item with its design document when one exists. Anything outside the roadmap is welcome too.
+2. Copy [`docs/proposals/TEMPLATE.md`](docs/proposals/TEMPLATE.md) to `docs/proposals/<slug>.md` and write the design, in the shape of the project's own design documents ([`docs/proposals/README.md`](docs/proposals/README.md) lists which to read).
+3. Open a pull request that adds only that document. The `proposals` workflow labels it `proposal`, and Coop and the maintainers are notified to review and comment.
+4. **Maintainers have 72 hours** to comment or review. If one does, the discussion continues as an ordinary review.
+5. **If no maintainer comments within 72 hours,** an automated AI review takes the proposal on the project's behalf ([`.github/workflows/proposals.yml`](.github/workflows/proposals.yml), [`scripts/proposals.mjs`](scripts/proposals.mjs)). It reads the proposal against this guide, [`AGENTS.md`](AGENTS.md), the roadmap and the template, posts its review, and labels the outcome:
+
+   | Label | What happens next |
+   |---|---|
+   | `proposal: accepted` | Start the implementation. Link the proposal from its pull request. A maintainer merges the proposal with or before the first implementation pull request. |
+   | `proposal: changes requested` | Revise the document and push. Ask a maintainer to remove `proposal: ai-reviewed` for another review. |
+   | `proposal: needs maintainer` | The decision is the owner's: licence, pricing, the security model, removing features, a new third-party service. It waits for a maintainer. |
+
+   The automated review never approves, merges or pushes. It accepts only a pull request that changes nothing but `docs/proposals/`; anything else is left to a maintainer. Maintainers can override its labels at any time, or add `proposal: hold` to pause it.
+6. Implement in one or more pull requests against `main`, with tests and docs, after `pnpm check` passes. Update the proposal's `Status` line to `Built` in the same change, and any section the code changed.
+
+Every pull request describes what changed, why, and how you verified it, and links its proposal or issue. Keep it focused; address review comments with new commits.
+
+## Contributing with an agent
+
+Agent-written contributions are welcome, proposals included. This repository is set up for them:
+
+- [`AGENTS.md`](AGENTS.md) is the instruction set every major coding agent reads (Claude Code, Codex, Cursor, Copilot and others). It names the stack, the rules and the skills to load before writing code (`.agents/skills/`, linked into `.claude/skills/`).
+- [`ROADMAP.md`](ROADMAP.md) and the design documents say what to build and how the existing parts work; [`docs/proposals/TEMPLATE.md`](docs/proposals/TEMPLATE.md) says what a proposal must cover.
+- `pnpm check` is the one command that must pass.
+
+Say in the pull request which harness and model did the work. The person who opens the pull request is accountable for it: read the diff, run the checks, and answer the review.
 
 ## Releases
 

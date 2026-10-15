@@ -1,0 +1,83 @@
+# Proposal pull requests (CONTRIBUTING.md, "Proposing a change"; scripts/proposals.mjs).
+#
+# notify: when a pull request adds a document under docs/proposals/, label it `proposal` and post
+#   its review window, mentioning PROPOSAL_MAINTAINERS. CODEOWNERS also requests their review.
+# review: hourly, a proposal with no maintainer comment or review for 72 hours gets an automated
+#   review on the project's behalf, with an outcome label. It never approves, merges or pushes.
+#
+# Both jobs run the script from the base branch and never check out the pull request's code: the
+# proposal reaches the model only as text through the GitHub API, fenced as untrusted data.
+#
+# Repository settings: secret ANTHROPIC_API_KEY (without it the review is off); optional variables
+# PROPOSAL_MAINTAINERS (comma-separated handles, default Disturbing) and PROPOSAL_REVIEW_MODEL.
+name: proposals
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize]
+    paths: ['docs/proposals/**']
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Review only this pull request (still waits for its window)
+        type: string
+      dry_run:
+        description: Report eligibility without reviewing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: proposals-${{ github.event.pull_request.number || 'review' }}
+
+env:
+  PROPOSAL_MAINTAINERS: ${{ vars.PROPOSAL_MAINTAINERS || 'Disturbing' }}
+
+jobs:
+  notify:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/proposals.mjs notify --pr "$PR"
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+  review:
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: |
+          args=(review)
+          if [ -n "$PR" ]; then args+=(--pr "$PR"); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          node scripts/proposals.mjs "${args[@]}"
+        env:
+          PR: ${{ inputs.pr }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROPOSAL_REVIEW_MODEL: ${{ vars.PROPOSAL_REVIEW_MODEL }}

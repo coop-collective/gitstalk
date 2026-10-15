@@ -10,7 +10,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --workspace-concurrency=2 --if-present test",
+    "test": "pnpm -r --workspace-concurrency=2 --if-present test && node --test scripts/*.test.mjs",
     "rust:check": "node scripts/rust-check.mjs",
     "product-events": "node scripts/product-events.mjs",
     "env:generate": "node scripts/environments.mjs generate",
