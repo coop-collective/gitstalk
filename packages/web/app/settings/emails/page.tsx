@@ -8,6 +8,7 @@ import { emailForTicket } from '@gitstalk/shared-identity/email-codes';
 import { AccountSettings } from '../../../components/account/account-settings';
 import styles from '../../../components/account/account.module.css';
 import { CodeForm, EmailField, StepNotice } from '../../../components/account/email-forms';
+import { EmailRequestForm } from '../../../components/account/email-request-form';
 import { SettingsSection, SoonPill } from '../../../components/settings/settings-shell';
 import { emailSignIn } from '../../../src/auth/services';
 import { stepFromQuery } from '../../../src/auth/sign-in-steps';
@@ -67,7 +68,12 @@ export default async function EmailSettingsPage({ searchParams }: PageProps) {
       {isMailOn ? (
         <SettingsSection id="add" title={addTitle(pendingAddress, email)}>
           {pendingAddress === null ? (
-            <form method="post" action="/api/auth/email/add" className={styles.tokenForm}>
+            <EmailRequestForm
+              action="/api/auth/email/add"
+              requestId={crypto.randomUUID()}
+              className={styles.tokenForm}
+              submitLabel="Send code"
+            >
               <input type="hidden" name="csrf" value={session.csrfToken} />
               <EmailField
                 id="settings-email"
@@ -77,11 +83,8 @@ export default async function EmailSettingsPage({ searchParams }: PageProps) {
               <span className={styles.hint}>
                 We send a six-digit code there; the address is saved once you enter it.
               </span>
-              <button type="submit" className={styles.secondary}>
-                Send code
-              </button>
               <StepNotice error={error} attemptsLeft={null} />
-            </form>
+            </EmailRequestForm>
           ) : (
             <>
               <p className={styles.lede}>

@@ -32,7 +32,17 @@ export type EmailCodeConfig = {
 
 export type IssuedCode =
   | { readonly ok: true; readonly ticket: string }
-  | { readonly ok: false; readonly reason: 'too_many_codes' };
+  | { readonly ok: false; readonly reason: 'too_many_codes' | 'expired' };
+
+type CodeRequest = {
+  readonly email: string;
+  readonly purpose: CodePurpose;
+  readonly userId: string | null;
+  readonly ip: string | null;
+  readonly now: number;
+  /** Stable for one rendered form, including concurrent submissions and retries. */
+  readonly requestId?: string;
+};
 
 export type VerifiedCode =
   | { readonly ok: true; readonly email: string }
@@ -56,36 +66,18 @@ export function emailCodeConfig(input: {
 export async function issueEmailCode(
   env: IdentityEnv,
   config: EmailCodeConfig,
-  input: {
-    readonly email: string;
-    readonly purpose: CodePurpose;
-    readonly userId: string | null;
-    readonly ip: string | null;
-    readonly now: number;
-  },
+  input: CodeRequest,
 ): Promise<IssuedCode> {
-  if ((await codesSentLastHour(env, input.email, input.now)) >= MAX_CODES_PER_HOUR)
-    return { ok: false, reason: 'too_many_codes' };
-  const ticket = randomSecret();
+  const ticket = await requestTicket(config.key, input);
   const ticketHash = await hashSecret(ticket);
   const code = randomDigits(CODE_LENGTH);
-  await env.IDENTITY_DB.batch([
-    // Housekeeping: rows older than the hourly window count for nothing.
-    env.IDENTITY_DB.prepare('DELETE FROM email_codes WHERE created_at <= ?').bind(
-      input.now - HOUR_MS,
-    ),
-    env.IDENTITY_DB.prepare(
-      'INSERT INTO email_codes (ticket_hash, email, purpose, user_id, code_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).bind(
-      ticketHash,
-      input.email,
-      input.purpose,
-      input.userId,
-      await codeHash(config.key, ticketHash, code),
-      input.now,
-      input.now + EMAIL_CODE_SECONDS * 1000,
-    ),
-    await auditStatement(
+  const claimed = await reserveCode(env, input, {
+    ticketHash,
+    codeHash: await codeHash(config.key, ticketHash, code),
+  });
+  if (!claimed) return repeatedRequest(env, input, { ticket, ticketHash });
+  try {
+    const audit = await auditStatement(
       env,
       {
         action: 'email_code.send',
@@ -94,9 +86,16 @@ export async function issueEmailCode(
         detail: { purpose: input.purpose },
       },
       input.now,
-    ),
-  ]);
-  await config.port.send({ to: input.email, ...codeEmail(code, input.purpose) });
+    );
+    await audit.run();
+    await config.port.send({ to: input.email, ...codeEmail(code, input.purpose) });
+  } catch (error: unknown) {
+    // Keep failed sends in the hourly budget, but never replay them as a usable ticket.
+    await env.IDENTITY_DB.prepare('UPDATE email_codes SET expires_at = ? WHERE ticket_hash = ?')
+      .bind(input.now, ticketHash)
+      .run();
+    throw error;
+  }
   return { ok: true, ticket };
 }
 
@@ -170,13 +169,66 @@ export function codeEmail(
   return { subject: `${code} is your Gitstalk ${what} code`, text, html };
 }
 
-async function codesSentLastHour(env: IdentityEnv, email: string, now: number): Promise<number> {
+/** The cap and the claim are one write: only the inserting request may send mail. */
+async function reserveCode(
+  env: IdentityEnv,
+  input: CodeRequest,
+  hashes: { readonly ticketHash: string; readonly codeHash: string },
+): Promise<boolean> {
+  const results = await env.IDENTITY_DB.batch([
+    env.IDENTITY_DB.prepare('DELETE FROM email_codes WHERE created_at <= ?').bind(
+      input.now - HOUR_MS,
+    ),
+    env.IDENTITY_DB.prepare(
+      `INSERT INTO email_codes (ticket_hash, email, purpose, user_id, code_hash, created_at, expires_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?
+       WHERE (SELECT COUNT(*) FROM email_codes WHERE email = ? AND created_at > ?) < ?
+       ON CONFLICT(ticket_hash) DO NOTHING`,
+    ).bind(
+      hashes.ticketHash,
+      input.email,
+      input.purpose,
+      input.userId,
+      hashes.codeHash,
+      input.now,
+      input.now + EMAIL_CODE_SECONDS * 1000,
+      input.email,
+      input.now - HOUR_MS,
+      MAX_CODES_PER_HOUR,
+    ),
+  ]);
+  return results[1]?.meta.changes === 1;
+}
+
+async function repeatedRequest(
+  env: IdentityEnv,
+  input: CodeRequest,
+  ticket: { readonly ticket: string; readonly ticketHash: string },
+): Promise<IssuedCode> {
   const row = await env.IDENTITY_DB.prepare(
-    'SELECT COUNT(*) AS sent FROM email_codes WHERE email = ? AND created_at > ?',
+    'SELECT expires_at, used_at, attempts FROM email_codes WHERE ticket_hash = ?',
   )
-    .bind(email, now - HOUR_MS)
-    .first<{ sent: number }>();
-  return row?.sent ?? 0;
+    .bind(ticket.ticketHash)
+    .first<{ expires_at: number; used_at: number | null; attempts: number }>();
+  if (row === null) return { ok: false, reason: 'too_many_codes' };
+  if (row.expires_at <= input.now || row.used_at !== null || row.attempts >= MAX_CODE_ATTEMPTS)
+    return { ok: false, reason: 'expired' };
+  return { ok: true, ticket: ticket.ticket };
+}
+
+/** A form ID alone cannot reveal a ticket; bind it to its address, purpose and account. */
+function requestTicket(key: string, input: CodeRequest): Promise<string> {
+  if (input.requestId === undefined) return Promise.resolve(randomSecret());
+  return hmacHex(
+    key,
+    JSON.stringify([
+      'email-code-ticket',
+      input.requestId,
+      input.email.toLowerCase(),
+      input.purpose,
+      input.userId,
+    ]),
+  );
 }
 
 /** Bound to the ticket, so one row's code is no use against another's. */

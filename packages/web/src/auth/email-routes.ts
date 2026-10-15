@@ -12,6 +12,7 @@
  * whether or not the address has an account.
  */
 import { env } from 'cloudflare:workers';
+import { z } from 'zod';
 
 import {
   EMAIL_TICKET_COOKIE,
@@ -53,6 +54,8 @@ const STEPS: Readonly<
   Record<EmailStep, (request: Request, config: EmailCodeConfig) => Promise<Response>>
 > = { start, verify, handle, add, confirm };
 
+const RequestId = z.uuid();
+
 /** Runs one step; 404 while this deployment cannot send email. */
 export async function emailStep(request: Request, step: EmailStep): Promise<Response> {
   const config = emailSignIn();
@@ -80,12 +83,15 @@ async function start(request: Request, config: EmailCodeConfig): Promise<Respons
   const back = (error: StepError) => seeOther(request, stepPath(mode, 'start', { next, error }));
   const email = Email.safeParse(form.get('email'));
   if (!email.success) return back('address');
+  const requestId = RequestId.safeParse(form.get('request_id'));
+  if (!requestId.success) return back('expired');
   const ip = clientIp(request);
   if (!(await isWithinLimits(env.SIGNIN_RATE_LIMIT, [ipKey('send', ip), `email:${email.data}`])))
     return back('rate');
   if ((await turnstileRefusal(request, form.get(TURNSTILE_FIELD), mode)) !== null)
     return back('check');
   const issued = await sendCode(config, {
+    requestId: requestId.data,
     email: email.data,
     purpose: 'signin',
     userId: null,
@@ -166,10 +172,13 @@ async function add(request: Request, config: EmailCodeConfig): Promise<Response>
   const back = (error: StepError) => seeOther(request, settingsEmailPath({ error }));
   const email = Email.safeParse(form.get('email'));
   if (!email.success) return back('address');
+  const requestId = RequestId.safeParse(form.get('request_id'));
+  if (!requestId.success) return back('expired');
   const ip = clientIp(request);
   const keys = [ipKey('send', ip), `email:${email.data}`, `user:${session.user.id}`];
   if (!(await isWithinLimits(env.SIGNIN_RATE_LIMIT, keys))) return back('rate');
   const issued = await sendCode(config, {
+    requestId: requestId.data,
     email: email.data,
     purpose: 'add_email',
     userId: session.user.id,
@@ -217,12 +226,13 @@ async function confirm(request: Request, config: EmailCodeConfig): Promise<Respo
 
 type Sent =
   | { readonly ok: true; readonly ticket: string }
-  | { readonly ok: false; readonly error: 'too_many_codes' | 'send' };
+  | { readonly ok: false; readonly error: 'too_many_codes' | 'expired' | 'send' };
 
 /** Issues and sends a code; a sending failure is logged (never the address) and answered. */
 async function sendCode(
   config: EmailCodeConfig,
   input: {
+    readonly requestId: string;
     readonly email: string;
     readonly purpose: CodePurpose;
     readonly userId: string | null;
@@ -231,8 +241,8 @@ async function sendCode(
 ): Promise<Sent> {
   try {
     const issued = await issueEmailCode(env, config, { ...input, now: Date.now() });
-    if (!issued.ok) return { ok: false, error: 'too_many_codes' };
-    log.info('email code sent', { purpose: input.purpose });
+    if (!issued.ok) return { ok: false, error: issued.reason };
+    log.info('email code requested', { purpose: input.purpose });
     return { ok: true, ticket: issued.ticket };
   } catch (error: unknown) {
     log.error('email code not sent', { purpose: input.purpose, code: errorCode(error), error });

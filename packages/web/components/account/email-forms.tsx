@@ -6,6 +6,7 @@
 import { EMAIL_CODE_PATTERN } from '../../src/auth/sign-in-steps';
 import type { SignInMode, StepError } from '../../src/auth/sign-in-steps';
 import styles from './account.module.css';
+import { EmailRequestForm } from './email-request-form';
 import { TurnstileField } from './turnstile';
 
 const MESSAGES: Readonly<Record<Exclude<StepError, null>, string>> = {
@@ -55,16 +56,18 @@ export function EmailStartForm({
   readonly error: StepError;
 }) {
   return (
-    <form method="post" action="/api/auth/email/start" className={styles.form}>
+    <EmailRequestForm
+      action="/api/auth/email/start"
+      requestId={crypto.randomUUID()}
+      className={styles.form}
+      submitLabel="Continue with email"
+    >
       <input type="hidden" name="mode" value={mode} />
       <input type="hidden" name="next" value={next} />
       <EmailField id="signin-email" autoComplete="email webauthn" />
       <TurnstileField siteKey={siteKey} action={mode} />
-      <button type="submit" className={styles.secondary}>
-        Continue with email
-      </button>
       <StepNotice error={error} attemptsLeft={null} />
-    </form>
+    </EmailRequestForm>
   );
 }
 
