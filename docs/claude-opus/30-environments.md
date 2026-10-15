@@ -65,7 +65,7 @@ Overrides merge objects key by key; arrays of bindings, containers or rate limit
 | `d1_databases[]` | `database_name + suffix`; `database_id` from resources.json |
 | `kv_namespaces[].id` (`local-<title>`) | the id of KV namespace `<title><suffix>` from resources.json |
 | `r2_buckets[].bucket_name`, `queues.*.queue`, `artifacts[].namespace`, `vars.ARTIFACTS_NAMESPACE` | `+ suffix` |
-| `analytics_engine_datasets[].dataset` | `+ suffix` with `_` (`product_events_staging`), so staging never counts as product use |
+| `analytics_engine_datasets[].dataset` | `+ suffix` with `_` (`product_events_staging`), so staging never counts as product use; a prefix other than `gitstalk` goes in front the same way (`ascendants_product_events`), since datasets are account-wide (2026-10-15: before this, a fork with its own prefix and an empty suffix on gitstalk's account wrote into production's `product_events`; the legacy `beanstalk` environments now write `beanstalk_product_events*`) |
 | `PUBLIC_URL`, `WEB_URL`, `GIT_ORIGIN`, `MCP_URL` (gateway, web, mcp) | this environment's origins: `urls.<pkg>` or the workers.dev address |
 | a var named in `resources.vars` (`SSH_HOST_KEY_FINGERPRINT`) | that value, in every package that declares the var |
 | anything in `overrides.<pkg>` | merged last |
@@ -378,3 +378,14 @@ What crawlers see is set per environment by two web vars the generator writes: `
 - **Canonical links**: each static site page has its own title, description, `og:title`, `og:description` and `twitter:card`. `scripts/check-docs.mjs` requires these tags and rejects a hardcoded canonical or any workers.dev or beanstalk host. When the web forwards a 200 HTML page, it adds `<link rel="canonical">` and `og:url` (`WEB_URL` plus the path). The app's public pages use `publicPageMetadata` (`src/site/page-metadata.ts`), and the root layout sets `metadataBase` to `WEB_URL`. No page has an `og:image` yet because there is no social card image. A 1200×630 PNG would go in `packages/site/public`, and both sources of metadata would need to point at it.
 - **The site on its own address** (its `workers.dev` URL) is always noindex: `packages/site/public/_headers` sends `X-Robots-Tag: noindex`, and its own `robots.txt` disallows everything. When the web forwards a page, it swaps that header for its own, so the header is gone on an indexed origin.
 - `env:smoke` checks that `robots.txt` matches `search_indexing` and that `sitemap.xml` lists `<web>/signup`.
+
+## 15. Self-hosting rehearsal on ascendants.io (2026-10-15)
+
+A new environment, `ascendants` (prefix `ascendants`, empty suffix, flat one-level hostnames `gitstalk.ascendants.io`, `gitstalk-api.`, `gitstalk-mcp.`, `gitstalk-ssh.ascendants.io`), was stood up on the gitstalk account by following the public self-hosting page step by step: `env:provision`, `env:deploy` (first-deploy bootstrap pass included), `env:smoke`, then a passkey sign-up (headless Chrome, virtual authenticator), an Empty repository, a personal token, clone, and a pushed bean that landed on the sprout and the stalk. What it found:
+
+- **Analytics Engine datasets ignored the prefix** (fixed, §3.2): with an empty suffix the fork's gateway and web would have written product events into production's `product_events`.
+- **`npx wrangler` at the repository root** is not the workspace's Wrangler (only packages depend on it), so the public page now says `pnpm -F @gitstalk/gateway exec wrangler login` / `whoami`.
+- **Negative DNS caching**: looking a hostname up before its first deploy left this machine's resolver answering NXDOMAIN for 30 minutes after the Custom Domains were live (public resolvers had them at once), so `env:smoke` failed with `fetch failed`. The public page now warns about it.
+- **Certificates**: each Workers Custom Domain got its own edge certificate (SANs `<host>` and `*.<host>`), so Universal SSL's one-level limit does not apply to these hostnames.
+- `env:secrets` before the first deploy only reports that no Worker exists yet (deploy uploads the secrets); the page now says so. The deploy summary printed `deployed` for Workers on a custom domain; it now prints the origin.
+

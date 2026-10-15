@@ -277,12 +277,14 @@
               <div class="cmd" data-copyable>
                 <header><span>Terminal</span></header>
                 <pre><code>pnpm install
-npx wrangler login
+pnpm -F @gitstalk/gateway exec wrangler login
 cp -r environments/example environments/staging</code></pre>
               </div>
               <p>
                 Edit <code>environments/staging/env.jsonc</code>. Find your account id with
-                <code>npx wrangler whoami</code>.
+                <code>pnpm -F @gitstalk/gateway exec wrangler whoami</code>. Wrangler is a
+                dependency of each package, not of the repository root, so a bare
+                <code>npx wrangler</code> there downloads whatever version is newest instead.
               </p>
             </li>
             <li>
@@ -302,7 +304,11 @@ cp -r environments/example environments/staging</code></pre>
             </li>
             <li>
               <h3>Push the secrets</h3>
-              <p>Sends the generated values to the Workers. They are never printed.</p>
+              <p>
+                Sends the generated values to the Workers. They are never printed. Before the first
+                deploy there are no Workers yet, so it only says so: deploy uploads each Worker's
+                secrets with its first version.
+              </p>
               <div class="cmd" data-copyable>
                 <header><span>Terminal</span></header>
                 <pre><code>pnpm env:secrets staging</code></pre>
@@ -339,12 +345,16 @@ cp -r environments/example environments/staging</code></pre>
             Every Worker and resource is named
             <code>&lt;prefix&gt;-&lt;name&gt;&lt;suffix&gt;</code>: the prefix defaults to
             <code>gitstalk</code>, and with the suffix <code>-staging</code> you get
-            <code>gitstalk-gateway-staging</code>. An empty suffix keeps the base names. A kill
-            switch for benchmark races: <code>POST /v1/admin/halt</code> with the admin token
-            refuses new race runs and starts (<code>DELETE</code> on the same path resumes them). It
-            does not stop repositories. The gateway also has an hourly cron trigger that deletes
-            race repositories older than a day; it is part of the gateway's config and needs nothing
-            provisioned.
+            <code>gitstalk-gateway-staging</code>. An empty suffix keeps the base names. D1, KV, R2,
+            queues, Artifacts namespaces, Analytics Engine datasets and rate-limit namespaces all
+            belong to the account, so on an account that already runs Gitstalk give the new
+            environment its own prefix or suffix, and its own <code>namespace_id</code> for the
+            web's <code>SIGNIN_RATE_LIMIT</code> (the example's
+            <code>overrides.web.ratelimits</code>). A kill switch for benchmark races:
+            <code>POST /v1/admin/halt</code> with the admin token refuses new race runs and starts
+            (<code>DELETE</code> on the same path resumes them). It does not stop repositories. The
+            gateway also has an hourly cron trigger that deletes race repositories older than a day;
+            it is part of the gateway's config and needs nothing provisioned.
           </p>
 
           <h3 id="env-file">The environment file</h3>
@@ -406,7 +416,10 @@ cp -r environments/example environments/staging</code></pre>
             Without <code>urls</code>, every Worker answers on its <code>workers.dev</code> address.
             To use your own hostnames, put the zone in the same Cloudflare account and name one
             origin per package. Each becomes a Workers Custom Domain of that Worker; Cloudflare
-            creates the DNS record and the certificate on deploy.
+            creates the DNS record and the certificate on deploy. The hostnames must not have DNS
+            records already. Do not look them up before the first deploy: a resolver that answered
+            "no such name" keeps that answer for up to 30 minutes, so the smoke test fails with
+            <code>fetch failed</code> on your machine while the hosts already work elsewhere.
           </p>
           <pre><code>"urls": {
   "web": "https://git.example.com",

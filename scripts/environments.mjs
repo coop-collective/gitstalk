@@ -411,8 +411,11 @@ function deploy(env, args) {
     urls[pkg] = deployPackage(env, pkg, { dryRun });
   }
   console.log(`\n== ${env.name}${dryRun ? ' (dry run)' : ''}`);
-  for (const pkg of selected)
-    console.log(`${configs.get(pkg).name}: ${dryRun ? 'checked' : (urls[pkg] ?? 'deployed')}`);
+  for (const pkg of selected) {
+    const domain = customDomainOf(env, pkg);
+    const where = domain ? `https://${domain}` : (urls[pkg] ?? 'deployed');
+    console.log(`${configs.get(pkg).name}: ${dryRun ? 'checked' : where}`);
+  }
 }
 
 function verify(env, args) {
@@ -616,8 +619,11 @@ function generateConfig(env, pkg, { allowMissingIds = false } = {}) {
   for (const queue of [...(config.queues?.producers ?? []), ...(config.queues?.consumers ?? [])])
     queue.queue = named(queue.queue);
   for (const artifacts of config.artifacts ?? []) artifacts.namespace = named(artifacts.namespace);
+  // Datasets are account-wide like every other resource, so they take the prefix too (a fork
+  // with its own prefix on a shared account must not write into gitstalk's product_events).
+  const datasetPrefix = env.prefix === TEMPLATE_PREFIX ? '' : `${env.prefix.replaceAll('-', '_')}_`;
   for (const dataset of config.analytics_engine_datasets ?? [])
-    dataset.dataset = `${dataset.dataset}${env.suffix.replaceAll('-', '_')}`;
+    dataset.dataset = `${datasetPrefix}${dataset.dataset}${env.suffix.replaceAll('-', '_')}`;
 
   const vars = config.vars ?? {};
   if ('ARTIFACTS_NAMESPACE' in vars) vars.ARTIFACTS_NAMESPACE = named(vars.ARTIFACTS_NAMESPACE);
