@@ -16,6 +16,7 @@ import type { ActionsSession } from './actions-source';
 import { actionsSession } from './actions-source';
 import type { RepositoryPage, RepositoryParams } from './repository-page';
 import { repositoryPage } from './repository-page';
+import { keyedForRequest } from './request-memo';
 
 export type RepositorySettings = {
   readonly record: RepositoryRecord;
@@ -61,17 +62,40 @@ export async function settingsAccess(params: RepositoryParams): Promise<Settings
   return { ...page, role, session };
 }
 
+/**
+ * A section page's settings: the repository's (`repositorySettingsShell`), or a redirect to
+ * the first section this viewer may open when `section` is not one of theirs.
+ */
 export async function repositorySettings(
   params: RepositoryParams,
   section: RepoSection | 'landing',
 ): Promise<RepositorySettings> {
+  const settings = await repositorySettingsShell(params);
+  const allowed = repoSections(settings.facts).some((link) => link.slug === section);
+  if (!allowed) redirect(repoSettingsPath(settings.base, firstRepoSection(settings.facts)));
+  return settings;
+}
+
+const shells = keyedForRequest<RepositorySettings>();
+
+/**
+ * The repository's settings for this viewer, whatever the section: what the settings layout
+ * draws its nav from (404 for anyone without a role). Memoised per request, so the layout and
+ * the page read the session, the record and the Actions client once.
+ */
+export async function repositorySettingsShell(
+  params: RepositoryParams,
+): Promise<RepositorySettings> {
+  const { owner, repo } = await params;
+  return shells(`${owner}/${repo}`, () => loadSettings(params));
+}
+
+async function loadSettings(params: RepositoryParams): Promise<RepositorySettings> {
   const { record, base, role, session } = await settingsAccess(params);
   const actor = { id: session.user.id, handle: session.user.handle };
   const actions = await actionsSession({ actor, repoId: record.id });
   const isArchived = record.archived_at !== null;
   const facts: RepoSettingsFacts = { role, isArchived, hasActions: actions !== null };
-  const allowed = repoSections(facts).some((link) => link.slug === section);
-  if (!allowed) redirect(repoSettingsPath(base, firstRepoSection(facts)));
   return {
     record,
     base,

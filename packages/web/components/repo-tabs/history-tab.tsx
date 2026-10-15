@@ -40,7 +40,7 @@ export function HistoryTab(props: {
 }) {
   const { tab, validation } = props;
   return (
-    <RepositoryShell page={tab} tab="history" openChanges={groupCounts(props.changes).open}>
+    <RepositoryShell tab="history" openChanges={groupCounts(props.changes).open}>
       <HeadWatcher
         scope={repoScopeOf(tab)}
         heads={props.rendered.heads}

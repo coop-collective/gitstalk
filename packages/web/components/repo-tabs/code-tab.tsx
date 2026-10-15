@@ -58,7 +58,7 @@ export function CodeTab(props: {
       </div>
     );
   return (
-    <RepositoryShell page={tab} tab="code" openChanges={counts.open} wide={data.sha !== ''}>
+    <RepositoryShell tab="code" openChanges={counts.open} wide={data.sha !== ''}>
       {tab.reads === null || !isLine(props.browsing) ? null : (
         <HeadWatcher
           scope={repoScopeOf(tab)}

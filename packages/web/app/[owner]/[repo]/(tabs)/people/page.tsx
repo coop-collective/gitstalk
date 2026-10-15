@@ -1,6 +1,5 @@
 import { env } from 'cloudflare:workers';
 
-import { RepoHead } from '../../../../../components/home/repo-head';
 import { PeoplePanels } from '../../../../../components/repository/people';
 import styles from '../../../../../components/repository/repository.module.css';
 import { currentSession } from '../../../../../src/auth/user';
@@ -29,16 +28,6 @@ export default async function RepositoryPeoplePage({ params }: PageProps) {
   const canManage = role === 'owner' || role === 'maintain';
   return (
     <main>
-      <RepoHead
-        base={base}
-        repository={{ owner: record.owner.handle, name: record.name }}
-        current="people"
-        kind="repository"
-        visibility={record.visibility}
-        ownerHref={`/${record.owner.handle}`}
-        archived={record.archived_at !== null}
-        canAdminister={role !== null}
-      />
       <div className={`${styles.page} ${styles.narrow}`}>
         <div className={styles.settings}>
           <PeoplePanels

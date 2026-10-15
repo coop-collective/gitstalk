@@ -77,15 +77,18 @@ export async function FilesExplorer(props: {
   const resolvedPushers = await pushers;
   return (
     <main className={styles.page}>
-      <RepoHead
-        base={base}
-        repository={repository}
-        current={props.frame.kind === 'repository' ? 'ask' : 'files'}
-        kind={props.frame.kind}
-        {...(props.frame.visibility === undefined ? {} : { visibility: props.frame.visibility })}
-        {...(props.frame.ownerHref === undefined ? {} : { ownerHref: props.frame.ownerHref })}
-        archived={props.frame.archived === true}
-      />
+      {/* A repository's header is its layout's (RepositoryFrame), kept across tabs. */}
+      {props.frame.kind === 'repository' ? null : (
+        <RepoHead
+          base={base}
+          repository={repository}
+          current="files"
+          kind={props.frame.kind}
+          {...(props.frame.visibility === undefined ? {} : { visibility: props.frame.visibility })}
+          {...(props.frame.ownerHref === undefined ? {} : { ownerHref: props.frame.ownerHref })}
+          archived={props.frame.archived === true}
+        />
+      )}
       <AskBar
         base={base}
         state={state}

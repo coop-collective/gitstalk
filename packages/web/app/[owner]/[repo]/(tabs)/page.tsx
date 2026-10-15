@@ -3,7 +3,6 @@ import { env } from 'cloudflare:workers';
 import { AskTab, isAskQuery } from '../../../../components/repo-tabs/ask-tab';
 import { CodeTab } from '../../../../components/repo-tabs/code-tab';
 import type { SearchParams } from '../../../../components/home/repository-home';
-import { RepoHead } from '../../../../components/home/repo-head';
 import { StartHere } from '../../../../components/repository/start-here';
 import { readRef } from '../../../../src/code/tree';
 import { startGuide } from '../../../../src/repositories/paths';
@@ -61,16 +60,6 @@ async function StartPage({ tab }: { readonly tab: RepositoryTab }) {
   ]);
   return (
     <main>
-      <RepoHead
-        base={base}
-        repository={{ owner: record.owner.handle, name: record.name }}
-        current="code"
-        kind="repository"
-        visibility={record.visibility}
-        ownerHref={`/${record.owner.handle}`}
-        canAdminister={tab.role !== null}
-        archived={record.archived_at !== null}
-      />
       <StartHere
         record={record}
         files={files.ok ? files.value : null}

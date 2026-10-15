@@ -181,11 +181,14 @@ export type NavGroup = {
   }[];
 };
 
-/** The left nav: sections grouped under their titles in order, the current one marked. */
+/**
+ * The left nav: sections grouped under their titles in order, the current one marked (none
+ * for a layout's nav, which marks the current section from the address).
+ */
 export function navGroups<Slug extends string>(
   sections: readonly SectionLink<Slug>[],
   hrefOf: (slug: Slug) => string,
-  current: Slug,
+  current: Slug | null,
 ): readonly NavGroup[] {
   const titles = [...new Set(sections.map((section) => section.group))];
   return titles.map((title) => ({

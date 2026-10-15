@@ -24,7 +24,7 @@ export function ChangesTab(props: {
 }) {
   const { tab } = props;
   return (
-    <RepositoryShell page={tab} tab="changes" openChanges={props.openChanges}>
+    <RepositoryShell tab="changes" openChanges={props.openChanges}>
       <ChangesList scope={repoScopeOf(tab)} show={props.show} nowMs={props.nowMs} />
     </RepositoryShell>
   );

@@ -1,20 +1,25 @@
 'use client';
 
 /**
- * The two bits of the settings pages that need the browser: keeping the current section in
- * view in the phone's sideways nav, and moving an old one-page anchor (`#social`, `#secrets`)
- * to its own page. Both are progressive: without script the pages work as plain links.
+ * The bits of the settings pages that need the browser: the section nav (marking the current
+ * section from the address, so a layout can keep it mounted across sections, and keeping it in
+ * view in the phone's sideways strip), and moving an old one-page anchor (`#social`,
+ * `#secrets`) to its own page. All progressive: without script the pages work as plain links.
  */
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
 
 import { anchorTarget } from '../../src/settings/sections';
+import { IntentLink as Link } from '../shell/intent-link';
+import type { SettingsNavGroup, SettingsNavItem } from './settings-shell';
+import styles from './settings-shell.module.css';
 
-/** Wraps the nav; on narrow screens scrolls the current link into the middle of the strip. */
-export function CurrentInView(props: {
-  readonly className: string | undefined;
-  readonly children: ReactNode;
-}) {
+/**
+ * The section links, grouped. A link is current when its page said so (`isCurrent`) or it is
+ * the address shown; on narrow screens the current link is scrolled into the strip's middle.
+ */
+export function SettingsNav(props: { readonly groups: readonly SettingsNavGroup[] }) {
+  const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const strip = ref.current;
@@ -25,12 +30,32 @@ export function CurrentInView(props: {
     const currentBox = current.getBoundingClientRect();
     strip.scrollLeft +=
       currentBox.left - stripBox.left - (strip.clientWidth - currentBox.width) / 2;
-  }, []);
+  }, [pathname]);
   return (
-    <div ref={ref} className={props.className}>
-      {props.children}
+    <div ref={ref} className={styles.nav}>
+      {props.groups.map((group) => (
+        <div key={group.title} className={styles.group}>
+          <span className={styles.groupTitle}>{group.title}</span>
+          {group.items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.link} ${item.isDanger === true ? styles.linkDanger : ''}`}
+              aria-current={currentOf(item, pathname)}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ))}
     </div>
   );
+}
+
+/** Page links say "page"; anchors on one page say "true" (the section in view). */
+function currentOf(item: SettingsNavItem, pathname: string): 'page' | 'true' | undefined {
+  if (item.href.startsWith('#')) return item.isCurrent === true ? 'true' : undefined;
+  return item.isCurrent === true || item.href === pathname ? 'page' : undefined;
 }
 
 /**
