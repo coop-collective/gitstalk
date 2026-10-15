@@ -1,5 +1,6 @@
 /**
- * The beans a bean never saw: those that landed on the sprout after it forked
+ * The beans a bean never saw: those that landed on the sprout after it forked, and those
+ * pushed before it that are still being checked, which may land first
  * (`docs/claude-opus/32-approval-rules.md` §4.1). A triage shows Clef their intents beside the
  * bean's own, so two changes that merge cleanly and pass their tests but disagree (one moves
  * prices to dollars, the other adds shipping in cents) can go back to the author before they
@@ -7,6 +8,7 @@
  */
 import type { Sha } from '@gitstalk/shared-race/ids';
 
+import type { TaskState } from '../engine/model';
 import type { EngineState } from '../engine/state';
 import type { BeanLinks } from './bean-links';
 import type { V2State } from '../engine/v2/v2-state';
@@ -18,14 +20,22 @@ export const LANDED_SINCE_FORK_LIMIT = 8;
 /** The trailer an author adds once they checked their bean against the beans it names. */
 export const INTENT_CHECKED_TRAILER = 'Intent-checked';
 
-/** A bean that landed after another forked: its name, the files it changed and its commit. */
+/**
+ * A bean the judged bean never saw: its name, the files it changed and the commit range that
+ * is its change (a landed bean's sprout commit and its parent; an in-flight bean's pushed
+ * head and fork point).
+ */
 export type LandedBean = {
   readonly bean: string;
   readonly files: readonly string[];
-  /** Its commit on the sprout and that commit's parent: the range that is its change. */
   readonly sha: Sha;
   readonly parent: Sha;
+  /** `landed`: on the sprout; `in-flight`: pushed earlier and still being checked. */
+  readonly state: 'landed' | 'in-flight';
 };
+
+/** Task statuses of a bean whose push is being checked or waits to be (not sent back). */
+const IN_FLIGHT: ReadonlySet<string> = new Set(['queued', 'testing', 'running']);
 
 /** A landed bean with its intent and the files both beans changed. */
 export type LandedIntent = LandedBean & {
@@ -52,11 +62,54 @@ export function landedSinceFork(state: EngineState, task: string): readonly Land
     .slice(sproutIndex(sprout, fork) + 1)
     .flatMap((commit) =>
       isOtherLiveBean(commit, task) && commit.task !== null
-        ? [{ bean: commit.task, files: [...commit.files], sha: commit.sha, parent: commit.parent }]
+        ? [
+            {
+              bean: commit.task,
+              files: [...commit.files],
+              sha: commit.sha,
+              parent: commit.parent,
+              state: 'landed' as const,
+            },
+          ]
         : [],
     )
     .toReversed()
     .slice(0, LANDED_SINCE_FORK_LIMIT);
+}
+
+/**
+ * The beans pushed before `task` (an earlier first start) whose push is still in flight:
+ * two beans checked at the same time never see each other landed, and the engine lands the
+ * later one without a new check when their files differ, so the later push is judged against
+ * the earlier one now. Oldest first, at most `LANDED_SINCE_FORK_LIMIT`. `filesOf` gives a
+ * bean's pushed files.
+ */
+export function inFlightBefore(
+  tasks: Readonly<Record<string, TaskState>>,
+  task: string,
+  filesOf: (bean: string) => readonly string[],
+): readonly LandedBean[] {
+  const mine = tasks[task]?.startedAt ?? null;
+  if (mine === null) return [];
+  return Object.values(tasks)
+    .filter(
+      (other) => other.id !== task && isInFlight(other) && isBefore(other, { at: mine, task }),
+    )
+    .toSorted((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0))
+    .slice(0, LANDED_SINCE_FORK_LIMIT)
+    .flatMap((other) => {
+      const parent = other.pushedBase ?? other.baseSha;
+      if (other.headSha === null || parent === null) return [];
+      return [
+        {
+          bean: other.id,
+          files: filesOf(other.id),
+          sha: other.headSha,
+          parent,
+          state: 'in-flight' as const,
+        },
+      ];
+    });
 }
 
 /** The beans a commit message's `Intent-checked:` trailers name (comma or space separated). */
@@ -87,6 +140,16 @@ function forkOf(state: EngineState, task: string): Sha | null {
   const record = state.tasks[task];
   if (record === undefined) return null;
   return record.pushedBase ?? record.baseSha;
+}
+
+function isInFlight(task: TaskState): boolean {
+  return IN_FLIGHT.has(task.status) && task.landedSha === null;
+}
+
+/** Started before `than` (ties broken by id, so of two beans exactly one is first). */
+function isBefore(task: TaskState, than: { readonly at: number; readonly task: string }): boolean {
+  if (task.startedAt === null) return false;
+  return task.startedAt < than.at || (task.startedAt === than.at && task.id < than.task);
 }
 
 function isOtherLiveBean(commit: V2State['commits'][number], task: string): boolean {

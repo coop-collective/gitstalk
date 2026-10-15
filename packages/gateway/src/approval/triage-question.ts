@@ -85,7 +85,7 @@ export const TRIAGE_CRITERIA = {
  * Written so overlap alone is not a clash: most landed beans touch unrelated behaviour.
  */
 export const CLASH_INSTRUCTIONS = (bean: string): string =>
-  `landed_since_fork lists beans that landed after this bean forked: its author never saw them and its tests never ran against them. Answer yes if this bean and ${bean} disagree about something both rely on (a unit, a format, a meaning, a return value or a constant), so that each passes its own tests while together they break. Read both intents and messages, and the links: imports between their files, and names one changed that the other uses. Answer no for changes that only touch the same files or names without assuming different things.`;
+  `landed_since_fork lists beans that landed after this bean forked, and beans marked in_flight that were pushed before it and are being checked now, so they may land first: its author never saw them and its tests never ran against them. Answer yes if this bean and ${bean} disagree about something both rely on (a unit, a format, a meaning, a return value or a constant), so that each passes its own tests while together they break. Read both intents and messages, and the links: imports between their files, and names one changed that the other uses. Answer no for changes that only touch the same files or names without assuming different things.`;
 
 export function triageQuestion(subject: TriageSubject): TriageQuestion {
   const landed = subject.landedSinceFork;
@@ -149,6 +149,7 @@ function landedState(bean: LandedContext): Readonly<Record<string, unknown>> {
   const { links } = bean;
   return {
     bean: bean.bean,
+    ...(bean.state === 'in-flight' ? { in_flight: true } : {}),
     ...(bean.intent === null ? {} : { intent: bean.intent }),
     ...(bean.message === null ? {} : { message: bean.message }),
     files: bean.files.slice(0, TRIAGE_PATHS),

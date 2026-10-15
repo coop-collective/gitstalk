@@ -57,6 +57,7 @@ type LandedFake = {
   readonly intent: string;
   readonly message: string;
   readonly changes: readonly FileChange[];
+  readonly state?: 'landed' | 'in-flight';
 };
 
 const POLICY = `
@@ -127,12 +128,13 @@ function fakeHost(options: {
       task === 'b1'
         ? 'Add $5 shipping (in cents)'
         : (options.landed?.beans.find((entry) => entry.bean === task)?.intent ?? null),
-    landedSinceFork: () =>
-      (options.landed?.beans ?? []).map(({ bean, files, sha, parent }) => ({
+    beansNotSeen: () =>
+      (options.landed?.beans ?? []).map(({ bean, files, sha, parent, state }) => ({
         bean,
         files,
         sha,
         parent,
+        state: state ?? 'landed',
       })),
     headMessage: (task) =>
       Promise.resolve(
@@ -444,6 +446,23 @@ describe('judgeLanding', () => {
     const judged = await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
     expect(judged.receipt).toMatchObject({ route: 'card', by: 'rules' });
     expect(judged.receipt.recheck).toBeUndefined();
+  });
+
+  it('judges a later push against an earlier one still in flight, and says so in the red', async () => {
+    const inFlight: LandedFake = { ...PRICE_DOLLARS, state: 'in-flight' };
+    const fake = fakeHost({
+      ai: clefAnswers('auto', { 'clash.0': 0.8 }),
+      changes: SHIPPING_CHANGES,
+      landed: { beans: [inFlight] },
+    });
+    const judged = await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
+    expect(fake.asked[0]?.body).toMatchObject({
+      state: { landed_since_fork: [{ bean: 'price-dollars', in_flight: true }] },
+    });
+    expect(judged.receipt.recheck).toEqual(['price-dollars']);
+    expect(judged.hold?.output).toContain(
+      'price-dollars (pushed before this one, still being checked): Price in dollars, not cents',
+    );
   });
 
   it('records how long Clef took, also when the rule answered for it', async () => {

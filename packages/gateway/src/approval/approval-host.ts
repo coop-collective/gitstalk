@@ -21,7 +21,7 @@ import { UpstreamError } from '../errors';
 import { readPushBean } from '../push/push-bean';
 import type { ApprovalJobHost } from '../run/run-jobs';
 import { readApproval, readRoute, saveRoute } from './approval-store';
-import { landedSinceFork } from './landed-since-fork';
+import { inFlightBefore, landedSinceFork } from './landed-since-fork';
 
 /** A triage must come back within this, or the rule answers. */
 const CLEF_BUDGET_MS = 2500;
@@ -60,8 +60,12 @@ export function approvalJobHost(deps: ApprovalHostDeps): ApprovalJobHost {
       origin: (task) => (pushed(task)?.protectedAccess.allowed === true ? 'decider' : 'agent'),
       revision: (task) => pushed(task)?.head ?? null,
       intent: (task) => pushed(task)?.intent ?? null,
-      landedSinceFork: (task) =>
-        deps.engine === 'continuous' ? landedSinceFork(deps.state(), task) : [],
+      beansNotSeen: (task) => {
+        if (deps.engine !== 'continuous') return [];
+        const state = deps.state();
+        const filesOf = (bean: string) => readPushBean(sql, bean)?.files ?? [];
+        return [...landedSinceFork(state, task), ...inFlightBefore(state.tasks, task, filesOf)];
+      },
       headMessage: async (task) => {
         const head = pushed(task)?.head;
         return head === undefined ? null : artifacts.commitMessage(repo, head);

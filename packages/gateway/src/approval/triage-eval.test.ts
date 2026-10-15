@@ -190,7 +190,7 @@ function judgeCase(
     origin: () => 'agent',
     revision: () => 'b19ec8058aa04c1c4eda7f97ebbaed85a910159b',
     intent: () => null,
-    landedSinceFork: () => [],
+    beansNotSeen: () => [],
     headMessage: () => Promise.resolve(null),
     approval: () => null,
     previous: (task) => saved.get(task) ?? null,

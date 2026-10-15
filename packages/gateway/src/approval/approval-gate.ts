@@ -90,8 +90,11 @@ export type ApprovalHost = {
   revision(task: string): string | null;
   /** A bean's intent (its first push's commit message); null when unknown (a race). */
   intent(task: string): string | null;
-  /** Beans that landed on the sprout after `task` forked, newest first (`landed-since-fork.ts`). */
-  landedSinceFork(task: string): readonly LandedBean[];
+  /**
+   * The beans `task` never saw (`landed-since-fork.ts`): those landed on the sprout after it
+   * forked, newest first, then those pushed before it and still in flight, oldest first.
+   */
+  beansNotSeen(task: string): readonly LandedBean[];
   /** The whole commit message of a bean's latest push (its trailers too); null when unknown. */
   headMessage(task: string): Promise<string | null>;
   approval(task: string, revision: string | null): Approval | null;
@@ -200,7 +203,7 @@ async function unseenBeans(
   host: ApprovalHost,
   landing: LandingTree,
 ): Promise<readonly LandedIntent[]> {
-  const landed = host.landedSinceFork(landing.task);
+  const landed = host.beansNotSeen(landing.task);
   if (landed.length === 0) return [];
   const checked = intentCheckedBeans(await host.headMessage(landing.task));
   return withIntents(
@@ -536,17 +539,19 @@ function recheckRed(bean: string, landed: readonly (LandedIntent | LandedContext
     name: 'recheck against beans that landed after it forked',
     message: `its intent may disagree with ${names.join(', ')} (clef)`,
     output: [
-      `Clef read this bean's intent beside beans that landed after it forked, which its tests never ran`,
-      'against, and thinks they may disagree (a unit, a format, a meaning or a value both rely on):',
+      `Clef read this bean's intent beside beans it never saw (landed after it forked, or pushed before it`,
+      'and still being checked, so they may land first), which its tests never ran against, and thinks',
+      'they may disagree (a unit, a format, a meaning or a value both rely on):',
       ...landed.flatMap((entry) => [
-        `  ${entry.bean}: ${entry.intent ?? '(no intent recorded)'}`,
+        `  ${entry.bean}${entry.state === 'in-flight' ? ' (pushed before this one, still being checked)' : ''}: ${entry.intent ?? '(no intent recorded)'}`,
         ...(entry.sharedFiles.length === 0
           ? []
           : [`    both change: ${entry.sharedFiles.join(', ')}`]),
         ...linkLines(entry),
       ]),
-      'Rebase on origin/sprout and read them (git log origin/sprout). If they disagree, fix this bean so both',
-      `intents hold. Either way, push again with a trailer naming what you checked, which takes them out:`,
+      'Read them: landed ones on origin/sprout (git log origin/sprout), in-flight ones on their bean branches',
+      '(git fetch origin bean/<name>). If they disagree, fix this bean so both intents hold. Either way,',
+      'push again with a trailer naming what you checked, which takes them out:',
       `  ${INTENT_CHECKED_TRAILER}: ${names.join(', ')}`,
       `This is not a person's hold: the tests of ${bean} still decide once you push.`,
     ],
