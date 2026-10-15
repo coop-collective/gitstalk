@@ -6,6 +6,7 @@ import { env } from 'cloudflare:workers';
 import { notFound, redirect } from 'next/navigation';
 
 import type { User } from '../auth/user';
+import type { RunAccess } from '../changes/bean-diff-answer';
 import { currentUser, getUser } from '../auth/user';
 import { engineVerdict } from '../repositories/engine-guard';
 import { adminPathOf } from './admin-paths';
@@ -35,20 +36,32 @@ export async function platformAdminOf(request: Request): Promise<User | null> {
 }
 
 /**
- * Whether the run routes (`/api/runs/<run>/…`) serve this engine to the requester. A
+ * What the run routes (`/api/runs/<run>/…`) serve of this engine to the requester. A
  * repository's engine is a run too, and its canvas, Ask page and decision cards stream through
- * these routes, so anyone who may read the repository gets it; a benchmark race is the admin
- * area's. Everyone else gets the 404.
+ * these routes, so anyone who may read the repository gets it, with the repository's
+ * visibility and cache epoch (which decide whether, and under which keys, its objects may be
+ * edge-cached); a benchmark race is the admin area's. Everyone else is refused (answer them
+ * with a 404).
  */
-export async function mayStreamRun(request: Request, run: string): Promise<boolean> {
+export async function runAccess(request: Request, run: string): Promise<RunAccess> {
   const user = await getUser(request);
   const verdict = await engineVerdict(env.GATEWAY, {
     run,
     viewer: user?.id ?? null,
     action: 'read',
   });
-  if (verdict.kind === 'repository') return true;
-  return verdict.kind === 'race' && isPlatformAdmin(user, configuredPlatformAdmins());
+  if (verdict.kind === 'repository') {
+    const { visibility, updated_at } = verdict.repository;
+    return { kind: 'repository', repository: { visibility, updated_at } };
+  }
+  if (verdict.kind === 'race' && isPlatformAdmin(user, configuredPlatformAdmins()))
+    return { kind: 'race' };
+  return { kind: 'refused' };
+}
+
+/** Whether the run routes serve this engine to the requester at all (`runAccess`). */
+export async function mayStreamRun(request: Request, run: string): Promise<boolean> {
+  return (await runAccess(request, run)).kind !== 'refused';
 }
 
 /** An old public race URL: admins go to its admin page, everyone else gets the 404. */

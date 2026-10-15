@@ -79,7 +79,8 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   carries the viewer (`'anon'` when signed out): `qk.repo(uid, owner, repo).events()`. An
   area's `all` key is a prefix of its queries, for invalidation.
 - **Defaults** (`make-query-client.ts`): fresh for 30 s, kept 10 minutes, refetched on window
-  focus, no background polling, one retry.
+  focus, no background polling, one retry. Repository data takes its timing from the
+  freshness policy instead (see Caching below).
 - **Server prefetch**: a server component fills `getServerQueryClient()` (`server.ts`, one per
   request) and passes `dehydrate(...)` to a `HydrationBoundary`.
 - **Fetching**: `fetchJson(path, guard, { signal })` (`fetch-json.ts`) reads a same-origin path
@@ -88,22 +89,25 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   `zod`.
 - **Live feeds**: `useLiveFeed` (`use-live-feed.ts`) opens a Server-Sent Events feed once the
   query has its snapshot and appends batches with `appendBySeq` (by `seq`: repeats dropped,
-  order kept, a gap or a reconnect refetches the snapshot). Its `staleTime` goes to the
-  query: `Infinity` while live, 15 s while disconnected.
+  order kept, a gap refetches the snapshot; a reconnect resumes from `Last-Event-ID`). Its
+  `staleTime` goes to the query: `Infinity` while live, 15 s while disconnected; a query it
+  follows spreads `FOLLOWED_BY_FEED` so a remount does not fetch what the feed catches up.
 - **Mutations** stay server actions. `useActionWithInvalidation` wraps `useActionState` and
   invalidates the given keys when the returned state is a success. An action that changes what
   another page shows calls `revalidatePath` or `revalidateTag` (or redirects): the client
   router reuses a page it showed in the last 30 s (`experimental.staleTimes` in
   `next.config.ts`), and only those clear it.
 - **Persistence** is opt-in: `meta: { persist: true }` keeps a successful query in
-  sessionStorage (`gitstalk-query`) for 15 minutes, for this build and viewer only. Signing in
-  or out clears the cache and the stored copy.
+  sessionStorage (`gitstalk-query`) for an hour, for this build and viewer only. The freshness
+  policy sets it for a public repository's immutable data only. Signing in or out clears the
+  cache and the stored copy; signing out also sends `Clear-Site-Data: "cache"`.
 - **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request;
   `keyedForRequest` (`src/server/request-memo.ts`) does the same per key (the access check,
   a tab's engine reads, Ask's data). The session (`currentSession`) carries the header's name
   and picture from the same `users` row, so a signed-in page reads D1 once for both. Prefer it to React's `cache()` for anything a layout reads: vinext
   probes layouts outside React's render, so `cache()` reads twice. `"use cache"` with
-  `cacheLife` and `cacheTag` works, but the default cache handler is in memory, per isolate.
+  `cacheLife` and `cacheTag` works, but the default cache handler is in memory, per isolate;
+  repository objects use the edge object cache instead (below).
 - **Status before streaming**: vinext runs the layouts above a route's first `loading.tsx`
   before it streams, and nothing below it; a page under a skeleton can only render a
   not-found page inside a 200. So a 404 or redirect that must be the response's status lives
@@ -140,6 +144,69 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   hover, focus or touch, never because they scrolled into view (each prefetch is a server
   render with its gateway reads).
 
+## Caching
+
+Design and decisions: [docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md).
+
+**Classes of data.** Every repository read is one of: *immutable* (content addressed by a
+commit sha: a tree, a file, a diff of two commits, a landed bean's diff while its landing
+stands, a finished run or job log), *append-only* (the engine's event log), *mutable* (line heads, the pushed beans, an
+open bean), *per-viewer* (session, role, CSRF token, settings, page HTML) or a *stream*
+(`…/live`, `streams`, `stream`).
+
+**In the browser** (TanStack Query, `src/query/`):
+
+- `policy.ts` (`freshness(kind, { visibility, live })`) gives each class its `staleTime`,
+  `gcTime` and persistence: immutable `Infinity`; append-only `Infinity` while the live feed is
+  open, 15 s otherwise; mutable and per-viewer 30 s. Cached data renders at once and is
+  refetched in the background only when stale (on mount or window focus).
+- Only a **public** repository's immutable queries are persisted (sessionStorage, an hour).
+  The event log and private and internal data never leave memory.
+- `invalidation.ts` (`staleKeysFor`) maps a batch of new events to what it makes stale: the
+  pushed beans, the diff of a bean on screen, and whether the page must be rendered again (a
+  line head moved past what it rendered, or History's validation activity).
+- `HeadWatcher` (`components/repo-tabs/use-head-watcher.ts`) follows the feed from the seq a
+  Code or History page rendered at and calls `router.refresh()` in a transition when a line
+  it shows moves (after a random 0–1.5 s, so a landing does not make every viewer render at
+  once), so the client router's 30 s reuse never shows a stale head for long. Line moves are
+  `LINE_MOVE_TYPES` (`@gitstalk/shared-race/events`), shared with the gateway.
+- `fetchJson(..., { httpCache: 'revalidate' })` lets the browser revalidate the events, the
+  watcher's tail and bean diffs with their ETags (a bodiless 304).
+- In development, `QueryProvider` logs `query.fetch` with how often each kind of query was
+  served from the cache or fetched (`src/query/cache-counter.ts`).
+
+**At the edge** (`src/edge/`): a Worker runs in front of Cloudflare's cache, so response
+headers never make the CDN keep anything; edge caching is explicit code.
+
+- `object-cache.ts` reads a **public** repository's trees, files and diffs at commit shas
+  through this isolate's memory (an LRU of 4 MB of JSON; concurrent reads of a key share one
+  read), the colo's Cache API (named cache
+  `gitstalk-objects-v1`, 7-day copies; a no-op on `workers.dev`), the `OBJECTS` KV namespace
+  (global, 30-day expiry, values up to 1 MiB) and then the gateway. Fills go through
+  `waitUntil`, only after a successful read (never a not-found or an error). Each read logs
+  `edge.read` with `kind`, `layer` and `ms`.
+- Every edge function takes a `PublicEngine`, which only `PublicEngine.of(record)` makes, from
+  the record the viewer's access check returned on this request: private and internal
+  repositories never reach a shared cache, and a visibility flip needs no purge (the access
+  check refuses before any cache is read). Keys (`cache-keys.ts`) hold the engine, the
+  record's cache epoch (`updated_at`), the shas and the hashed path, never the viewer; any
+  change to the record (a takedown edit, a transfer, a visibility flip) makes every old copy
+  unreachable. `/__edge/*` is answered 404 by `worker/index.ts`.
+- `http-cache.ts` sets the browser headers: anything past the access check is `private`
+  (never `s-maxage` or `Vary: Cookie`), errors and streams `no-store`, and a 304 only after
+  the access check. A private or internal repository's answers are always `no-store`
+  (`byVisibility`). For a public one: events `private, no-cache` with
+  `W/"v1.<engine>.<last seq>.<last ts>"`; pushed `private, no-cache`; a bean's diff
+  `private, no-cache` with its commit pair as ETag (a 304 before the diff is read) and
+  `Server-Timing: edge;desc="colo-hit"`; a finished, complete job log download `immutable`;
+  a finished run an hour. A benchmark race's diff is `no-store`.
+- Bump `EDGE_CACHE_VERSION` when a stored payload changes shape.
+
+**Tests.** `pnpm -F @gitstalk/web test` runs the plain tests, then the edge tests on
+Miniflare (`vitest.workers.config.ts`, `*.workers.test.ts`, real KV and Cache API through
+`test/edge/wrangler.jsonc`): layer by layer hits, private repositories never stored or served,
+the visibility flip, the cache epoch, coalesced reads, and the headers.
+
 ## Layout
 
 | Path | Contents |
@@ -150,6 +217,7 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
 | `src/server/` | Server actions and page data loaders |
 | `src/auth/`, `src/account/`, `src/security/` | Sessions, the sign-in steps (`sign-in-steps.ts`) and email-code routes (`email-routes.ts`), passkeys, Turnstile, sign-out, response headers |
 | `src/repositories/`, `src/repo-pages/`, `src/changes/`, `src/history/`, `src/code/` | Gateway clients and the repository tabs' view models |
+| `src/query/`, `src/edge/` | Client data (TanStack Query keys, freshness policy, invalidation, persistence); the edge object cache and browser cache headers |
 | `src/actions/`, `src/automations/` | Actions client (gateway or fixture fake), log streaming, the automation builder |
 | `src/live/`, `src/stream/` | WebSocket-to-SSE bridges |
 | `src/setup/` | Setup scripts (`scripts/`) and their API |
@@ -168,7 +236,8 @@ pnpm install                                                # from the repo root
 cp packages/web/.dev.vars.example packages/web/.dev.vars    # DEMO_PASSWORD, EMAIL_SIGNIN_KEY; optional Turnstile, email
 cd packages/web && npx wrangler d1 migrations apply gitstalk-identity --local   # once, local accounts
 pnpm -F @gitstalk/web dev          # vite dev, http://localhost:5173
-pnpm -F @gitstalk/web test         # vitest on the app's pure modules (src/**/*.test.ts)
+pnpm -F @gitstalk/web test         # vitest on the pure modules, then the edge tests on Miniflare
+pnpm -F @gitstalk/web test:workers # only the Miniflare tests (src/**/*.workers.test.ts)
 pnpm -F @gitstalk/web typecheck    # tsc
 pnpm -F @gitstalk/web build        # vite build into dist/ (the Worker and its assets)
 pnpm -F @gitstalk/web preview      # build, then run the built Worker with wrangler dev
@@ -185,15 +254,16 @@ own fake. Email sign-in works locally with `EMAIL_SENDER_DOMAIN` set in `.dev.va
 domain): Miniflare simulates the `EMAIL` binding, sends nothing, and prints each message's
 subject, which carries the code.
 
-The tests run under plain vitest (no Miniflare): view models, the gateway and Actions clients
-against fakes, auth helpers, site forwarding and search headers, the setup API, and the
-benchmark reducer.
+Most tests run under plain vitest (no Miniflare): view models, the gateway and Actions clients
+against fakes, auth helpers, site forwarding and search headers, the setup API, the query
+policy and invalidation map, and the benchmark reducer. The edge cache's tests
+(`*.workers.test.ts`) run on Miniflare with real KV and Cache API (`vitest.workers.config.ts`).
 
 ## Configuration
 
 Bindings (`wrangler.jsonc`): services `GATEWAY`, `ACTIONS` (the gateway's `Actions`
 entrypoint) and `MCP`; D1 `IDENTITY_DB` (schema in `packages/shared-identity/migrations`);
-R2 `MEDIA`; `IMAGES`; rate limit `SIGNIN_RATE_LIMIT`; Analytics Engine `PRODUCT_EVENTS`;
+R2 `MEDIA`; KV `OBJECTS` (the edge object cache's global layer); `IMAGES`; rate limit `SIGNIN_RATE_LIMIT`; Analytics Engine `PRODUCT_EVENTS`;
 `AI`; Email Service `EMAIL` (`send_email`, sign-in codes); static `ASSETS`. Environments that serve the site on this origin add `SITE`.
 
 Vars: `LOG_LEVEL`, `ASK_CLASSIFIER`, `ASK_AI_MODEL`, `PICKER`, `DECISION_GATEWAY`,

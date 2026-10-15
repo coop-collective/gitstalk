@@ -152,7 +152,13 @@ function panel(viewer: ApproveAccess, hold: BeanHold = HELD): string {
       createElement(HeldPanel, {
         hold,
         bean: 'shout',
-        scope: { uid: 'u1', owner: 'coop', repo: 'greeter', base: '/coop/greeter' },
+        scope: {
+          uid: 'u1',
+          owner: 'coop',
+          repo: 'greeter',
+          base: '/coop/greeter',
+          visibility: 'public' as const,
+        },
         access: viewer,
         diffHref: '#bean-diff',
         landed: false,
@@ -201,7 +207,13 @@ describe('the Changes list', () => {
 
 function changesList(show: string): string {
   const queryClient = new QueryClient();
-  const scope = { uid: 'u1', owner: 'coop', repo: 'greeter', base: '/coop/greeter' };
+  const scope = {
+    uid: 'u1',
+    owner: 'coop',
+    repo: 'greeter',
+    base: '/coop/greeter',
+    visibility: 'public' as const,
+  };
   const keys = qk.repo(scope.uid, scope.owner, scope.repo);
   queryClient.setQueryData(keys.events(), GREETER_EVENTS);
   queryClient.setQueryData(keys.pushed(), withHold(HELD));

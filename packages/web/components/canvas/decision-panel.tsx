@@ -10,6 +10,7 @@ import { formatClock, plural } from '../../src/race/race-format';
 import { RepoDiffSchema } from '../../src/repo/repo-schemas';
 import type { RepoDiff } from '@gitstalk/shared-ask/repo/repo-types';
 import { DiffView } from '../explorer/diff-view';
+import { fetchJson } from '../../src/query/fetch-json';
 import styles from './canvas.module.css';
 import { ADMIN_DEMO_GATE, adminRunPath } from '../../src/admin/admin-paths';
 
@@ -239,16 +240,22 @@ function Note(props: {
   }
 }
 
-/** A bean's own diff, fetched when opened. */
+/**
+ * A bean's own diff, fetched when opened. The route names the bean, not its commit pair, so
+ * the browser's copy is revalidated on every read (a 304 when the pair is unchanged), never
+ * reused as it is.
+ */
 function BeanDiff({ run, bean }: { readonly run: string; readonly bean: string }) {
   const [diff, setDiff] = useState<RepoDiff | 'loading' | 'failed' | null>(null);
   const load = async () => {
     if (diff !== null) return;
     setDiff('loading');
     try {
-      const response = await fetch(`/api/runs/${run}/beans/${bean}/diff`);
-      if (!response.ok) throw new Error(String(response.status));
-      setDiff(parseDiff(await response.json()));
+      setDiff(
+        await fetchJson(`/api/runs/${run}/beans/${bean}/diff`, isDiff, {
+          httpCache: 'revalidate',
+        }),
+      );
     } catch {
       // Shown as a failure in the disclosure; the bean view in the explorer still has it.
       setDiff('failed');
@@ -272,7 +279,6 @@ function BeanDiff({ run, bean }: { readonly run: string; readonly bean: string }
   );
 }
 
-function parseDiff(value: unknown): RepoDiff | 'failed' {
-  const parsed = RepoDiffSchema.safeParse(value);
-  return parsed.success ? parsed.data : 'failed';
+function isDiff(value: unknown): value is RepoDiff {
+  return RepoDiffSchema.safeParse(value).success;
 }

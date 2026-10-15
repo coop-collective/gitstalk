@@ -17,6 +17,7 @@ export type CodePage = CodeData & { readonly menu: CodeMenu };
 const UNREACHABLE: CodeData = {
   changes: [],
   sha: '',
+  seq: 0,
   head: null,
   body: { kind: 'missing', what: 'This repository’s engine is not reachable.' },
 };

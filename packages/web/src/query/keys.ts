@@ -54,6 +54,22 @@ export const qk = {
       bean: (name: string) => [...all, 'bean', name] as const,
       /** One Actions run, by id. */
       run: (runId: string) => [...all, 'run', runId] as const,
+      /** One finished job's log: never changes once the job is done. */
+      jobLog: (runId: string, jobId: string) =>
+        [...all, 'run', runId, 'job', jobId, 'log'] as const,
+      /** Actions runs under one filter (`?status=…&workflow=…`, as the page encodes it). */
+      runs: (filter: string) => [...all, 'runs', filter] as const,
+      /** The diff between two commits: immutable, whatever bean it belongs to. */
+      diff: (base: string, head: string) => [...all, 'diff', base, head] as const,
+      /** The whole tree at a commit sha. */
+      tree: (sha: string) => [...all, 'tree', sha] as const,
+      /** One file at a commit sha. */
+      file: (sha: string, path: string) => [...all, 'file', sha, path] as const,
+      /**
+       * The events after `seq`, for a page that watches the feed without the whole log (the
+       * Code and History tabs' head watcher).
+       */
+      tail: (seq: number) => [...all, 'tail', seq] as const,
     };
   },
 } as const;

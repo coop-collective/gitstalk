@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
+import { parseRaceEvents } from '@gitstalk/shared-ask/race/race-events';
 import { appendBySeq } from '../query/append-by-seq';
 import {
   beanDiffPath,
   changeFeedPaths,
   changesBeanDiff,
   eventsAfter,
+  hasStandingLanding,
   isEventsAnswer,
   isPushedAnswer,
   isRepoDiff,
@@ -85,5 +87,45 @@ describe('the Changes tab’s client data', () => {
     expect(inGroup(changesOf(snapshot, []), 'landed').length).toBeLessThanOrEqual(
       inGroup(changesOf(grown, []), 'landed').length,
     );
+  });
+});
+
+describe('whether a bean’s landing stands', () => {
+  let seq = 0;
+  const parsed = (...raw: Record<string, unknown>[]): readonly RaceEvent[] => {
+    const result = parseRaceEvents(
+      raw.map((fields) => {
+        seq += 1;
+        return { seq, t: seq, ts: '2026-10-14T00:00:00Z', ...fields };
+      }),
+    );
+    expect(result.events).toHaveLength(raw.length);
+    return result.events;
+  };
+  const SHA = 'a'.repeat(40);
+  const land = { type: 'land', task: 'fix', sha: SHA, target: 'trunk', files: ['a.ts'] };
+  const requeued = { type: 'bean.requeued', task: 'fix', ticket: 'T1', trunk_idx: 2 };
+  const reset = {
+    type: 'sprout.reset',
+    ticket: 'T1',
+    green_idx: 0,
+    trunk_idx: 1,
+    sha: SHA,
+    requeued: ['fix'],
+  };
+  const demote = { type: 'green.demote', sha: SHA, failing: [], tasks: ['fix'] };
+
+  it('stands once the bean lands', () => {
+    expect(hasStandingLanding(parsed(land), 'fix')).toBe(true);
+    expect(hasStandingLanding(parsed(land), 'other')).toBe(false);
+  });
+
+  it.each([
+    ['a requeue', requeued],
+    ['a red reset of the sprout', reset],
+    ['a demotion of the stalk', demote],
+  ])('falls after %s, until the bean lands again', (_name, takeOff) => {
+    expect(hasStandingLanding(parsed(land, takeOff), 'fix')).toBe(false);
+    expect(hasStandingLanding(parsed(land, takeOff, land), 'fix')).toBe(true);
   });
 });

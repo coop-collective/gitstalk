@@ -62,6 +62,28 @@ Measured:
 - **Offline replay, after** (`src/repo/read-index-replay.test.ts`: the 38 fastify beans' recorded paths on a 407-file tree, each landing's merge diff read by the gate, then warmed): with the gate reading through the index, its 638 object reads cost 319 Artifacts reads (blob demand hit rate 0.50: every stalk side was warmed, every bean side is new), the warm-up then finds the bean's side held (prefetch misses 703 to 422), and the run's Artifacts object reads fall from 1,380 to 780. The replay's warm-up alone (143 tree and 560 blob fetches, 39 ref reads) matches staging's shape (173 to 176, 573 to 578, 54 to 59). A staging run with the change has not been made; it should show demand hit rates where there were none, and `prefetch.blob.misses` lower by the gate's bean-side blobs.
 - **Not done:** a per-colo Cache API tier keyed by object id (folded into the separate repository caching work, owner's decision 2026-10-14), which would let `RepoDerivedDO` (a separate object, which reads the same landed blobs again through its own handle) and the explorer share fetches across Durable Objects; and keeping the ref memo across landings by setting it to the landed commit (compare-and-swap) instead of clearing it, which would turn the warm-up's one `log` per landing into a hit. Both are projected, not measured.
 
+## Caching
+
+The gateway's read index above is the last cache tier and the only one that holds every
+repository, private ones included: objects by id in each engine's SQLite, and the 5 s ref memo a
+landing clears. The web app adds its own tiers in front of it for **public repositories only**
+(`packages/web` README, Caching; design in
+[docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
+the colo's Cache API and a global KV namespace, keyed by engine, the record's `updated_at` (so
+any registry update purges them) and commit sha, and the browser caches with TanStack Query.
+The line-move event types the read index warms on (`LINE_MOVE_TYPES`,
+`@gitstalk/shared-race/events`) are the ones the web's head watcher refreshes on.
+
+The gateway does not authorise RPC calls (`repoTree`, `repoFile`, `repoLog`, `repoDiff` trust the
+engine id; the service binding is the trust boundary), so it never decides what may be cached
+across viewers: the web app checks access on every request and caches only objects of a record
+that check returned as public. Nothing in the gateway changes for this; a format change of what
+the RPCs return means bumping the web's `EDGE_CACHE_VERSION`, since its copies outlive a deploy.
+
+The repository events queue (`repo-events`) is where a future signed-out heads snapshot in KV
+would be written, on `bean.landed`, `stalk.promoted` and `bean.reverted` (deferred until
+measurements show the anonymous Code tab is dominated by its log reads).
+
 ## Layout
 
 | Path | Contents |

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { RunId } from '@gitstalk/shared-race/ids';
 
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
+import { eventsEtag } from '../edge/http-cache';
 import { registryClient } from '../repositories/registry-client';
 import type { ChangeReads, RepoAccess } from './changes-api';
 import { answerEvents, answerPushed } from './changes-api';
@@ -56,9 +57,9 @@ function countingReads(events: readonly RaceEvent[] = GREETER_EVENTS) {
   const calls: string[] = [];
   const reads: ChangeReads = {
     engine: ENGINE,
-    events: async () => {
-      calls.push('events');
-      return events;
+    eventsAfter: async (after) => {
+      calls.push(`events>${after}`);
+      return events.filter((event) => event.seq > after);
     },
     pushed: async () => {
       calls.push('pushed');
@@ -75,13 +76,29 @@ const get = (query = '') =>
   new Request(`https://gitstalk.test/api/repos/coop/greeter/events${query}`);
 
 describe('the Changes JSON routes', () => {
-  it('answer a private repository’s events to its owner, uncached', async () => {
+  it('answer a private repository’s events to its owner, never kept by the browser', async () => {
     const { reads } = countingReads();
     const response = await answerEvents(get(), await access('greeter', coop, reads));
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('etag')).toBeNull();
     const body: unknown = await response.json();
     expect(body).toEqual({ events: JSON.parse(JSON.stringify(GREETER_EVENTS)) });
+  });
+
+  it('never let the browser keep a private repository’s pushed beans', async () => {
+    const { reads } = countingReads();
+    const response = await answerPushed(get(), await access('greeter', coop, reads));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('let the browser keep a public repository’s events to revalidate, named by engine and last event', async () => {
+    const { reads } = countingReads();
+    const response = await answerEvents(get(), await access('notes', null, reads));
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(response.headers.get('etag')).toBe(eventsEtag(ENGINE, 0, GREETER_EVENTS.at(-1)));
+    expect(response.headers.get('etag')).toContain(ENGINE);
   });
 
   it('give anyone else the same 404 as a missing repository, without reading the engine', async () => {
@@ -93,7 +110,7 @@ describe('the Changes JSON routes', () => {
     ]);
     expect(refused).toEqual(Array.from({ length: 3 }, () => ({ kind: 'not-found' })));
     const responses = await Promise.all(
-      refused.flatMap((found) => [answerEvents(get(), found), answerPushed(found)]),
+      refused.flatMap((found) => [answerEvents(get(), found), answerPushed(get(), found)]),
     );
     expect(responses.map((response) => response.status)).toEqual(
       Array.from({ length: 6 }, () => 404),
@@ -106,14 +123,16 @@ describe('the Changes JSON routes', () => {
 
   it('serve a public repository to a signed-out reader', async () => {
     const { reads } = countingReads();
-    const response = await answerPushed(await access('notes', null, reads));
+    const response = await answerPushed(get(), await access('notes', null, reads));
     expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(response.headers.get('etag')).toBeNull();
     const body: unknown = await response.json();
     expect(body).toEqual({ pushed: GREETER_PUSHED });
   });
 
-  it('return only the events after ?after=', async () => {
-    const { reads } = countingReads();
+  it('return only the events after ?after=, reading only that tail', async () => {
+    const { reads, calls } = countingReads();
     const after = GREETER_EVENTS.at(-3)?.seq ?? 0;
     const response = await answerEvents(
       get(`?after=${after}`),
@@ -121,6 +140,7 @@ describe('the Changes JSON routes', () => {
     );
     const body: unknown = await response.json();
     expect(body).toEqual({ events: JSON.parse(JSON.stringify(GREETER_EVENTS.slice(-2))) });
+    expect(calls).toEqual([`events>${after}`]);
   });
 
   it('refuse an ?after= that is not a non-negative integer', async () => {
@@ -134,16 +154,77 @@ describe('the Changes JSON routes', () => {
   });
 
   it('say so when the engine is unusable or the gateway fails', async () => {
-    expect((await answerPushed(await access('greeter', coop, null))).status).toBe(503);
+    expect((await answerPushed(get(), await access('greeter', coop, null))).status).toBe(503);
     const failing: RepoAccess = {
       kind: 'found',
+      visibility: 'public',
       reads: {
         engine: ENGINE,
-        events: () => Promise.reject(new Error('gateway down')),
+        eventsAfter: () => Promise.reject(new Error('gateway down')),
         pushed: () => Promise.reject(new Error('gateway down')),
       },
     };
     expect((await answerEvents(get(), failing)).status).toBe(502);
-    expect((await answerPushed(failing)).status).toBe(502);
+    expect((await answerPushed(get(), failing)).status).toBe(502);
+  });
+});
+
+const revalidating = (etag: string, repo = 'notes') =>
+  new Request(`https://gitstalk.test/api/repos/coop/${repo}/events`, {
+    headers: { 'if-none-match': etag },
+  });
+
+describe('revalidating the events', () => {
+  const last = GREETER_EVENTS.at(-1);
+  const held = eventsEtag(ENGINE, 0, last);
+
+  it('answer 304 without a body when the viewer holds the newest events', async () => {
+    const { reads } = countingReads();
+    const response = await answerEvents(revalidating(held), await access('notes', null, reads));
+    expect(response.status).toBe(304);
+    expect(response.headers.get('cache-control')).toBe('private, no-cache');
+    expect(await response.text()).toBe('');
+  });
+
+  it('answer the events again when the held copy no longer ends the log', async () => {
+    const { reads } = countingReads(GREETER_EVENTS.slice(0, -1));
+    const response = await answerEvents(revalidating(held), await access('notes', null, reads));
+    expect(response.status).toBe(200);
+  });
+
+  it('never confirm a copy of another engine’s log, or of a reset log, at the same seq', async () => {
+    const other = RunId.parse('greeter02');
+    expect(eventsEtag(other, 0, last)).not.toBe(held);
+    if (last === undefined) throw new Error('the greeter log has events');
+    const reset = { ...last, ts: '2026-10-14T00:00:00.000Z' };
+    expect(eventsEtag(ENGINE, 0, reset)).not.toBe(held);
+    const { reads } = countingReads([...GREETER_EVENTS.slice(0, -1), reset]);
+    const response = await answerEvents(revalidating(held), await access('notes', null, reads));
+    expect(response.status).toBe(200);
+  });
+
+  it('never answer 304 for a private repository, even to its owner', async () => {
+    const { reads } = countingReads();
+    const response = await answerEvents(
+      revalidating(held, 'greeter'),
+      await access('greeter', coop, reads),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('never answer 304 to someone who may not read the repository', async () => {
+    const { reads, calls } = countingReads();
+    const responses = await Promise.all(
+      [dana, null].map(async (viewer) =>
+        answerEvents(revalidating(held, 'greeter'), await access('greeter', viewer, reads)),
+      ),
+    );
+    expect(responses.map((response) => response.status)).toEqual([404, 404]);
+    expect(responses.map((response) => response.headers.get('cache-control'))).toEqual([
+      'no-store',
+      'no-store',
+    ]);
+    expect(calls).toEqual([]);
   });
 });

@@ -38,6 +38,7 @@ The old research ideas this builds on (Crystal 2011, Cassandra 2013) failed for 
 | [`32-approval-rules.md`](32-approval-rules.md) | Approval rules by kind of change (2026-10-14): `.gitstalk/policy.yml`, classes computed by code (comment-only lexer, docs, tests, lockfiles, paths), routes auto/triage (Clef)/card, writer limits, receipts, and Settings → Approval rules | reference |
 | [`33-server-side-commits.md`](33-server-side-commits.md) | `bean_commit`: commits built in the Worker from the changed paths only and pushed through receive-pack with compare-and-swap; the policy, API, verification against real git, and differences from claude-18 §5 | reference |
 | [`34-derived-data-and-blame.md`](34-derived-data-and-blame.md) | Derived history (2026-10-14): one deriver mechanism per landing, eager or lazy, versioned; blame by bean (`why_lines`) and path history, in a Durable Object beside each repository engine | reference |
+| [`35-caching.md`](35-caching.md) | Caching the repository UI (2026-10-14): data classes, the freshness policy and invalidation map in the browser, the public-only edge object cache (isolate, Cache API, KV), browser headers per route, measurement, deferred work | reference |
 | [`research/`](research/) | The four sourced research memos behind all of this (about 30k words, 500+ linked sources) | reference |
 
 ## Ten takeaways

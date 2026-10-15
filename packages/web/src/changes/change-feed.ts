@@ -10,6 +10,7 @@
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { RepoDiff } from '@gitstalk/shared-ask/repo/repo-types';
 
+import type { Visibility } from '../query/policy';
 import type { PushedBean } from './pushed-beans';
 
 /** `GET /api/repos/:owner/:repo/events[?after=<seq>]`. */
@@ -27,6 +28,8 @@ export type RepoScope = {
   readonly repo: string;
   /** `/<owner>/<repo>`. */
   readonly base: string;
+  /** Who may read it: only a public repository's data is persisted (src/query/policy.ts). */
+  readonly visibility: Visibility;
 };
 
 /** The JSON routes and the live feed of the repository at `base` (`/<owner>/<repo>`). */
@@ -61,8 +64,9 @@ export function parseEventBatch(data: unknown): readonly RaceEvent[] | null {
 }
 
 /**
- * Events that move a pushed bean (a push, a check's verdict, a landing, validation, parking,
- * a decision, a revert): the gateway's pushed list changes with them.
+ * Events that move a pushed bean (a push, a check's verdict, a landing, validation and its
+ * demotion, parking, a decision asked or made, a revert): the gateway's pushed list changes
+ * with them (`push/push-events.ts` folds each into the beans it names).
  */
 const PUSHED_KINDS: ReadonlySet<RaceEvent['type']> = new Set<RaceEvent['type']>([
   'task.start',
@@ -72,8 +76,10 @@ const PUSHED_KINDS: ReadonlySet<RaceEvent['type']> = new Set<RaceEvent['type']>(
   'rework.start',
   'land',
   'green.promote',
+  'green.demote',
   'task.parked',
   'task.drop',
+  'decision.request',
   'decision.made',
   'revert',
   'bean.requeued',
@@ -90,6 +96,27 @@ export function changesBeanDiff(events: readonly RaceEvent[], bean: string): boo
   return events.some(
     (event) => (event.type === 'task.commit' || event.type === 'land') && event.task === bean,
   );
+}
+
+/**
+ * Whether the bean's newest landing still stands: it landed, and no later event took it off
+ * its line (a requeue, a red reset of the sprout, a demotion of the stalk). Until then its
+ * diff (the landing's pair) does not change; after one, the bean lands again with a new pair.
+ */
+export function hasStandingLanding(events: readonly RaceEvent[], bean: string): boolean {
+  let standing = false;
+  for (const event of events) {
+    if (event.type === 'land' && event.task === bean) standing = true;
+    else if (takesOffLine(event, bean)) standing = false;
+  }
+  return standing;
+}
+
+function takesOffLine(event: RaceEvent, bean: string): boolean {
+  if (event.type === 'bean.requeued') return event.task === bean;
+  if (event.type === 'sprout.reset') return event.requeued.some((task) => task === bean);
+  if (event.type === 'green.demote') return event.tasks.some((task) => task === bean);
+  return false;
 }
 
 /** The events after seq `after` (the list is sorted by seq). */

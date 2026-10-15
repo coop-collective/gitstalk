@@ -235,8 +235,8 @@
                   <td>D1</td>
                 </tr>
                 <tr>
-                  <td>OAuth grants</td>
-                  <td>KV</td>
+                  <td>OAuth grants; public repositories' files and diffs cached at the edge</td>
+                  <td>KV, Cache API</td>
                 </tr>
                 <tr>
                   <td>Repository events to the index</td>
@@ -288,9 +288,9 @@ cp -r environments/example environments/staging</code></pre>
             <li>
               <h3>Provision</h3>
               <p>
-                Creates what the environment needs if it is missing (D1 databases, the OAuth KV
-                namespace, R2 buckets, the events queue and the Artifacts namespace), records their
-                ids in
+                Creates what the environment needs if it is missing (D1 databases, the KV namespaces
+                for OAuth grants and the edge cache, R2 buckets, the events queue and the Artifacts
+                namespace), records their ids in
                 <code>resources.json</code>, generates the Workers' secrets into
                 <code>secrets/</code> (never printed, never committed) and applies the D1
                 migrations. Run it again after an update that adds a resource or a migration.
@@ -447,6 +447,14 @@ cp -r environments/example environments/staging</code></pre>
                   <td>
                     Belong to the web app's hostname. Pick it before people sign up; changing it
                     later means people register passkeys again.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Edge cache</td>
+                  <td>
+                    The web app keeps public repositories' files and diffs in each data centre's
+                    cache too. That cache does nothing on <code>workers.dev</code>, where only the
+                    global KV copy is used.
                   </td>
                 </tr>
               </tbody>

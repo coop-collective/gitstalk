@@ -33,6 +33,10 @@
   // Uploaded pictures (docs/claude-opus/29-settings.md): avatars, organisation icons, repository
   // social images, written and served by this Worker under /media (@gitstalk/shared-media).
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "gitstalk-media" }],
+  // The edge object cache's global layer (docs/claude-opus/35-caching.md): public repositories'
+  // trees, files and diffs at a commit sha, which never change; 30-day expiry per key. The
+  // per-colo layer is the Cache API (no binding). `pnpm env:provision` creates the namespace.
+  "kv_namespaces": [{ "binding": "OBJECTS", "id": "local-gitstalk-objects" }],
   // Cloudflare Images re-encodes uploads to WebP sizes (first frame of a GIF, metadata gone).
   // Without it the stripped original is stored and served at every size.
   "images": { "binding": "IMAGES" },

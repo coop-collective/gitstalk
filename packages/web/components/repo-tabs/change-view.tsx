@@ -8,14 +8,11 @@
  * Derived from the same queries as the Changes list (`useChangesFeed`); the feed stays open
  * until the bean is settled (validated, parked or fallen off).
  */
-import type { QueryKey } from '@tanstack/react-query';
 import { IntentLink as Link } from '../shell/intent-link';
 import type { ReactNode } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { RepoScope } from '../../src/changes/change-feed';
-import { changesBeanDiff } from '../../src/changes/change-feed';
 import type { Change } from '../../src/changes/changes';
 import {
   authorText,
@@ -24,7 +21,6 @@ import {
   latestActivityMs,
   stateText,
 } from '../../src/changes/changes';
-import { qk } from '../../src/query/keys';
 import { timeAgo } from '../../src/repositories/when';
 import type { ApproveAccess } from '../../src/changes/approval-client';
 import type { JourneyTone } from '../../src/changes/journey';
@@ -54,12 +50,8 @@ export function ChangeView(props: {
 }) {
   const { scope, bean } = props;
   const [settled, setSettled] = useState(props.settled);
-  const staleAfter = useCallback(
-    (fresh: readonly RaceEvent[]): readonly QueryKey[] =>
-      changesBeanDiff(fresh, bean) ? [qk.repo(scope.uid, scope.owner, scope.repo).bean(bean)] : [],
-    [scope.uid, scope.owner, scope.repo, bean],
-  );
-  const feed = useChangesFeed(scope, { live: !settled, staleAfter });
+  const beans = useMemo(() => [bean], [bean]);
+  const feed = useChangesFeed(scope, { live: !settled, beans });
   const changes = useMemo(() => changesOf(feed.events, feed.pushed), [feed.events, feed.pushed]);
   const change = changes.find((candidate) => candidate.bean === bean);
   // Derived state, adjusted while rendering: the feed closes once the bean settles.

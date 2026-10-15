@@ -1,37 +1,27 @@
-import { mayStreamRun } from '../../../../../../../src/admin/admin-gate';
 import { env } from 'cloudflare:workers';
 
 import { RunId, TaskId } from '@gitstalk/shared-race/ids';
 
-import { isForgeError } from '@gitstalk/shared-ask/forge/forge-errors';
+import { runAccess } from '../../../../../../../src/admin/admin-gate';
+import { answerBeanDiff } from '../../../../../../../src/changes/bean-diff-answer';
+import { problem } from '../../../../../../../src/edge/http-cache';
+import { publicObjects } from '../../../../../../../src/edge/public-objects';
 import { forgeForRun } from '../../../../../../../src/forge/sources';
-import { log } from '../../../../../../../src/log';
 
 type Context = { readonly params: Promise<{ readonly run: string; readonly bean: string }> };
 
-/** A bean's own diff (its landing, or its newest head against the line), for decision cards. */
+/**
+ * A bean's own diff (its landing, or its newest head against the line), for decision cards
+ * and a bean's page: a repository's engine to its readers, a benchmark race to platform admins
+ * only, a 404 for anyone else. A public repository's diff is edge-cached by its commit pair.
+ */
 export async function GET(request: Request, context: Context): Promise<Response> {
   const params = await context.params;
   const run = RunId.safeParse(params.run);
   const bean = TaskId.safeParse(params.bean);
   if (!run.success || !bean.success) return problem(400, 'not a run or a bean id');
-  // A repository's engine to its readers; a benchmark race to platform admins only.
-  if (!(await mayStreamRun(request, run.data))) return problem(404, 'no such run');
-  try {
-    const source = forgeForRun(env.GATEWAY, run.data);
-    const detail = await source.beanDetail(run.data, bean.data);
-    if (detail === undefined) return problem(404, `no bean ${bean.data} in this run`);
-    if (detail.diffBase === null || detail.diffHead === null)
-      return problem(404, 'this bean has no change yet');
-    const diff = await source.repoDiff(run.data, detail.diffBase, detail.diffHead);
-    return Response.json(diff, { headers: { 'cache-control': 'private, max-age=30' } });
-  } catch (error: unknown) {
-    if (isForgeError(error, 'not_found')) return problem(404, error.message);
-    log.error('bean diff failed', { run: run.data, bean: bean.data, error });
-    return problem(502, 'the gateway could not produce this diff');
-  }
-}
-
-function problem(status: number, message: string): Response {
-  return Response.json({ error: { message } }, { status });
+  return answerBeanDiff(
+    { request, run: run.data, bean: bean.data, access: await runAccess(request, run.data) },
+    { source: forgeForRun(env.GATEWAY, run.data), objects: publicObjects },
+  );
 }

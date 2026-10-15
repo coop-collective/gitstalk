@@ -674,3 +674,18 @@ export const REQUIRED_EVENT_KEYS: Readonly<Partial<Record<RaceEventType, readonl
   'race.end': ['aborted', 'spent_usd'],
   'final.check': ['sha', 'suite_green'],
 };
+
+/**
+ * Event types after which a line (the sprout or the stalk) has a new head: the base at the
+ * start, then landings, reverts, red resets, promotions and demotions. The gateway warms its
+ * read index on them and the web app's head watcher refreshes on them: one list, so the two
+ * never drift apart.
+ */
+export const LINE_MOVE_TYPES = [
+  'race.start',
+  'land',
+  'revert',
+  'sprout.reset',
+  'green.promote',
+  'green.demote',
+] as const satisfies readonly RaceEventType[];

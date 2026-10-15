@@ -44,12 +44,13 @@ export function seedChangeQueries(
   queryClient.setQueryData(keys.pushed(), read.pushed);
 }
 
-/** The client data scope of a repository tab: its viewer, owner, name and base path. */
+/** The client data scope of a repository tab: its viewer, owner, name, base path, visibility. */
 export function repoScopeOf(tab: RepositoryTab): RepoScope {
   return {
     uid: tab.user?.id ?? null,
     owner: tab.record.owner.handle,
     repo: tab.record.name,
     base: tab.base,
+    visibility: tab.record.visibility,
   };
 }

@@ -7,7 +7,9 @@ import { BlobView } from './blob-view';
 import type { CodeLocation } from './code-browser';
 import { CodeAside, CodeBar, FolderView } from './code-browser';
 import styles from './repo-tabs.module.css';
+import { repoScopeOf } from './changes-tab';
 import { RepositoryShell } from './repository-shell';
+import { HeadWatcher } from './use-head-watcher';
 
 export function CodeTab(props: {
   readonly tab: RepositoryTab;
@@ -27,6 +29,16 @@ export function CodeTab(props: {
   );
   return (
     <RepositoryShell page={tab} tab="code" openChanges={counts.open}>
+      {tab.reads === null || !isLine(props.browsing) ? null : (
+        <HeadWatcher
+          scope={repoScopeOf(tab)}
+          heads={{
+            stalk: props.browsing.kind === 'stalk' ? data.sha : null,
+            sprout: props.browsing.kind === 'sprout' ? data.sha : null,
+          }}
+          seq={data.seq}
+        />
+      )}
       <div className={props.view === 'blob' ? styles.single : styles.split}>
         <div>
           <CodeBar
@@ -49,6 +61,11 @@ export function CodeTab(props: {
       </div>
     </RepositoryShell>
   );
+}
+
+/** Whether the page browses a line (which moves), not a bean or a commit. */
+function isLine(ref: RefChoice): boolean {
+  return ref.kind === 'stalk' || ref.kind === 'sprout';
 }
 
 function CodeBody(props: {

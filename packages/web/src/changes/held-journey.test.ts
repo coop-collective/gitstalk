@@ -32,7 +32,13 @@ vi.mock('../../components/shell/intent-link', () => ({
 const { ChangeView } = await import('../../components/repo-tabs/change-view');
 const { ChangesList } = await import('../../components/repo-tabs/changes-list');
 
-const SCOPE = { uid: 'u1', owner: 'coop', repo: 'greeter', base: '/coop/greeter' };
+const SCOPE = {
+  uid: 'u1',
+  owner: 'coop',
+  repo: 'greeter',
+  base: '/coop/greeter',
+  visibility: 'public' as const,
+};
 const NOW = Date.parse('2026-10-14T12:05:00.000Z');
 const HELD: BeanHold = {
   ...HOLD,
