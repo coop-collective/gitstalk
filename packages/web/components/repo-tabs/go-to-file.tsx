@@ -4,7 +4,8 @@
  * Go to file (`t`, as on GitHub): a modal finder over every path at the browsed commit. The
  * paths are read once per commit (`code/paths`, the tree read the page made, from the edge
  * cache for a public repository) and only when the finder first opens. The field is a
- * combobox over a listbox: arrows move, Enter opens the file, Escape closes.
+ * combobox over a listbox: arrows move, Enter opens the file (in place, `code-opener.tsx`),
+ * Escape closes.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -20,6 +21,7 @@ import { codeHref } from '../../src/code/tree';
 import { fetchJson } from '../../src/query/fetch-json';
 import { qk } from '../../src/query/keys';
 import { freshness } from '../../src/query/policy';
+import { useCodeOpener } from './code-opener';
 import styles from './file-tree.module.css';
 
 /** Matches shown at once; typing narrows them. */
@@ -63,6 +65,7 @@ function Finder(props: {
 }) {
   const { scope, sha } = props;
   const router = useRouter();
+  const opener = useCodeOpener();
   const listId = useId();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -76,7 +79,8 @@ function Finder(props: {
   const matches = findFiles(paths.data ?? [], query, SHOWN);
   const open = (path: string) => {
     props.onClose();
-    router.push(codeHref(scope.base, 'blob', path, props.ref));
+    if (opener === null) router.push(codeHref(scope.base, 'blob', path, props.ref));
+    else opener.go({ view: 'blob', path });
   };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const next = moveActive(event.key, active, matches.length);

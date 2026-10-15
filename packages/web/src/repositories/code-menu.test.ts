@@ -19,6 +19,11 @@ vi.mock('../../components/shell/link-pending', () => ({ LinkPending: () => null 
 vi.mock('../../components/shell/intent-link', () => ({
   IntentLink: (props: Record<string, unknown>) => createElement('a', props),
 }));
+// The side column's module also holds the folder links (`CodeLink`), which import the router.
+vi.mock('next/link', () => ({
+  default: (props: Record<string, unknown>) => createElement('a', props),
+}));
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useSearchParams: () => null }));
 
 const SELF_HOSTED: StartConfig = {
   gitOrigin: 'https://forge.example.test/',

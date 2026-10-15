@@ -13,11 +13,9 @@ import { useMemo } from 'react';
 import type { RepoScope } from '../../src/changes/change-feed';
 import type { FolderListing, LoadedFolders } from '../../src/code/file-tree';
 import { ancestorsOf } from '../../src/code/file-tree';
-import { fileTreePaths, isFolderAnswer } from '../../src/code/file-tree-answers';
 import type { TreeEntry } from '../../src/code/tree';
-import { fetchJson, isHttpStatus } from '../../src/query/fetch-json';
 import { qk } from '../../src/query/keys';
-import { freshness } from '../../src/query/policy';
+import { folderQuery } from './code-queries';
 
 export type TreeFolders = {
   readonly loaded: LoadedFolders;
@@ -42,13 +40,8 @@ export function useTreeFolders(input: {
     queries: wanted.map((folder) => {
       const initial = sent.get(folder);
       return {
-        queryKey: keys.folder(sha, folder),
-        queryFn: ({ signal }: { readonly signal: AbortSignal }) =>
-          readFolder(scope, sha, folder, signal),
-        enabled: sha !== '',
-        retry: (failures: number, error: unknown) => failures < 1 && !isHttpStatus(error, 404),
+        ...folderQuery(scope, sha, folder),
         ...(initial === undefined ? {} : { initialData: initial }),
-        ...freshness('immutable', { visibility: scope.visibility }),
       };
     }),
   });
@@ -74,14 +67,4 @@ function shownFolders(expanded: ReadonlySet<string>): readonly string[] {
     ancestorsOf(folder).every((parent) => expanded.has(parent)),
   );
   return ['', ...shown.toSorted()];
-}
-
-async function readFolder(
-  scope: RepoScope,
-  sha: string,
-  folder: string,
-  signal: AbortSignal,
-): Promise<readonly TreeEntry[]> {
-  const path = fileTreePaths(scope.base).folder(sha, folder);
-  return (await fetchJson(path, isFolderAnswer, { signal })).entries;
 }

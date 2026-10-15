@@ -8,8 +8,25 @@ import { foldersAlong } from '../../src/code/file-tree';
 import type { CodeView } from '../../src/code/tree';
 import { CodeWorkspace } from './code-workspace';
 
-// The app router and its links come from vinext at build time; a plain anchor stands in.
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// The app router and its links come from vinext at build time; a plain anchor stands in. The
+// URL is not a Code URL, so the workspace shows the location it was rendered for.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}));
+vi.mock('next/link', () => ({
+  default: (props: {
+    readonly href: string;
+    readonly prefetch?: unknown;
+    readonly onNavigate?: unknown;
+  }) => {
+    const anchor: Record<string, unknown> = { ...props };
+    delete anchor['prefetch'];
+    delete anchor['onNavigate'];
+    return <a {...anchor} />;
+  },
+}));
 vi.mock('../shell/link-pending', () => ({ LinkPending: () => null }));
 vi.mock('../shell/intent-link', () => ({
   IntentLink: (props: { readonly href: string; readonly children: ReactNode }) => (
@@ -41,6 +58,7 @@ function render(path: string, view: CodeView): string {
       <CodeWorkspace
         scope={SCOPE}
         at={{ ref: { kind: 'sprout' }, sha: SHA, path, view }}
+        plain={false}
         folders={foldersAlong(FILES, path, view)}
         bar={<nav aria-label="Path">bar</nav>}
         stalk={<p>the stalk</p>}
