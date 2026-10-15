@@ -8,14 +8,11 @@
  */
 import type { FileChange } from '../git/diff-text';
 import { lineHunks } from '../git/diff-text';
-import { importSpecifiers, resolveImport } from '../repo/import-closure';
+import type { Language } from './imports/language';
+import { languageOf } from './imports/languages';
 
 /** Entries of each list Clef reads; past it, the link is plain enough. */
 const LINKS_LIMIT = 12;
-/** Code files whose imports and declarations the patterns below read. */
-const CODE_FILE = /\.(?:[cm]?[jt]sx?|py|rs|go|rb|java|kt|swift|cs|php)$/u;
-const DECLARATION =
-  /^\s*(?:export\s+)?(?:default\s+)?(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:function\*?\s+|(?:const|let|var)\s+|class\s+|interface\s+|type\s+|enum\s+|def\s+|fn\s+|func\s+)([A-Za-z_$][\w$]*)/u;
 const IDENTIFIER = /[A-Za-z_$][\w$]*/gu;
 
 /** The links between the bean being judged ("this") and one landed bean ("theirs"). */
@@ -53,10 +50,11 @@ export function linkCount(links: BeanLinks): number {
 /** `from -> to` for each file of `from` whose current text imports a file `to` changed. */
 function importLinks(from: readonly FileChange[], to: readonly FileChange[]): string[] {
   const targets = new Set(to.map((change) => change.path));
-  const links = codeFiles(from).flatMap((change) =>
-    importSpecifiers(change.after ?? '')
-      .map((specifier) => resolveImport(change.path, specifier, targets))
-      .flatMap((target) => (target === null ? [] : [`${change.path} -> ${target}`])),
+  const links = codeFiles(from).flatMap(({ change, language }) =>
+    language
+      .importedFiles(change.path, change.after ?? '', targets)
+      .filter((target) => target !== change.path)
+      .map((target) => `${change.path} -> ${target}`),
   );
   return [...new Set(links)].slice(0, LINKS_LIMIT);
 }
@@ -64,7 +62,7 @@ function importLinks(from: readonly FileChange[], to: readonly FileChange[]): st
 /** Names `changer` changed that appear in `user`'s new or changed lines. */
 function nameLinks(changer: readonly FileChange[], user: readonly FileChange[]): string[] {
   const changed = new Set(codeFiles(changer).flatMap(changedNames));
-  const used = new Set(codeFiles(user).flatMap(newIdentifiers));
+  const used = new Set(codeFiles(user).flatMap(({ change }) => newIdentifiers(change)));
   return [...changed].filter((name) => used.has(name)).slice(0, LINKS_LIMIT);
 }
 
@@ -72,11 +70,12 @@ function nameLinks(changer: readonly FileChange[], user: readonly FileChange[]):
  * The declarations a file's change touched: each changed line's own declaration, or the
  * nearest one above it that is indented less (the function a `return` sits in).
  */
-function changedNames(change: FileChange): string[] {
+function changedNames(file: CodeFile): string[] {
+  const { change, language } = file;
   const names = new Set<string>();
   for (const side of [sideOf(change, 'before'), sideOf(change, 'after')]) {
     for (const line of side.changed) {
-      const name = enclosingName(side.lines, line);
+      const name = enclosingName(language, side.lines, line);
       if (name !== null) names.add(name);
     }
   }
@@ -91,15 +90,15 @@ function newIdentifiers(change: FileChange): string[] {
   );
 }
 
-function enclosingName(lines: readonly string[], at: number): string | null {
-  const own = DECLARATION.exec(lines[at] ?? '')?.[1];
-  if (own !== undefined) return own;
+function enclosingName(language: Language, lines: readonly string[], at: number): string | null {
+  const own = language.declaredName(lines[at] ?? '');
+  if (own !== null) return own;
   const indent = indentOf(lines[at] ?? '');
   for (let line = at - 1; line >= 0; line -= 1) {
     const text = lines[line] ?? '';
     if (text.trim() === '' || indentOf(text) >= indent) continue;
-    const name = DECLARATION.exec(text)?.[1];
-    if (name !== undefined) return name;
+    const name = language.declaredName(text);
+    if (name !== null) return name;
   }
   return null;
 }
@@ -119,8 +118,14 @@ function sideOf(
   return { lines, changed };
 }
 
-function codeFiles(changes: readonly FileChange[]): readonly FileChange[] {
-  return changes.filter((change) => change.binary !== true && CODE_FILE.test(change.path));
+/** A changed file in a language the links read. */
+type CodeFile = { readonly change: FileChange; readonly language: Language };
+
+function codeFiles(changes: readonly FileChange[]): readonly CodeFile[] {
+  return changes.flatMap((change) => {
+    const language = change.binary === true ? null : languageOf(change.path);
+    return language === null ? [] : [{ change, language }];
+  });
 }
 
 function indentOf(line: string): number {

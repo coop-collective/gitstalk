@@ -1,0 +1,13 @@
+/**
+ * C and C++: imports and declarations for `bean-links.ts` (`language.ts`). Not built yet: no
+ * imports, and declarations by keyword only.
+ */
+import type { Language } from './language';
+import { genericDeclaredName } from './language';
+
+export const cFamily: Language = {
+  id: 'c-family',
+  extensions: ['.c', '.h', '.cc', '.cpp', '.cxx', '.hpp', '.hh', '.hxx'],
+  importedFiles: () => [],
+  declaredName: genericDeclaredName,
+};
