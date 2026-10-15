@@ -10,8 +10,10 @@
 // `proposal: hold` at any time; the review never approves, merges or pushes.
 //
 // Env: GITHUB_TOKEN, GITHUB_REPOSITORY (owner/name), PROPOSAL_MAINTAINERS (GitHub handles, comma
-// separated, mentioned in the notice), ANTHROPIC_API_KEY (review only; without it the review
-// step does nothing), PROPOSAL_REVIEW_MODEL, PROPOSAL_WINDOW_HOURS. Secrets are never printed.
+// separated, mentioned in the notice), XINF_API_KEY (review only, a Xava Inference key; without it
+// the review step does nothing), XINF_BASE_URL (default https://zinf.ai; https://zinf.dev for
+// staging), PROPOSAL_REVIEW_MODEL (a Xava Inference catalog id), PROPOSAL_WINDOW_HOURS. Secrets
+// are never printed.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -53,7 +55,8 @@ const NOTICE_MARKER = '<!-- gitstalk-proposal-notice -->';
 const REVIEW_MARKER = '<!-- gitstalk-proposal-review -->';
 const MAINTAINER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const RECOMMENDATIONS = ['accept', 'changes', 'maintainer'];
-const DEFAULT_MODEL = 'claude-opus-5-5';
+const DEFAULT_MODEL = 'anthropic/claude-opus-5.5';
+const DEFAULT_XINF_BASE_URL = 'https://zinf.ai';
 const MAX_DIFF_CHARS = 120_000;
 
 /** A proposal document: a Markdown file in docs/proposals/, other than the folder's own pages. */
@@ -282,11 +285,12 @@ async function notify(github, number, settings) {
   log(`#${number}: notice posted, window until ${due.toISOString()}`);
 }
 
-async function callModel({ apiKey, model, prompt }) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+/** Xava Inference's Anthropic Messages endpoint (`POST /v1/messages`), with the account key as a bearer token. */
+async function callModel({ baseUrl, apiKey, model, prompt }) {
+  const response = await fetch(`${baseUrl}/v1/messages`, {
     method: 'POST',
     headers: {
-      'x-api-key': apiKey,
+      authorization: `Bearer ${apiKey}`,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
@@ -298,7 +302,7 @@ async function callModel({ apiKey, model, prompt }) {
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  if (!response.ok) throw new Error(`Anthropic API: ${response.status} ${await response.text()}`);
+  if (!response.ok) throw new Error(`Xava Inference: ${response.status} ${await response.text()}`);
   const message = await response.json();
   const call = message.content.find((block) => block.type === 'tool_use');
   if (call === undefined) throw new Error('the model returned no review');
@@ -318,7 +322,7 @@ function readContext() {
 
 async function reviewProposals(github, settings, { only, dryRun }) {
   if (settings.apiKey === '' && !dryRun) {
-    log('ANTHROPIC_API_KEY is not set; the automated review is off');
+    log('XINF_API_KEY is not set; the automated review is off');
     return;
   }
   const numbers =
@@ -329,6 +333,7 @@ async function reviewProposals(github, settings, { only, dryRun }) {
     log(`#${number}: ${verdict.reason}`);
     if (!verdict.eligible || dryRun) continue;
     const proposed = await callModel({
+      baseUrl: settings.baseUrl,
       apiKey: settings.apiKey,
       model: settings.model,
       prompt: reviewPrompt({ ...loaded, diff: await github.diff(number), context: readContext() }),
@@ -363,7 +368,8 @@ async function main() {
       .map((handle) => handle.trim().replace(/^@/, ''))
       .filter(Boolean),
     windowHours: Number(process.env.PROPOSAL_WINDOW_HOURS || 72),
-    apiKey: process.env.ANTHROPIC_API_KEY ?? '',
+    apiKey: process.env.XINF_API_KEY ?? '',
+    baseUrl: (process.env.XINF_BASE_URL || DEFAULT_XINF_BASE_URL).replace(/\/+$/, ''),
     model: process.env.PROPOSAL_REVIEW_MODEL || DEFAULT_MODEL,
   };
   if (command === 'notify' && only !== undefined) return notify(github, only, settings);

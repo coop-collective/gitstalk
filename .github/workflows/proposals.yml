@@ -8,8 +8,11 @@
 # Both jobs run the script from the base branch and never check out the pull request's code: the
 # proposal reaches the model only as text through the GitHub API, fenced as untrusted data.
 #
-# Repository settings: secret ANTHROPIC_API_KEY (without it the review is off); optional variables
-# PROPOSAL_MAINTAINERS (comma-separated handles, default Disturbing) and PROPOSAL_REVIEW_MODEL.
+# The review calls Xava Inference's Anthropic Messages endpoint (XINF_BASE_URL/v1/messages).
+# Repository settings: secret XINF_API_KEY, a Xava Inference API key (without it the review is off);
+# optional variables PROPOSAL_MAINTAINERS (comma-separated handles, default Disturbing),
+# XINF_BASE_URL (default https://zinf.ai; https://zinf.dev for staging) and PROPOSAL_REVIEW_MODEL
+# (a Xava Inference catalog id, default anthropic/claude-opus-5.5).
 name: proposals
 
 on:
@@ -79,5 +82,6 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          XINF_API_KEY: ${{ secrets.XINF_API_KEY }}
+          XINF_BASE_URL: ${{ vars.XINF_BASE_URL }}
           PROPOSAL_REVIEW_MODEL: ${{ vars.PROPOSAL_REVIEW_MODEL }}
