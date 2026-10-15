@@ -60,8 +60,13 @@ const LOW_RISK: ReadonlySet<string> = new Set(['comment-only', 'docs-only', 'tes
  * every seed with nobody to approve it; below this the bean lands on its tests alone.
  */
 export const CARD_MIN_PROBABILITY = 0.65;
-/** A `clash` yes sends the bean back to its author only when Clef is this sure. */
-export const RECHECK_MIN_PROBABILITY = 0.65;
+/**
+ * A `clash` yes sends the bean back to its author when Clef is this sure. Lower than a card's:
+ * a wrong recheck costs the author agent a look, not a person's time. Measured on Clef Flash
+ * (2026-10-15, shipping-fee pair, answers deterministic): the real clash 0.66 with links (0.42
+ * from intents alone); compatible intents with the same links 0.08 to 0.11.
+ */
+export const RECHECK_MIN_PROBABILITY = 0.5;
 /** Characters of a commit message Clef reads; an intent is one line, a body a few. */
 const MESSAGE_CHARS = 600;
 

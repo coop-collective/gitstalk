@@ -420,7 +420,7 @@ describe('judgeLanding', () => {
   it('lands an unsure clash on its tests, and asks again when another bean lands', async () => {
     const landed: { beans: readonly LandedFake[] } = { beans: [PRICE_DOLLARS] };
     const fake = fakeHost({
-      ai: clefAnswers('auto', { 'clash.0': 0.55, 'clash.1': 0.1 }),
+      ai: clefAnswers('auto', { 'clash.0': 0.45, 'clash.1': 0.1 }),
       revision: 'r1',
       landed,
     });
