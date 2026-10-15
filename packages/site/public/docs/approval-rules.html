@@ -534,7 +534,8 @@ classes:
             both rely on, such as a unit, a format, a meaning or a value?
           </p>
           <p>
-            When Clef is at least 50% sure of a clash, the bean goes
+            The clash questions go to Clef 27B, a larger Clef that answers them better than the
+            model that picks the route. When it is at least 30% sure of a clash, the bean goes
             <strong>back to its author agent</strong>, not to a person: an ordinary red that names
             the other bean, its intent and the links. A recheck is cheaper than a card, so its bar
             is lower. The author reads the other bean, fixes theirs if the two disagree, and pushes
@@ -766,9 +767,10 @@ remote: gitstalk: awaiting a person's approval
             </li>
             <li>Clef's answers are not yet compared with later human decisions.</li>
             <li>
-              The recheck threshold (50%) comes from one measured pair and a few controls, not a
-              labelled evaluation. The bean's page shows a recheck as a red; it has no panel of its
-              own yet.
+              The recheck threshold (30%) comes from a labelled set of 35 pairs (16 of 17 clashes
+              caught, 2 false rechecks of 18). Clashes between files that meet only over the
+              network, such as an API and its client, have no links yet. The bean's page shows a
+              recheck as a red; it has no panel of its own yet.
             </li>
           </ul>
 

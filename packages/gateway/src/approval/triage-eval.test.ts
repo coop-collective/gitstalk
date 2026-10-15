@@ -196,6 +196,7 @@ function judgeCase(
     previous: (task) => saved.get(task) ?? null,
     save: (judged) => saved.set(judged.receipt.bean, judged),
     model: decisionModelFrom({ name: 'clef', ai, gateway: '', budgetMs: 50 }),
+    clashModel: decisionModelFrom({ name: 'clef-27b', ai, gateway: '', budgetMs: 50 }),
     now: () => 1000,
   };
   const landing = {

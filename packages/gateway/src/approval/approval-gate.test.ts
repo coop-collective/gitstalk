@@ -149,6 +149,7 @@ function fakeHost(options: {
     previous: (task) => store.get(task) ?? null,
     save: (entry) => store.set(entry.receipt.bean, entry),
     model: decisionModelFrom({ name: 'clef', ai, gateway: '', budgetMs: 50 }),
+    clashModel: decisionModelFrom({ name: 'clef-27b', ai, gateway: '', budgetMs: 50 }),
     now: () => 1000,
   };
   return { host, asked, reads };
@@ -337,12 +338,19 @@ describe('judgeLanding', () => {
       landed: { beans: [PRICE_DOLLARS] },
     });
     await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
-    expect(fake.asked).toHaveLength(1);
+    expect(fake.asked.map((call) => call.model)).toEqual([
+      DECISION_MODELS.clef.workersAiId,
+      DECISION_MODELS['clef-27b'].workersAiId,
+    ]);
     expect(fake.asked[0]?.body).toMatchObject({
       questions: {
         route: { type: 'choice', criteria: { auto: expect.any(String), card: expect.any(String) } },
-        'clash.0': { type: 'noul', instructions: expect.stringContaining('price-dollars') },
       },
+    });
+    expect(fake.asked[1]?.body['questions']).toEqual({
+      'clash.0': { type: 'noul', instructions: expect.stringContaining('price-dollars') },
+    });
+    expect(fake.asked[1]?.body).toMatchObject({
       state: {
         intent: 'Add $5 shipping (in cents)',
         message: 'Add $5 shipping (in cents)\n\nShipping is a flat 500 cents.',
@@ -432,14 +440,14 @@ describe('judgeLanding', () => {
   it('lands an unsure clash on its tests, and asks again when another bean lands', async () => {
     const landed: { beans: readonly LandedFake[] } = { beans: [PRICE_DOLLARS] };
     const fake = fakeHost({
-      ai: clefAnswers('auto', { 'clash.0': 0.45, 'clash.1': 0.1 }),
+      ai: clefAnswers('auto', { 'clash.0': 0.25, 'clash.1': 0.1 }),
       revision: 'r1',
       landed,
     });
     const unsure = await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
     expect(unsure).toMatchObject({ hold: null, receipt: { route: 'auto', probability: 0.8 } });
     await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
-    expect(fake.asked).toHaveLength(1);
+    expect(fake.asked).toHaveLength(2);
     const tax = {
       ...PRICE_DOLLARS,
       bean: 'tax',
@@ -448,7 +456,22 @@ describe('judgeLanding', () => {
     };
     landed.beans = [tax, PRICE_DOLLARS];
     await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
-    expect(fake.asked).toHaveLength(2);
+    expect(fake.asked).toHaveLength(4);
+  });
+
+  it('lands on the route alone when the clash call fails', async () => {
+    const routeOnly: AiRunner = {
+      run: (model) =>
+        model === DECISION_MODELS['clef-27b'].workersAiId
+          ? Promise.reject(new Error('clef 27b unavailable'))
+          : Promise.resolve({
+              answers: { route: { choice: 'auto', probabilities: { auto: 0.8 } } },
+            }),
+    };
+    const fake = fakeHost({ ai: routeOnly, landed: { beans: [PRICE_DOLLARS] } });
+    const judged = await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
+    expect(judged).toMatchObject({ hold: null, receipt: { route: 'auto', by: 'clef' } });
+    expect(judged.receipt.recheck).toBeUndefined();
   });
 
   it('never rechecks when Clef is down: the rule picks auto or card as before', async () => {

@@ -79,6 +79,12 @@ export function approvalJobHost(deps: ApprovalHostDeps): ApprovalJobHost {
         gateway: deps.aiGateway ?? '',
         budgetMs: CLEF_BUDGET_MS,
       }),
+      clashModel: decisionModelFrom({
+        name: 'clef-27b',
+        ai: deps.ai,
+        gateway: deps.aiGateway ?? '',
+        budgetMs: CLEF_BUDGET_MS,
+      }),
       now: deps.now,
     },
   };

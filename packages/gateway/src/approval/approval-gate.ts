@@ -33,11 +33,7 @@ import { dialectOf, isCommentOnlyChange } from '@gitstalk/shared-race/code-token
 import type { ConfigFile } from '@gitstalk/shared-race/config-dir';
 import type { Sha } from '@gitstalk/shared-race/ids';
 
-import type {
-  ChoiceAnswer,
-  DecisionModel,
-  Question,
-} from '@gitstalk/shared-ask/pick/decision-model';
+import type { ChoiceAnswer, DecisionModel } from '@gitstalk/shared-ask/pick/decision-model';
 import { askChoice, askQuestions } from '@gitstalk/shared-ask/pick/decision-model';
 
 import type { CheckInstance, CheckResult } from '../engine/model';
@@ -61,12 +57,12 @@ const LOW_RISK: ReadonlySet<string> = new Set(['comment-only', 'docs-only', 'tes
  */
 export const CARD_MIN_PROBABILITY = 0.65;
 /**
- * A `clash` yes sends the bean back to its author when Clef is this sure. Lower than a card's:
- * a wrong recheck costs the author agent a look, not a person's time. Measured on Clef Flash
- * (2026-10-15, shipping-fee pair, answers deterministic): the real clash 0.66 with links (0.42
- * from intents alone); compatible intents with the same links 0.08 to 0.11.
+ * A `clash` yes from Clef 27B sends the bean back to its author when it is this sure. Lower than
+ * a card's: a wrong recheck costs the author agent a look, not a person's time. Measured on the
+ * labelled set (`triage-eval/clash-cases.json`, 35 pairs): precision 0.89, recall 0.94 at 0.30;
+ * recall 0.35 at 0.5. Clef Flash answered every pair 0.04 to 0.23, so it does not ask this.
  */
-export const RECHECK_MIN_PROBABILITY = 0.5;
+export const RECHECK_MIN_PROBABILITY = 0.3;
 /** Characters of a commit message Clef reads; an intent is one line, a body a few. */
 const MESSAGE_CHARS = 600;
 
@@ -103,6 +99,8 @@ export type ApprovalHost = {
   save(entry: { readonly receipt: RouteReceipt; readonly fingerprint: string }): void;
   /** Clef, or null when the Worker has no Workers AI binding (the rule answers). */
   readonly model: DecisionModel | null;
+  /** Clef 27B, which answers the `clash` questions; null: no recheck. */
+  readonly clashModel: DecisionModel | null;
   now(): number;
 };
 
@@ -405,9 +403,10 @@ async function routeAlone(
 }
 
 /**
- * The route question and one `clash` question per connected landed bean, in one call. A card
- * Clef is sure of wins (a person); else any clash it is sure of is a recheck (the author);
- * else the bean lands on its tests. A failed call is the rule's, which never rechecks.
+ * The route question (Clef Flash) and one `clash` question per connected landed bean (Clef 27B,
+ * `host.clashModel`), in parallel. A card Clef is sure of wins (a person); else any clash it is
+ * sure of is a recheck (the author); else the bean lands on its tests. A failed route call is
+ * the rule's, which never rechecks; a failed clash call rechecks nothing.
  */
 async function routeWithClashes(
   host: ApprovalHost,
@@ -418,14 +417,17 @@ async function routeWithClashes(
   },
 ): Promise<Routed> {
   const started = host.now();
-  const answered = await askRouteAndClashes(host.model, input.question, input.clashes);
+  const [route, clashes] = await Promise.all([
+    askChoice(host.model, { id: 'route', ...input.question, fallback: input.fallback }),
+    askClashes(host.clashModel, input.question.state, input.clashes),
+  ]);
   const latencyMs = host.model === null ? null : host.now() - started;
-  if (answered === null)
+  if (route.kind === 'fell-back')
     return { route: input.fallback, by: 'rules', probability: null, latencyMs };
-  const sure = Object.entries(answered.clashes).filter(
+  const sure = Object.entries(clashes).filter(
     ([, probability]) => probability >= RECHECK_MIN_PROBABILITY,
   );
-  return clefRoute(answered.route, sure.length === 0 ? null : sure, latencyMs);
+  return clefRoute(route.value, sure.length === 0 ? null : sure, latencyMs);
 }
 
 /** Clef's route, held to `CARD_MIN_PROBABILITY`, or a recheck against the beans it is sure of. */
@@ -458,41 +460,18 @@ function clefRoute(
   return { route: 'auto', by: 'clef', probability: auto, latencyMs };
 }
 
-/** The route's choice and each clash's probability by bean; null when the call failed. */
-async function askRouteAndClashes(
+/** Each clash's probability by bean; none when the model is missing or the call failed. */
+async function askClashes(
   model: DecisionModel | null,
-  question: TriageQuestion,
+  state: TriageQuestion['state'],
   clashes: ReturnType<typeof clashQuestions>,
-): Promise<{
-  readonly route: ChoiceAnswer;
-  readonly clashes: Readonly<Record<string, number>>;
-} | null> {
-  if (model === null) return null;
-  const questions: Record<string, Question> = {
-    route: { type: 'choice', instructions: question.instructions, criteria: question.criteria },
-    ...clashes.questions,
-  };
+): Promise<Readonly<Record<string, number>>> {
+  if (model === null) return {};
   try {
-    const answers = await askQuestions(model, question.state, questions);
-    const route = answers['route'];
-    if (
-      route === undefined ||
-      !('choice' in route) ||
-      !Object.hasOwn(question.criteria, route.choice)
-    )
-      throw new Error('the route answer is not one of its choices');
-    const probabilities = route.probabilities ?? {};
-    return {
-      route: {
-        choice: route.choice,
-        probabilities,
-        confidence: route.confidence ?? probabilities[route.choice] ?? null,
-      },
-      clashes: clashProbabilities(answers, clashes.beans),
-    };
+    return clashProbabilities(await askQuestions(model, state, clashes.questions), clashes.beans);
   } catch (error: unknown) {
-    model.onError?.('route', error);
-    return null;
+    model.onError?.('clash', error);
+    return {};
   }
 }
 
