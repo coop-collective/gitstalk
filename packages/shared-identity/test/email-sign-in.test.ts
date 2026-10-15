@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 import { listAudit } from '../src/audit';
-import type { CodePurpose } from '../src/email-codes';
+import type { CodePurpose, EmailCodeConfig } from '../src/email-codes';
 import {
   EMAIL_CODE_SECONDS,
   MAX_CODES_PER_HOUR,
@@ -32,9 +32,14 @@ function setup() {
 }
 
 async function issue(
-  config: { readonly port: ReturnType<typeof capturingEmailPort>; readonly key: string },
+  config: EmailCodeConfig,
   email: string,
-  options: { readonly purpose?: CodePurpose; readonly userId?: string; readonly now?: number } = {},
+  options: {
+    readonly purpose?: CodePurpose;
+    readonly userId?: string;
+    readonly now?: number;
+    readonly requestId?: string;
+  } = {},
 ): Promise<string> {
   const issued = await issueEmailCode(env, config, {
     email,
@@ -42,6 +47,7 @@ async function issue(
     userId: options.userId ?? null,
     ip: FACTS.ip,
     now: options.now ?? T0,
+    requestId: options.requestId ?? crypto.randomUUID(),
   });
   if (!issued.ok) throw new Error(issued.reason);
   return issued.ticket;
@@ -100,6 +106,117 @@ describe('email configuration', () => {
 });
 
 describe('email codes', () => {
+  it('sends only one email when the same form is submitted concurrently', async () => {
+    const { mail, config } = setup();
+    const request = {
+      email: 'duplicate@example.com',
+      purpose: 'signin',
+      userId: null,
+      ip: FACTS.ip,
+      now: T0,
+      requestId: crypto.randomUUID(),
+    } satisfies Parameters<typeof issueEmailCode>[2];
+
+    const issued = await Promise.all([
+      issueEmailCode(env, config, request),
+      issueEmailCode(env, config, request),
+    ]);
+
+    expect(mail.sent).toHaveLength(1);
+    expect(issued[0]).toEqual(issued[1]);
+    const first = issued[0];
+    if (!first?.ok) throw new Error('expected an email ticket');
+    expect(await verify(first.ticket, mail.latestCode(request.email))).toEqual({
+      ok: true,
+      email: request.email,
+    });
+  });
+
+  it('replays the same form at the hourly cap without sending or resetting its tries', async () => {
+    const { mail, config } = setup();
+    const requestId = crypto.randomUUID();
+    const ticket = await issue(config, 'replayed@example.com', { requestId });
+    const wrong = otherCode(mail.latestCode('replayed@example.com'));
+    expect(await verify(ticket, wrong)).toMatchObject({ attemptsLeft: 4 });
+    for (let sent = 1; sent < MAX_CODES_PER_HOUR; sent += 1)
+      // oxlint-disable-next-line no-await-in-loop -- fill the hourly budget before replaying
+      await issue(config, 'replayed@example.com');
+
+    expect(await issue(config, 'replayed@example.com', { requestId })).toBe(ticket);
+    expect(mail.sent).toHaveLength(MAX_CODES_PER_HOUR);
+    expect(await verify(ticket, wrong)).toMatchObject({ attemptsLeft: 3 });
+  });
+
+  it('does not revive a used or expired code when its form is replayed', async () => {
+    const { mail, config } = setup();
+    const requestId = crypto.randomUUID();
+    const ticket = await issue(config, 'used-form@example.com', { requestId });
+    await verify(ticket, mail.latestCode('used-form@example.com'));
+    await expect(issue(config, 'used-form@example.com', { requestId })).rejects.toThrow('expired');
+
+    await issue(config, 'expired-form@example.com', { requestId });
+    await expect(
+      issue(config, 'expired-form@example.com', {
+        requestId,
+        now: T0 + EMAIL_CODE_SECONDS * 1000,
+      }),
+    ).rejects.toThrow('expired');
+    expect(mail.sent).toHaveLength(2);
+  });
+
+  it('does not replay a failed delivery as a usable code', async () => {
+    const { mail, config } = setup();
+    const requestId = crypto.randomUUID();
+    const unavailable = {
+      ...config,
+      port: {
+        async send() {
+          throw new Error('mail unavailable');
+        },
+      },
+    };
+    await expect(issue(unavailable, 'failed@example.com', { requestId })).rejects.toThrow(
+      'mail unavailable',
+    );
+    await expect(issue(config, 'failed@example.com', { requestId })).rejects.toThrow('expired');
+    await issue(config, 'failed@example.com');
+    expect(mail.sent).toHaveLength(1);
+  });
+
+  it('binds a form request to its address, purpose and signed-in account', async () => {
+    const { mail, config } = setup();
+    const requestId = crypto.randomUUID();
+    const one = await signUp('request-owner');
+    const two = await signUp('request-other');
+    const tickets = await Promise.all([
+      issue(config, 'request@example.com', { requestId }),
+      issue(config, 'other@example.com', { requestId }),
+      issue(config, 'request@example.com', {
+        requestId,
+        purpose: 'add_email',
+        userId: one.user.id,
+      }),
+      issue(config, 'request@example.com', {
+        requestId,
+        purpose: 'add_email',
+        userId: two.user.id,
+      }),
+    ]);
+    expect(new Set(tickets).size).toBe(4);
+    expect(mail.sent).toHaveLength(4);
+  });
+
+  it('enforces the hourly cap when different forms arrive concurrently', async () => {
+    const { mail, config } = setup();
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: MAX_CODES_PER_HOUR + 2 }, () => issue(config, 'burst@example.com')),
+    );
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(
+      MAX_CODES_PER_HOUR,
+    );
+    expect(mail.sent).toHaveLength(MAX_CODES_PER_HOUR);
+  });
+
   it('mails a six-digit code with the agreed text, stored only as an HMAC', async () => {
     const { mail, config } = setup();
     const ticket = await issue(config, 'code@example.com');
