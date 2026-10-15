@@ -2,7 +2,7 @@
 
 Agent-first git forge on Cloudflare Workers and Artifacts, built for Cloudflare's "Build the next GitHub" competition (deadline 2026-10-14). Design docs are the source of truth for behaviour: start with `docs/claude-README.md`, then `docs/claude-10-beanstalk-thesis.md` and `docs/claude-13-demo-plan.md`. When code and a doc disagree, update the doc in the same change.
 
-This file is the canonical instruction set for every coding agent (Codex, Claude Code, Cursor, Copilot and others read it; `CLAUDE.md` only imports it). Keep it short; details live in skills.
+This file is the canonical instruction set for every coding agent (Codex, Claude Code, Cursor, Copilot and others read it; there is no `CLAUDE.md`, because Claude Code reads `AGENTS.md` when none exists). Keep it short; details live in skills.
 
 ## Stack (decided)
 
@@ -57,8 +57,8 @@ Skills live in `.agents/skills/` (read natively by Codex); `.claude/skills/` hol
 
 | Path | Contents |
 |---|---|
-| `AGENTS.md`, `CLAUDE.md` | This file; Claude Code import of it |
-| `.agents/skills/`, `.claude/skills/`, `skills-lock.json` | Skills (canonical, symlinks, vendored-skill lock) |
+| `AGENTS.md` | This file |
+| `.agents/skills/`, `.claude/skills/`, `skills-lock.json` | Skills (canonical; symlinks, because Claude Code reads only `.claude/skills/`; vendored-skill lock) |
 | `docs/` | Research, thesis, demo plan, design docs |
 | `packages/` | Production code: one directory per package; a container crate sits in its Worker's `container/` |
 | `scripts/` | Repo tooling (`rust-check.mjs`, `check-docs.mjs`, `environments.mjs`) |
