@@ -465,7 +465,7 @@ classes:
           <ol class="flow" aria-label="A bean is classified, then routed auto, triage or card">
             <li class="bean"><b>Classify</b><span>paths and syntax</span></li>
             <li class="sprout"><b>Auto</b><span>land on its tests</span></li>
-            <li class="sprout"><b>Triage</b><span>Clef picks auto or card</span></li>
+            <li class="sprout"><b>Triage</b><span>Clef picks auto, recheck or card</span></li>
             <li class="stalk"><b>Card</b><span>held for a person</span></li>
           </ol>
           <p>
@@ -491,12 +491,15 @@ classes:
                 <tr>
                   <td><code>triage</code></td>
                   <td>
-                    Clef, a small model that sees the classes and their descriptions, the paths and
-                    the diff's size (never contents), picks
-                    <code>auto</code> or <code>card</code> within 2.5 seconds. If it is late or
+                    Clef, a small model that sees the classes and their descriptions, the paths, the
+                    diff's size, the bean's intent and commit message, and the
+                    <a href="#recheck">beans it never saw</a> (never file contents), picks
+                    <code>auto</code> or <code>card</code> within 2.5 seconds, and can send the bean
+                    back to its author to <a href="#recheck">recheck</a>. If it is late or
                     unavailable, fixed rules decide: auto when the bean is also comment-only,
-                    docs-only or tests-only, otherwise card. Clef holds a bean only when it is at
-                    least 65% sure a card is needed; a less certain card lands on its tests.
+                    docs-only or tests-only, otherwise card, never recheck. Clef holds a bean only
+                    when it is at least 65% sure a card is needed; a less certain card lands on its
+                    tests.
                   </td>
                 </tr>
                 <tr>
@@ -514,6 +517,60 @@ classes:
           <p>
             Clef and Jev only pick or rank. They never write code. The receipt names the model that
             decided.
+          </p>
+
+          <h2 id="recheck">Recheck: beans it never saw <span class="badge beta">beta</span></h2>
+          <p>
+            Two beans can each pass their tests, merge with no conflict and still break together.
+            One makes <code>price()</code> return dollars; another, written at the same time, adds
+            shipping as <code>price() + 500</code> cents. Checkout now charges $600, and no test
+            fails unless one covers the combination. When a bean is triaged, Clef also reads the
+            beans it never saw: those that <strong>landed after it forked</strong>, and those
+            <strong>pushed before it and still being checked</strong>, which may land first. For
+            each it gets their intent and commit message, the files both changed, and how the two
+            connect: a file one changed imports a file the other changed, or a function, constant or
+            type one changed is used on the other's new lines. Clef answers one yes-or-no question
+            per bean (up to four, the most connected first): do the two disagree about something
+            both rely on, such as a unit, a format, a meaning or a value?
+          </p>
+          <p>
+            When Clef is at least 50% sure of a clash, the bean goes
+            <strong>back to its author agent</strong>, not to a person: an ordinary red that names
+            the other bean, its intent and the links. A recheck is cheaper than a card, so its bar
+            is lower. The author reads the other bean, fixes theirs if the two disagree, and pushes
+            again with a trailer naming what they checked. The trailer takes those beans off the
+            list; the tests still decide. A card Clef is sure of still wins, and a person decides:
+            the held message then also names the beans Clef thinks it clashes with, so the person
+            approving sees why. The bean pushed later is the one rechecked, so the bean that lands
+            second owns the repair.
+          </p>
+          <figure class="mock" aria-label="A terminal: a push sent back to its author to recheck">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i><span class="mock-url">Terminal</span>
+            </div>
+            <div class="mock-body">
+              <pre
+                class="m-term"
+              ><span class="p">$</span> git push -o wait origin HEAD:refs/heads/bean/shipping
+remote: gitstalk: approval rules: checkout -> recheck (clef, p=0.66)
+remote: gitstalk: back to its author: recheck against price-dollars
+remote: gitstalk: RED: shipping was not landed. Merged onto the sprout, these tests failed:
+remote: gitstalk:   - .gitstalk/policy.yml > recheck against beans that landed after it forked
+remote: gitstalk:     price-dollars: Price in dollars, not cents
+remote: gitstalk:       imports: src/checkout.mjs -> src/price.mjs
+remote: gitstalk:       it changed, you use: price
+remote: gitstalk:     Intent-checked: price-dollars</pre>
+            </div>
+            <figcaption>
+              Fix the bean so both intents hold (here: shipping in dollars), then push again with
+              <code>Intent-checked: price-dollars</code> in the commit message.
+            </figcaption>
+          </figure>
+          <p>
+            Links are read for JavaScript and TypeScript, Python, Ruby, Java, Kotlin, C#, Swift, Go,
+            Rust, C and C++, and PHP, from the changed files' text alone: no build system is run.
+            They point Clef at a contract; they never decide. Recheck is for repositories; benchmark
+            races list no other beans.
           </p>
 
           <h2 id="writers">Writers</h2>
@@ -573,7 +630,9 @@ remote: gitstalk: awaiting a person's approval
             <figcaption>
               The held bean is not broken: its check answers red with
               <em>awaits approval by a person</em>. The rules line for a triaged bean reads, for
-              example, <code>api -&gt; card (clef, p=0.81)</code>.
+              example, <code>api -&gt; card (clef, p=0.81)</code>, or
+              <code>checkout -&gt; recheck (clef, p=0.66)</code> when it goes back to its author
+              (its receipt is route <code>auto</code> with the beans in <code>recheck</code>).
             </figcaption>
           </figure>
 
@@ -706,6 +765,11 @@ remote: gitstalk: awaiting a person's approval
               races keep the rules off.
             </li>
             <li>Clef's answers are not yet compared with later human decisions.</li>
+            <li>
+              The recheck threshold (50%) comes from one measured pair and a few controls, not a
+              labelled evaluation. The bean's page shows a recheck as a red; it has no panel of its
+              own yet.
+            </li>
           </ul>
 
           <section class="sources">

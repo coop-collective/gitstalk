@@ -397,14 +397,24 @@ describe('judgeLanding', () => {
     expect(lines).toContain('back to its author: recheck against price-dollars');
   });
 
-  it('lets a sure card win over a clash: a person decides', async () => {
+  it('lets a sure card win over a clash, and tells the person about the clash', async () => {
     const fake = fakeHost({
       ai: clefAnswers('card', { 'clash.0': 0.9 }),
       landed: { beans: [PRICE_DOLLARS] },
     });
     const judged = await judgeLanding(fake.host, landing(['src/api/checkout.ts']), SANDBOX);
-    expect(judged.receipt).toMatchObject({ route: 'card', approval: { state: 'awaiting' } });
-    expect(judged.receipt.recheck).toBeUndefined();
+    expect(judged.receipt).toMatchObject({
+      route: 'card',
+      approval: { state: 'awaiting' },
+      recheck: ['price-dollars'],
+    });
+    expect(judged.hold).toMatchObject({ awaitsApproval: true });
+    expect(judged.hold?.output).toContain('Before approving: Clef also thinks it may disagree');
+    expect(judged.hold?.output).toContain('price-dollars: Price in dollars, not cents');
+    const lines = judged.lines.join('\n');
+    expect(lines).toContain('api -> card (clef, p=0.80)');
+    expect(lines).toContain('clef also sees a possible clash with price-dollars');
+    expect(lines).not.toContain('back to its author');
   });
 
   it('lets a bean whose author marked the landed beans checked through on its tests', async () => {

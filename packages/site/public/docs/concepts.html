@@ -388,7 +388,11 @@ remote: gitstalk:      then fix, commit and git push -f origin HEAD:refs/heads/b
           <h3 id="approval">Approval rules <span class="badge beta">beta</span></h3>
           <p>
             A <code>.gitstalk/policy.yml</code> file can say which kinds of change land on their own
-            and which wait for a person. See <a href="/docs/approval-rules">Approval rules</a>.
+            and which wait for a person. A triaged bean is also compared with the beans it never saw
+            (landed after it forked, or pushed before it and still in flight); when their intents
+            clash, it goes back to its author to
+            <a href="/docs/approval-rules#recheck">recheck</a> rather than to a person. See
+            <a href="/docs/approval-rules">Approval rules</a>.
           </p>
           <h3 id="clef">Clef and Jev</h3>
           <p>
