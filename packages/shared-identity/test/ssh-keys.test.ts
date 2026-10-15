@@ -204,6 +204,43 @@ describe('registering a key from a terminal', () => {
     expect(await verifyUserToken(env, first.httpsToken.token, now)).toBeNull();
   });
 
+  it('gives the key and its HTTPS token the create scope when the person ticks it', async () => {
+    const { user } = await signUp('sshcreate');
+    const started = await startKeyRequest(
+      env,
+      {
+        publicKey: SSH_KEYS.ecdsa521.publicKey,
+        machine: 'agent-box',
+        httpsToken: true,
+        create: true,
+      },
+      now,
+    );
+    if (!started.ok) throw new Error(started.reason);
+    expect(
+      await describeKeyRequest(env, { userCode: started.userCode, userId: user.id }, now),
+    ).toMatchObject({ wantsCreate: true });
+    await decideKeyRequest(
+      env,
+      {
+        userCode: started.userCode,
+        userId: user.id,
+        decision: 'approve',
+        ip: null,
+        mayCreate: true,
+      },
+      now,
+    );
+    const polled = await pollKeyRequest(env, started.pollToken, now);
+    if (polled.status !== 'approved' || polled.httpsToken === null) throw new Error('no token');
+    expect(await verifyUserToken(env, polled.httpsToken.token, now)).toMatchObject({
+      scopes: ['read', 'write', 'create'],
+    });
+    expect(
+      (await findUserByKey(env, { fingerprint: SSH_KEYS.ecdsa521.fingerprint }))?.scopes,
+    ).toEqual(['read', 'write', 'create']);
+  });
+
   it('is claimed by the first person to open it, can be denied, and expires', async () => {
     const owner = await signUp('sshclaim');
     const other = await signUp('sshother');

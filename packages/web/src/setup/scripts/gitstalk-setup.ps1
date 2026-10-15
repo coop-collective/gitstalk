@@ -7,11 +7,14 @@ also runs):
   gitstalk-setup.ps1 generate [-File PATH]
   gitstalk-setup.ps1 register (-Key FILE.pub | -AgentKey SHA256:... [-Agent SOCKET]) [-NoBrowser]
   gitstalk-setup.ps1 remote OWNER/REPO [DIR]
+  gitstalk-setup.ps1 create [OWNER/]NAME [-Public] [-Start ID] [-Description TEXT]
   gitstalk-setup.ps1 verify [OWNER/REPO]
+  gitstalk-setup.ps1 host [URL | -Reset]
 
 Needs git and OpenSSH (Windows 10/11's built-in OpenSSH or Git for Windows' ssh-keygen).
-Private keys never leave this machine; secrets are never printed. Settings: GITSTALK_WEB,
-GITSTALK_CREDENTIAL_HELPER, GITSTALK_NO_BROWSER=1 (as for the sh script).
+Private keys never leave this machine; secrets are never printed. Settings: GITSTALK_WEB (else
+the host saved with `host URL`, else https://gitstalk.io), GITSTALK_CREDENTIAL_HELPER,
+GITSTALK_NO_BROWSER=1 (as for the sh script).
 #>
 param(
   [Parameter(Position = 0)][string]$Command = '',
@@ -21,7 +24,11 @@ param(
   [string]$Key = '',
   [string]$AgentKey = '',
   [string]$Agent = '',
-  [switch]$NoBrowser
+  [switch]$NoBrowser,
+  [switch]$Public,
+  [switch]$Reset,
+  [string]$Start = '',
+  [string]$Description = ''
 )
 $ErrorActionPreference = 'Stop'
 # Each setting is also read under its name from before the rename (BEANSTALK_*) when unset.
@@ -29,12 +36,20 @@ foreach ($name in 'WEB', 'CREDENTIAL_HELPER', 'NO_BROWSER') {
   $legacy = [Environment]::GetEnvironmentVariable("BEANSTALK_$name")
   if (-not [Environment]::GetEnvironmentVariable("GITSTALK_$name") -and $legacy) { Set-Item "env:GITSTALK_$name" $legacy }
 }
-# The hosted service's web app (a self-hosted one sets GITSTALK_WEB, or serves this script itself).
-$Web = if ($env:GITSTALK_WEB) { $env:GITSTALK_WEB.TrimEnd('/') } else { 'https://gitstalk.io' }
+$DefaultWeb = 'https://gitstalk.io'
+$DefaultMcpUrl = 'https://mcp.gitstalk.io/mcp'
 $ConfigRoot = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } elseif ($env:APPDATA) { $env:APPDATA } else { Join-Path $HOME '.config' }
 $ConfigDir = Join-Path $ConfigRoot 'gitstalk'
 # A machine set up before the rename keeps its remembered key where it was.
 if (-not (Test-Path $ConfigDir) -and (Test-Path (Join-Path $ConfigRoot 'beanstalk'))) { $ConfigDir = Join-Path $ConfigRoot 'beanstalk' }
+$HostFile = Join-Path $ConfigDir 'host'
+$McpFile = Join-Path $ConfigDir 'mcp_url'
+# The web app: GITSTALK_WEB, else the host saved with `host URL`, else the hosted service.
+$SavedHost = if (Test-Path $HostFile) { ([string](Get-Content $HostFile -TotalCount 1)).Trim() } else { '' }
+if ($env:GITSTALK_WEB) { $Web = $env:GITSTALK_WEB; $WebSource = 'GITSTALK_WEB' }
+elseif ($SavedHost) { $Web = $SavedHost; $WebSource = "saved in $HostFile" }
+else { $Web = $DefaultWeb; $WebSource = 'default' }
+$Web = $Web.TrimEnd('/')
 $IsWin = [System.Environment]::OSVersion.Platform -eq 'Win32NT'
 $OnePasswordPipe = '\\.\pipe\openssh-ssh-agent'
 # An empty argument for native commands: PowerShell 7.3+ passes '' as is; older ones drop it.
@@ -44,7 +59,8 @@ function Say([string]$Text) { Write-Output $Text }
 function Fail([string]$Text) { [Console]::Error.WriteLine("gitstalk: $Text"); exit 1 }
 
 function Get-SetupConfig {
-  try { $config = Invoke-RestMethod -Uri "$Web/api/setup" -TimeoutSec 20 } catch { Fail "cannot reach $Web (check GITSTALK_WEB and the network)" }
+  try { $config = Invoke-RestMethod -Uri "$Web/api/setup" -TimeoutSec 20 } catch { Fail "cannot reach $Web (check GITSTALK_WEB, the saved host and the network)" }
+  if (-not $config.git_origin) { Fail "$Web/api/setup did not name a git origin" }
   $origin = $config.git_origin.TrimEnd('/')
   $uri = [Uri]$origin
   [pscustomobject]@{
@@ -52,6 +68,7 @@ function Get-SetupConfig {
     Proto = $uri.Scheme
     Host = $uri.Authority
     SshHost = if ($config.ssh_host) { [string]$config.ssh_host } else { '' }
+    McpUrl = if ($config.mcp_url) { [string]$config.mcp_url } else { '' }
   }
 }
 
@@ -93,8 +110,21 @@ function Write-Option([string]$Source, [string]$Line, [string]$Where) {
   Say ("option`t{0}`t{1}`t{2}`t{3}`t{4}" -f $Source, (Get-Fingerprint $Line), $parts[0], $comment, $Where)
 }
 
+# One line when this host's MCP server is not the one the plugin uses by default and the
+# person has not saved it with `host` (which prints how to point Claude Code at it).
+function Write-McpHint($Config) {
+  if (-not $Config.McpUrl -or $Config.McpUrl -eq $DefaultMcpUrl) { return }
+  if ((Test-Path $McpFile) -and ([string](Get-Content $McpFile -TotalCount 1)).Trim() -eq $Config.McpUrl) { return }
+  Say "mcp: this host's MCP server is $($Config.McpUrl); in Claude Code run /gitstalk:host $Web (then restart Claude Code and run /mcp to sign in)"
+}
+
+function Write-ClaudeCodeLine([string]$McpUrl) {
+  Say ("claude_code: printf '%s' '{{""mcp_url"":""{0}""}}' | claude plugin configure gitstalk@gitstalk --values-stdin" -f $McpUrl)
+}
+
 function Invoke-Detect {
   Say "platform: $(Get-Platform)"
+  Say "web: $Web ($WebSource)"
   $keygen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
   if ($keygen) { Say "ssh_keygen: yes ($((& ssh -V 2>&1 | Select-Object -First 1)))" } else { Say 'ssh_keygen: no (install OpenSSH: Settings > Optional features, or Git for Windows)' }
   $opener = Get-BrowserOpener
@@ -105,6 +135,7 @@ function Invoke-Detect {
   Say "ssh_host: $(if ($config.SshHost) { $config.SshHost } else { 'none yet (setup uses HTTPS with a token until SSH is live)' })"
   $helper = & git config --get-urlmatch credential.helper "$($config.Proto)://$($config.Host)/" 2>$null
   Say "credential_helper: $(if ($helper) { $helper } else { 'none' })"
+  Write-McpHint $config
   $op = Get-OnePasswordSocket
   if ($op) { foreach ($line in Get-AgentLines $op) { Write-Option '1password' $line $op } }
   if ($env:SSH_AUTH_SOCK -and $env:SSH_AUTH_SOCK -ne $op) {
@@ -170,7 +201,8 @@ function Invoke-Register {
   New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
   Set-Content -Path (Join-Path $ConfigDir 'key.pub') -Value $line
   if ($AgentKey) { Set-Content -Path (Join-Path $ConfigDir 'agent') -Value $(if ($Agent) { $Agent } else { $env:SSH_AUTH_SOCK }) }
-  $body = @{ public_key = $line; machine = (Get-MachineName); https_token = (-not $config.SshHost) } | ConvertTo-Json -Compress
+  # The token git keeps may also create repositories (the create scope; consent shows it ticked).
+  $body = @{ public_key = $line; machine = (Get-MachineName); https_token = (-not $config.SshHost); scopes = @('read', 'write', 'create') } | ConvertTo-Json -Compress
   try { $answer = Invoke-RestMethod -Method Post -Uri "$Web/api/ssh-keys/request" -ContentType 'application/json' -Body $body -TimeoutSec 20 }
   catch { Fail "Gitstalk refused the key: $($_.ErrorDetails.Message)" }
   Say "fingerprint: $($answer.fingerprint)"
@@ -247,16 +279,27 @@ function Invoke-Remote {
   if (-not $config.SshHost) { Say 'transport: HTTPS with your token (git over SSH is not live yet; setup switches remotes once it is)' }
 }
 
+# The HTTPS token git keeps for the Gitstalk host (never printed, never on a command line).
+function Get-StoredToken($Config) {
+  $env:GIT_TERMINAL_PROMPT = '0'
+  $creds = "protocol=$($Config.Proto)`nhost=$($Config.Host)`n`n" | & git credential fill 2>$null
+  $token = ($creds | Where-Object { $_ -like 'password=*' } | Select-Object -First 1) -replace '^password=', ''
+  if (-not $token) { Fail "git has no credential for $($Config.Host) yet: run register" }
+  return $token
+}
+
+function Get-Handle($Config, [string]$Token) {
+  $basic = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("x:$Token"))
+  try { $whoami = Invoke-RestMethod -Uri "$($Config.Origin)/v1/whoami" -Headers @{ Authorization = "Basic $basic" } -TimeoutSec 20 }
+  catch { Fail 'the gateway refused the stored credential: run register again' }
+  return [string]$whoami.handle
+}
+
 function Invoke-Verify {
   $config = Get-SetupConfig
-  $env:GIT_TERMINAL_PROMPT = '0'
-  $creds = "protocol=$($config.Proto)`nhost=$($config.Host)`n`n" | & git credential fill 2>$null
-  $token = ($creds | Where-Object { $_ -like 'password=*' } | Select-Object -First 1) -replace '^password=', ''
-  if (-not $token) { Fail "git has no credential for $($config.Host) yet: run register" }
-  $basic = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("x:$token"))
-  try { $whoami = Invoke-RestMethod -Uri "$($config.Origin)/v1/whoami" -Headers @{ Authorization = "Basic $basic" } -TimeoutSec 20 }
-  catch { Fail 'the gateway refused the stored credential: run register again' }
-  Say "whoami: @$($whoami.handle)"
+  $token = Get-StoredToken $config
+  Say "whoami: @$(Get-Handle $config $token)"
+  Write-McpHint $config
   if ($Repo) {
     & git ls-remote (Get-RepoUrl $config $Repo) *> $null
     if ($LASTEXITCODE -ne 0) { Fail "git ls-remote $Repo failed" }
@@ -264,11 +307,85 @@ function Invoke-Verify {
   }
 }
 
+function Invoke-Create {
+  if ($Repo -notmatch '^[^/]+(/[^/]+)?$') { Fail 'create: pass [OWNER/]NAME' }
+  $config = Get-SetupConfig
+  $token = Get-StoredToken $config
+  if ($Repo -notmatch '/') { $script:Repo = "$(Get-Handle $config $token)/$Repo" }
+  $owner, $name = $script:Repo -split '/', 2
+  $request = [ordered]@{ name = $name; owner = $owner; visibility = $(if ($Public) { 'public' } else { 'private' }) }
+  if ($Start) { $request.start = $Start }
+  if ($Description) { $request.description = $Description }
+  $body = $request | ConvertTo-Json -Compress
+  $status = 0
+  $content = ''
+  try {
+    $response = Invoke-WebRequest -Method Post -Uri "$Web/api/repos" -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -UseBasicParsing -TimeoutSec 30
+    $status = [int]$response.StatusCode
+    $content = $response.Content
+  } catch {
+    if (-not $_.Exception.Response) { Fail "cannot reach $Web (check GITSTALK_WEB and the network)" }
+    $status = [int]$_.Exception.Response.StatusCode
+    $content = $_.ErrorDetails.Message
+  }
+  $answer = $null
+  try { $answer = $content | ConvertFrom-Json } catch { }
+  $message = if ($answer -and $answer.message) { ": $($answer.message)" } else { '' }
+  switch ($status) {
+    201 {
+      if ($answer.full_name) { $script:Repo = [string]$answer.full_name }
+      Say "created: $($script:Repo) ($($answer.visibility))"
+      Say "web: $($answer.web_url)"
+      if ($answer.next -is [string] -and $answer.next) { Say "next: $($answer.next)" }
+    }
+    409 { Say "exists: $($script:Repo) already exists; connecting it" }
+    401 { Fail 'the gateway refused the stored credential: run register again' }
+    403 { Fail "not allowed to create $($script:Repo)$message (a token from before repository creation lacks the create scope: run register again, or create it at $Web/new)" }
+    422 { Fail "invalid repository name $name$message" }
+    default { Fail "create failed (HTTP $status)$message" }
+  }
+  Invoke-Remote
+}
+
+# Saves the host every later run uses (when GITSTALK_WEB is unset), after checking it answers.
+function Invoke-Host {
+  if ($Reset) {
+    Remove-Item $HostFile, $McpFile -Force -ErrorAction SilentlyContinue
+    Say "host: forgotten; $DefaultWeb from now on"
+    Write-ClaudeCodeLine $DefaultMcpUrl
+    return
+  }
+  if (-not $Repo) {
+    $config = Get-SetupConfig
+    Say "web: $Web ($WebSource)"
+    Say "mcp_url: $(if ($config.McpUrl) { $config.McpUrl } else { 'none' })"
+    return
+  }
+  if ($Repo -notmatch '^https?://') { Fail 'host: pass a URL like https://gitstalk.dev or http://localhost:5173, or -Reset' }
+  $script:Web = $Repo.TrimEnd('/')
+  $config = Get-SetupConfig
+  New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+  if ($script:Web -eq $DefaultWeb) {
+    Remove-Item $HostFile, $McpFile -Force -ErrorAction SilentlyContinue
+    Say "host: $($script:Web) (the default; nothing saved)"
+  } else {
+    Set-Content -Path $HostFile -Value $script:Web
+    if ($config.McpUrl) { Set-Content -Path $McpFile -Value $config.McpUrl } else { Remove-Item $McpFile -Force -ErrorAction SilentlyContinue }
+    Say "host: saved $($script:Web) in $HostFile"
+  }
+  Say "git_origin: $($config.Origin)"
+  Say "mcp_url: $(if ($config.McpUrl) { $config.McpUrl } else { 'none' })"
+  if ($config.McpUrl) { Write-ClaudeCodeLine $config.McpUrl }
+  if ($env:GITSTALK_WEB -and $env:GITSTALK_WEB.TrimEnd('/') -ne $script:Web) { Say "note: GITSTALK_WEB=$($env:GITSTALK_WEB) is set and still wins in this shell" }
+}
+
 switch ($Command) {
   'detect' { Invoke-Detect }
   'generate' { Invoke-Generate }
   'register' { Invoke-Register }
   'remote' { Invoke-Remote }
+  'create' { Invoke-Create }
   'verify' { Invoke-Verify }
-  default { [Console]::Error.WriteLine('usage: gitstalk-setup.ps1 detect | generate | register | remote OWNER/REPO [DIR] | verify [OWNER/REPO]'); exit 2 }
+  'host' { Invoke-Host }
+  default { [Console]::Error.WriteLine('usage: gitstalk-setup.ps1 detect | generate | register | remote OWNER/REPO [DIR] | create [OWNER/]NAME [-Public] | verify [OWNER/REPO] | host [URL | -Reset]'); exit 2 }
 }

@@ -10,13 +10,23 @@
  * after approval mints a personal token (`git on <machine>`, read and write, 90 days) and
  * hands it over once; after that the request can never yield another.
  *
+ * The person also chooses whether the key (and its token) may create repositories by pushing
+ * to a new address (the `create` scope); the approval page ticks it by default.
+ *
  * Only public keys travel. Requests live ten minutes in D1 and are decided once.
  */
 import { recordAudit } from './audit';
 import type { Clock, IdentityEnv } from './identity-env';
 import { systemClock } from './identity-env';
 import { hashSecret, randomId, randomSecret } from './secrets';
-import { KEY_ALREADY_YOURS, activeKeyId, addSshKey, keyTokenClient } from './ssh-keys';
+import {
+  KEY_ALREADY_YOURS,
+  activeKeyId,
+  addSshKey,
+  keyMayCreate,
+  keyTokenClient,
+  setKeyMayCreate,
+} from './ssh-keys';
 import { parsePublicKeyLine } from './ssh-wire';
 import { PersonalTokenInput, createPersonalToken } from './user-tokens';
 
@@ -38,6 +48,8 @@ export type KeyRequestView = {
   readonly keyType: string;
   readonly fingerprint: string;
   readonly wantsHttpsToken: boolean;
+  /** The terminal asked for the `create` scope: the page offers it, ticked by default. */
+  readonly wantsCreate: boolean;
   readonly expiresAt: number;
 };
 
@@ -57,7 +69,13 @@ export type KeyDecision =
 /** Starts a request for a public key; refused when the key line is not one Gitstalk takes. */
 export async function startKeyRequest(
   env: IdentityEnv,
-  input: { readonly publicKey: string; readonly machine: string; readonly httpsToken: boolean },
+  input: {
+    readonly publicKey: string;
+    readonly machine: string;
+    readonly httpsToken: boolean;
+    /** The setup script asks for `create` so the key and its token may create repositories. */
+    readonly create?: boolean;
+  },
   clock: Clock = systemClock,
 ): Promise<
   ({ readonly ok: true } & StartedKeyRequest) | { readonly ok: false; readonly reason: string }
@@ -69,8 +87,8 @@ export async function startKeyRequest(
   const now = clock();
   await env.IDENTITY_DB.prepare(
     `INSERT INTO ssh_key_requests (id, user_code_hash, poll_hash, public_key, key_type, fingerprint,
-       name, status, wants_https_token, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+       name, status, wants_https_token, wants_create, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
   )
     .bind(
       randomId('kreq'),
@@ -81,6 +99,7 @@ export async function startKeyRequest(
       parsed.fingerprint,
       machineName(input.machine),
       input.httpsToken ? 1 : 0,
+      input.create === true ? 1 : 0,
       now,
       now + KEY_REQUEST_SECONDS * 1000,
     )
@@ -117,6 +136,7 @@ export async function describeKeyRequest(
     keyType: row.key_type,
     fingerprint: row.fingerprint,
     wantsHttpsToken: row.wants_https_token === 1,
+    wantsCreate: row.wants_create === 1,
     expiresAt: row.expires_at,
   };
 }
@@ -129,6 +149,11 @@ export async function decideKeyRequest(
     readonly userId: string;
     readonly decision: 'approve' | 'deny';
     readonly ip: string | null;
+    /**
+     * The person left "may create repositories" ticked: the key (and its HTTPS token) get the
+     * `create` scope, when the terminal asked for it.
+     */
+    readonly mayCreate?: boolean;
   },
   clock: Clock = systemClock,
 ): Promise<KeyDecision> {
@@ -144,6 +169,11 @@ export async function decideKeyRequest(
       clock,
     );
     if (!added.ok && added.reason !== KEY_ALREADY_YOURS) return added;
+    await setKeyMayCreate(env, {
+      userId: input.userId,
+      fingerprint: row.fingerprint,
+      mayCreate: input.mayCreate === true && row.wants_create === 1,
+    });
   } else
     await recordAudit(
       env,
@@ -202,6 +232,7 @@ type RequestRow = {
   readonly name: string;
   readonly user_id: string | null;
   readonly wants_https_token: number;
+  readonly wants_create: number;
   readonly expires_at: number;
 };
 
@@ -235,7 +266,7 @@ async function deliverToken(
   if (keyId === null) return null;
   const request = PersonalTokenInput.parse({
     name: `git on ${row.name}`.slice(0, 60),
-    scopes: ['read', 'write'],
+    scopes: (await keyMayCreate(env, keyId)) ? ['read', 'write', 'create'] : ['read', 'write'],
     days: HTTPS_TOKEN_DAYS,
   });
   const issued = await createPersonalToken(
@@ -254,8 +285,8 @@ async function pendingRequest(
   const code = normalUserCode(userCode);
   if (code.length !== 8) return null;
   return env.IDENTITY_DB.prepare(
-    `SELECT id, public_key, key_type, fingerprint, name, user_id, wants_https_token, expires_at
-       FROM ssh_key_requests WHERE user_code_hash = ? AND status = 'pending' AND expires_at > ?`,
+    `SELECT id, public_key, key_type, fingerprint, name, user_id, wants_https_token, wants_create,
+       expires_at FROM ssh_key_requests WHERE user_code_hash = ? AND status = 'pending' AND expires_at > ?`,
   )
     .bind(await hashSecret(code), now)
     .first<RequestRow>();

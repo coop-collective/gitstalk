@@ -14,6 +14,7 @@
     "./collaboration": "./src/collaboration.ts",
     "./bean-commit": "./src/bean-commit.ts",
     "./repos": "./src/repos.ts",
+    "./repo-create": "./src/repo-create.ts",
     "./accounts": "./src/accounts.ts",
     "./deploy-tokens": "./src/deploy-tokens.ts",
     "./read-maps": "./src/read-maps.ts",

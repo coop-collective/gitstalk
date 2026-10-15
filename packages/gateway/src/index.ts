@@ -168,7 +168,9 @@ import { engineFeedRpc } from './repos/engine-feed';
 import { peopleDirectory } from './repos/people';
 import { repoEnginePort } from './repos/engine-port';
 import { d1Registry } from './repos/registry';
-import { newRepositoryId, repositoriesRpc } from './repos/repositories-rpc';
+import { repositoriesDepsFrom } from './repos/repositories-deps';
+import { repoCreateRpc, repositoriesRpc } from './repos/repositories-rpc';
+import type { CreatedRepository, RepoCreateRequest } from '@gitstalk/shared-race/repo-create';
 import { cleanupPortsFrom, repositoryCleanup } from './repos/repository-cleanup';
 import { createDeps } from './deps';
 import type { GatewayRpcSurface } from './rpc/gateway-rpc';
@@ -441,6 +443,19 @@ export default class Gateway
     return this.#repositories().createRepository(owner, input);
   }
 
+  /** `repo_create` (the MCP Worker) and `POST /api/repos` (the web app): needs `create`. */
+  createRepositoryAs(
+    principal: AgentPrincipal,
+    request: RepoCreateRequest,
+    via: 'repo_create' | 'api',
+  ): Promise<RpcResult<CreatedRepository>> {
+    return repoCreateRpc(repositoriesDepsFrom(this.env)).createRepositoryAs(
+      principal,
+      request,
+      via,
+    );
+  }
+
   listRepositories(
     ownerId: string,
     viewer: Viewer,
@@ -640,18 +655,7 @@ export default class Gateway
   }
 
   #repositories(): RepositoriesRpc {
-    return repositoriesRpc({
-      registry: d1Registry(this.env.FORGE, this.env),
-      collaborators: d1Collaborators(this.env.FORGE, () => Date.now(), this.env),
-      identity: this.env,
-      storage: repositoryStorage(this.env.REPOS),
-      engine: repoEnginePort(createDeps(this.env)),
-      cleanup: this.#repositoryCleanup(),
-      log: createLogger(readConfig(this.env).logLevel, { component: 'repositories' }),
-      now: () => Date.now(),
-      newId: newRepositoryId,
-      webUrl: readConfig(this.env).webUrl,
-    });
+    return repositoriesRpc(repositoriesDepsFrom(this.env));
   }
 
   openRepoEngine(input: OpenRepoEngineInput): Promise<RpcResult<RepoEngineOpened>> {
@@ -963,7 +967,11 @@ export default class Gateway
   }
 
   #ssh(): SshDeps {
-    return { deps: createDeps(this.env), keys: sshKeyStore(this.env) };
+    return {
+      deps: createDeps(this.env),
+      keys: sshKeyStore(this.env),
+      repositories: repositoriesDepsFrom(this.env),
+    };
   }
 
   #rpc(): GatewayRpcSurface {

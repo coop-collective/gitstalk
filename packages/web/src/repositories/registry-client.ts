@@ -25,9 +25,12 @@ export const RepositoryRecord = z.object({
   description: z.string(),
   visibility: z.enum(['public', 'private', 'internal']),
   origin: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('empty') }),
+    /** `first_push`: made by `repo_create` or the API; its first push becomes the stalk. */
+    z.object({ kind: z.literal('empty'), first_push: z.literal('becomes-stalk').optional() }),
     z.object({ kind: z.literal('template'), template: z.literal('typescript-starter') }),
     z.object({ kind: z.literal('import'), url: z.string() }),
+    /** Push-to-create, or the first push into a repository made empty: the branch pushed. */
+    z.object({ kind: z.literal('push'), ref: z.string() }),
   ]),
   artifacts_repo: z.string(),
   engine_id: z.string(),

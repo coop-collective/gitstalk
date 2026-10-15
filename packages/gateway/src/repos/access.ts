@@ -17,6 +17,7 @@ import { RunId } from '@gitstalk/shared-race/ids';
 
 import type { AccessVerdict, RepositoryAccess, RepositoryPrincipal } from '../auth/git-credential';
 import { mayUseEngine, personOf, refusedByArchive, roleOf } from '../auth/git-credential';
+import { firstPushEngineId, registryEngineId } from '../push/repo-engine';
 import type { CollaboratorStore } from './collaborators';
 
 export type Decision = {
@@ -36,13 +37,15 @@ export async function accessFacts(
   const isOwner = person !== null && person.id === record.owner.id;
   const asks = person !== null && !isOwner;
   const isOrgOwned = ownerOf(record).kind === 'org';
-  const [collaboratorRole, org] = await Promise.all([
+  const [collaboratorRole, org, seedEngine] = await Promise.all([
     asks ? collaborators.roleOf(record.id, person.id) : null,
     asks && isOrgOwned ? collaborators.orgStanding(record.owner.id, person.id) : null,
+    seedEngineOf(record),
   ]);
   return {
     // Records from before engines had run ids would fail here; every created record has one.
     engine: RunId.parse(record.engine_id),
+    seedEngine,
     owner: { id: record.owner.id, handle: record.owner.handle },
     visibility: record.visibility,
     collaboratorRole,
@@ -145,3 +148,11 @@ const NEEDS: Readonly<Record<RepositoryAction, string>> = {
   actions: 'running workflows and managing Actions secrets need the maintain role',
   administer: 'only the owner (or, for an organization, its owners and admins) can change this',
 };
+
+/** The seed's engine of a repository whose first push restarted it (`adoptFirstPush`). */
+async function seedEngineOf(record: RepositoryRecord): Promise<RunId | undefined> {
+  if (record.origin.kind !== 'push') return undefined;
+  return record.engine_id === (await firstPushEngineId(record.artifacts_repo))
+    ? registryEngineId(record.artifacts_repo)
+    : undefined;
+}

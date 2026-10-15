@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { KeyRequestBody, keyRequestAnswer, pollAnswer, setupConfig } from './setup-api';
+import {
+  KeyRequestBody,
+  keyRequestAnswer,
+  pollAnswer,
+  setupConfig,
+  wantsCreate,
+} from './setup-api';
 
 describe('the setup API', () => {
   it('tells the script where git lives, and that SSH is not live while SSH_HOST is empty', () => {
@@ -63,5 +69,16 @@ describe('the setup API', () => {
     ).toBe(true);
     expect(KeyRequestBody.safeParse({ public_key: 'x', machine: 'mbp' }).success).toBe(false);
     expect(KeyRequestBody.safeParse(null).success).toBe(false);
+  });
+
+  it('reads the create scope the setup script asks for', () => {
+    const key = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA';
+    const asked = KeyRequestBody.parse({
+      public_key: key,
+      machine: 'mbp',
+      scopes: ['read', 'write', 'create'],
+    });
+    expect(wantsCreate(asked)).toBe(true);
+    expect(wantsCreate(KeyRequestBody.parse({ public_key: key, machine: 'mbp' }))).toBe(false);
   });
 });

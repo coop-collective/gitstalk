@@ -21,9 +21,10 @@ export type GrantProps = z.infer<typeof GrantProps>;
 /**
  * Scopes a person may grant an agent session (the authorization server's `scopes_supported`);
  * landing on the stalk and repository settings are never grantable. `secrets` is opt-in: the
- * consent page never ticks it for the person.
+ * consent page never ticks it for the person. `create` (create repositories where the person
+ * may) is ticked when the client asks for it.
  */
-export const GRANTABLE_SCOPES = ['read', 'collaborate', 'write', 'secrets'] as const;
+export const GRANTABLE_SCOPES = ['read', 'collaborate', 'write', 'secrets', 'create'] as const;
 
 /**
  * What clients ask for by default: the protected resource's `scopes_supported` (RFC 9728) and

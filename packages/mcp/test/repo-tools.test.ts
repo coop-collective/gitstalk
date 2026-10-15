@@ -84,13 +84,18 @@ describe('repository tools', () => {
         'bean_commit',
         'task_list',
         'task_claim',
-        'task_release',
         'git_credentials',
         'whoami',
       ]),
     );
     expect(names).not.toContain('execute');
-    for (const merged of ['change_status', 'checks_get', 'run_status', 'preview_link'])
+    for (const merged of [
+      'change_status',
+      'checks_get',
+      'run_status',
+      'preview_link',
+      'task_release',
+    ])
       expect(names).not.toContain(merged);
     expect(names).not.toContain('git_credential');
   });
@@ -204,7 +209,9 @@ describe('repository tools', () => {
     expect(await tool(client, 'task_claim', { repo: slug(repo), task: 'T-2' })).toMatchObject({
       task: { id: 'T-2', state: 'claimed', by: user.handle },
     });
-    expect(await tool(client, 'task_release', { repo: slug(repo), task: 'T-2' })).toMatchObject({
+    expect(
+      await tool(client, 'task_claim', { repo: slug(repo), task: 'T-2', release: true }),
+    ).toMatchObject({
       task: { id: 'T-2', state: 'open' },
       summary: expect.stringContaining('Gave task T-2 back'),
     });

@@ -96,6 +96,7 @@ export type RepositoryAuditAction =
   | 'collaborator.leave'
   | 'repository.visibility'
   | 'repository.transfer'
+  | 'repository.create'
   | 'actions-secret-set'
   | 'actions-secret-deleted'
   | 'actions-variable-set'

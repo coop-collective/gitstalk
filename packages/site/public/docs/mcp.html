@@ -229,7 +229,7 @@
           <h2 id="consent">The consent screen</h2>
           <figure
             class="mock"
-            aria-label="The consent screen that asks whether an agent may use your account, with four scope rows"
+            aria-label="The consent screen that asks whether an agent may use your account, with five scope rows"
           >
             <div class="mock-bar" aria-hidden="true">
               <i></i><i></i><i></i><span class="mock-url">gitstalk.io/connect</span>
@@ -278,6 +278,16 @@
                   </div>
                   <div class="m-input">[ ] never pre-ticked</div>
                 </div>
+                <div class="m-field">
+                  <div class="label">
+                    <b>create</b
+                    ><span
+                      >Create repositories in your namespace and in organizations whose members may
+                      create them (private unless you ask).</span
+                    >
+                  </div>
+                  <div class="m-input">[x] ticked when the agent asks for it</div>
+                </div>
               </div>
               <div><span class="m-btn">Deny</span> <span class="m-btn primary">Allow</span></div>
             </div>
@@ -288,7 +298,8 @@
           <p>
             The screen shows who published the client, where the access goes and which account the
             agent acts as. <code>read</code> cannot be unticked. <code>secrets</code> stays unticked
-            even when the agent asks for it: you opt in yourself.
+            even when the agent asks for it: you opt in yourself. <code>create</code> is ticked only
+            when the agent asks for it.
           </p>
 
           <h2 id="scopes">Scopes and roles</h2>
@@ -344,6 +355,18 @@
                   </td>
                   <td>No: you tick it</td>
                 </tr>
+                <tr>
+                  <td><code>create</code></td>
+                  <td>
+                    Create repositories with <code>repo_create</code>, or with
+                    <code>git_credentials</code> for a new address and a push.
+                  </td>
+                  <td>
+                    Your own namespace; in an organization, the role its repository-creation setting
+                    asks for
+                  </td>
+                  <td>When the agent asks for it</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -362,7 +385,8 @@
           <p>
             An agent is offered only the tools its scopes allow. Without <code>write</code> it sees
             no tool that opens beans or starts runs; without <code>secrets</code> it cannot touch
-            secrets. If your agent is missing a tool, reconnect it and tick the scope. See
+            secrets; without <code>create</code> it cannot create repositories. If your agent is
+            missing a tool, reconnect it and tick the scope. See
             <a href="/docs/troubleshooting#missing-tool">troubleshooting</a>.
           </p>
 
@@ -414,12 +438,24 @@
                   <td>Bean and backlog writes</td>
                   <td>
                     <code>bean_open</code>, <code>bean_commit</code>, <code>bean_approve</code>,
-                    <code>task_claim</code>, <code>task_release</code>
+                    <code>task_claim</code>
                   </td>
                   <td>
                     Reserve a bean name with its intent; commit files to a bean with no checkout;
                     approve a held bean for your person (<a href="#approve">below</a>); claim a
-                    backlog task so no other agent takes it; give it back.
+                    backlog task so no other agent takes it, or give it back with
+                    <code>release: true</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>New repositories (<code>create</code>)</td>
+                  <td><code>repo_create</code></td>
+                  <td>
+                    Create a repository, private and empty unless asked; answers
+                    <code>full_name</code>, <code>clone_url</code>, <code>web_url</code>,
+                    <code>stalk</code>, <code>visibility</code> and <code>next</code>. The agent
+                    asks you first before a public one or one in an organization. See
+                    <a href="/docs/repositories#create-elsewhere">Repositories</a>.
                   </td>
                 </tr>
                 <tr>
@@ -506,13 +542,18 @@
                 <tr>
                   <td>Your session, <code>write</code></td>
                   <td>The above, the bean and backlog writes, the Actions changes</td>
-                  <td class="num">28</td>
+                  <td class="num">27</td>
                 </tr>
                 <tr>
                   <td>Your session, <code>write</code> and <code>secrets</code></td>
                   <td>
                     The above, <code>actions_config_set</code>, <code>actions_config_delete</code>
                   </td>
+                  <td class="num">29</td>
+                </tr>
+                <tr>
+                  <td>Your session, every scope</td>
+                  <td>The above, <code>repo_create</code></td>
                   <td class="num">30</td>
                 </tr>
               </tbody>
@@ -676,8 +717,9 @@ repo_read { "repo": "acme/api", "grep": "/retry\\w+/", "glob": "src/**/*.ts" }</
           <p>
             <code>task_claim</code> holds a task for two hours so no other agent takes it. Claim
             again, or <code>bean_open</code> with <code>task</code>, to keep it. A bean you pushed
-            for the task holds it until it lands. <code>task_release</code> gives it back. Changing
-            the backlog is a bean like any other change.
+            for the task holds it until it lands. <code>task_claim</code> with
+            <code>release: true</code> gives it back. Changing the backlog is a bean like any other
+            change.
           </p>
 
           <h2 id="names">Names that changed on 14 October 2026</h2>
@@ -718,8 +760,16 @@ repo_read { "repo": "acme/api", "grep": "/retry\\w+/", "glob": "src/**/*.ts" }</
                   <td><span class="badge beta">beta</span></td>
                 </tr>
                 <tr>
+                  <td><code>task_release</code></td>
+                  <td><code>task_claim</code> with <code>release: true</code></td>
+                  <td><span class="badge beta">beta</span></td>
+                </tr>
+                <tr>
                   <td>(none)</td>
-                  <td><code>why_lines</code>, <code>repo_read</code>, <code>bean_commit</code></td>
+                  <td>
+                    <code>why_lines</code>, <code>repo_read</code>, <code>bean_commit</code>,
+                    <code>repo_create</code>
+                  </td>
                   <td><span class="badge beta">beta</span></td>
                 </tr>
               </tbody>

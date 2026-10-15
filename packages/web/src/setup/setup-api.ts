@@ -35,7 +35,17 @@ export const KeyRequestBody = z.object({
   public_key: z.string().trim().min(20).max(16_384),
   machine: z.string().trim().max(200).default(''),
   https_token: z.boolean().default(false),
+  /**
+   * What the terminal asks the key and its token may do. Read and write are always granted;
+   * `create` (create repositories) is offered on the approval page, ticked by default.
+   */
+  scopes: z.array(z.string().max(40)).max(10).default([]),
 });
+
+/** Whether a key request asks for the `create` scope. */
+export function wantsCreate(body: z.infer<typeof KeyRequestBody>): boolean {
+  return body.scopes.includes('create');
+}
 
 export const PollBody = z.object({ poll_token: z.string().max(100) });
 

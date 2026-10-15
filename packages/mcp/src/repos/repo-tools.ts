@@ -12,11 +12,12 @@ import { z } from 'zod';
 import { MAX_BEAN_WAIT_SECONDS } from '@gitstalk/shared-race/agent-repos';
 import { BeanCommitInput, IdempotencyKey } from '@gitstalk/shared-race/bean-commit';
 
-import { sessionMayWrite } from '../mcp/scope-gate';
+import { sessionMayCreate, sessionMayWrite } from '../mcp/scope-gate';
 import { answer } from '../mcp/tool-result';
 import { beanApprove } from '../tools/bean-approve';
 import type { ToolScope } from '../tools/tool-context';
 import { gitCredentials } from './git-credentials';
+import { RepoCreateInput, repoCreate } from './repo-create';
 import {
   beanWait,
   commitBean,
@@ -40,8 +41,9 @@ export const REPO_WRITE_TOOL_NAMES = [
   'bean_commit',
   'bean_approve',
   'task_claim',
-  'task_release',
 ] as const;
+/** Sessions with the create scope (the namespace rule is checked per call). */
+export const REPO_CREATE_TOOL_NAMES = ['repo_create'] as const;
 
 const READS: ToolAnnotations = {
   readOnlyHint: true,
@@ -71,6 +73,7 @@ export function registerRepoTools(server: McpServer, scope: ToolScope): void {
   registerBeanWait(server, scope);
   registerTaskList(server, scope);
   registerCredentials(server, scope);
+  if (sessionMayCreate(scope)) registerRepoCreate(server, scope);
   if (!sessionMayWrite(scope)) return;
   registerBeanOpen(server, scope);
   registerCommit(server, scope);
@@ -109,6 +112,24 @@ function registerBeanApprove(server: McpServer, scope: ToolScope): void {
       annotations: { ...RESERVES, title: 'Approve a held bean' },
     },
     async (input) => answer(() => beanApprove(scope, input)),
+  );
+}
+
+/**
+ * `repo_create` (doc 20 §10): the web form's creation path, private and empty unless asked.
+ * Not idempotent: a second call with the same name answers 409 exists.
+ */
+function registerRepoCreate(server: McpServer, scope: ToolScope): void {
+  server.registerTool(
+    'repo_create',
+    {
+      title: 'Create a repository',
+      description:
+        'When your person asked for a new repository: creates it in their namespace (or owner, an organization whose members may create repositories), private and empty unless asked. Ask your person first before making it public or creating it in an organization; never pick another name yourself when the name is taken (exists). Answers full_name, clone_url, web_url, stalk, visibility and next (what to run: connect origin and push the work as a first bean; in an empty repository the first push becomes its stalk). Needs the create scope; refused as forbidden where the person may not create, exists for a taken name, invalid_request for a bad name.',
+      inputSchema: RepoCreateInput,
+      annotations: { ...READS, readOnlyHint: false, idempotentHint: false },
+    },
+    async (input) => answer(() => repoCreate(scope, input)),
   );
 }
 
@@ -205,28 +226,28 @@ function registerTaskList(server: McpServer, scope: ToolScope): void {
   );
 }
 
+/**
+ * `task_claim`, which also gives a task back (`release: true`): one tool, so a session with
+ * every scope stays within the 30 tools clients load.
+ */
 function registerTaskClaims(server: McpServer, scope: ToolScope): void {
   server.registerTool(
     'task_claim',
     {
-      title: 'Claim a task',
+      title: 'Claim or give back a task',
       description:
-        'Before working on a backlog task: claim it so no other agent takes it (two hours; claim again or bean_open with task to keep it; a pushed bean for the task holds it until it lands). Refused, with who holds it, when it is taken. Needs the write scope and the write role.',
-      inputSchema: z.object({ repo: Repo, task: TaskId }),
+        'Before working on a backlog task: claim it so no other agent takes it (two hours; claim again or bean_open with task to keep it; a pushed bean for the task holds it until it lands). Refused, with who holds it, when it is taken. With release: true, gives back a task you claimed and will not do (it turned out done, or you are stopping): drops your claim and the bean names you reserved for it; a bean you pushed for it still holds it. Needs the write scope and the write role.',
+      inputSchema: z.object({
+        repo: Repo,
+        task: TaskId,
+        release: z.boolean().optional().describe('true gives the task back instead'),
+      }),
       annotations: RESERVES,
     },
-    async ({ repo, task }) => answer(() => taskClaim(scope, { repo, task })),
-  );
-  server.registerTool(
-    'task_release',
-    {
-      title: 'Give a task back',
-      description:
-        'When you will not do a task you claimed (it turned out done, or you are stopping): drops your claim and the bean names you reserved for it, so another agent can take it. A bean you pushed for it still holds it. Needs the write scope and the write role.',
-      inputSchema: z.object({ repo: Repo, task: TaskId }),
-      annotations: RESERVES,
-    },
-    async ({ repo, task }) => answer(() => taskRelease(scope, { repo, task })),
+    async ({ repo, task, release }) =>
+      answer(() =>
+        release === true ? taskRelease(scope, { repo, task }) : taskClaim(scope, { repo, task }),
+      ),
   );
 }
 
@@ -236,7 +257,7 @@ function registerCredentials(server: McpServer, scope: ToolScope): void {
     {
       title: 'Git credential for a repository',
       description:
-        'Only when git on this machine is not connected to Gitstalk (a push or clone fails with Authentication failed): a short-lived HTTPS credential for one repository (at most an hour; read, plus push beans with the write scope), as git credential approve input. Pipe it to git; never print it, write it to a file, put it in a URL or commit it.',
+        'Only when git on this machine is not connected to Gitstalk (a push or clone fails with Authentication failed): a short-lived HTTPS credential for one repository (at most an hour; read, plus push beans with the write scope), as git credential approve input. With the create scope, for an owner/name where no repository is yet: a credential whose push creates it, private. Pipe it to git; never print it, write it to a file, put it in a URL or commit it.',
       inputSchema: z.object({
         repo: Repo,
         ttl_minutes: z.number().int().min(5).max(60).optional(),

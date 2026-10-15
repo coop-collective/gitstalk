@@ -5,6 +5,8 @@ import type { ConsentView as ConsentViewType } from '@gitstalk/shared-identity/a
 import { ConsentView } from '@gitstalk/shared-identity/agent-sessions';
 
 import styles from '../../components/account/account.module.css';
+import type { ScopeChoice } from '../../src/auth/scope-choices';
+import { consentChoices } from '../../src/auth/scope-choices';
 import { agentSessionsRpc } from '../../src/auth/services';
 import { currentSession } from '../../src/auth/user';
 
@@ -15,18 +17,6 @@ export const dynamic = 'force-dynamic';
 type PageProps = {
   readonly searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
 };
-
-const SCOPE_TEXT: Readonly<Record<string, string>> = {
-  read: 'Read repositories, runs and workflow logs, and see secret names (never values)',
-  collaborate: 'Post on beans, answer requests and read its inbox',
-  write:
-    'Push code to its own beans (never the stalk, never settings); where you maintain, run, re-run and cancel workflows',
-  secrets:
-    'Where you maintain: set and delete Actions secrets and variables, such as deploy tokens',
-};
-
-/** Scopes the person must tick themselves, whatever the agent asked for. */
-const OPT_IN: ReadonlySet<string> = new Set(['secrets']);
 
 /**
  * The OAuth consent screen. An agent (Claude Code, Codex…) started at the MCP Worker's
@@ -79,8 +69,8 @@ export default async function ConnectPage({ searchParams }: PageProps) {
           <input type="hidden" name="csrf" value={hidden.csrf} />
           <fieldset className={styles.scopes}>
             <legend className={styles.label}>It may</legend>
-            {view.grantableScopes.map((scope) => (
-              <ScopeOption key={scope} scope={scope} view={view} />
+            {consentChoices(view.grantableScopes, view.requestedScopes).map((choice) => (
+              <ScopeOption key={choice.scope} choice={choice} />
             ))}
           </fieldset>
           <p className={styles.hint}>
@@ -103,24 +93,22 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   );
 }
 
-function ScopeOption({ scope, view }: { readonly scope: string; readonly view: ConsentViewType }) {
-  const required = scope === 'read';
-  const isOptIn = OPT_IN.has(scope);
-  const isRequested = view.requestedScopes.some((requested) => requested === scope);
+function ScopeOption({ choice }: { readonly choice: ScopeChoice }) {
+  const { scope, required, optIn } = choice;
   return (
     <label className={styles.scope}>
       <input
         type="checkbox"
         name="scope"
         value={scope}
-        defaultChecked={required || (isRequested && !isOptIn)}
+        defaultChecked={choice.checked}
         disabled={required}
       />
       <span className={styles.scopeName}>{scope}</span>
       <span className={styles.scopeDetail}>
-        {SCOPE_TEXT[scope] ?? scope}
+        {choice.text}
         {required ? ' (always)' : ''}
-        {isOptIn ? (
+        {optIn ? (
           <span className={styles.scopeWarning}>
             {' '}
             Only if you will hand this agent secret values: each one passes through the agent and

@@ -260,6 +260,139 @@
             <span class="badge planned">planned</span>.
           </p>
 
+          <h2 id="create-elsewhere">From an agent, a script or a push</h2>
+          <p>
+            Three more ways create a repository, through the same path as the form, so the same
+            names, owners and starters apply. Each needs the <code>create</code> scope: "may create
+            repositories in namespaces where the person may create them". The setup script asks for
+            it (the SSH key approval page shows it ticked), an agent's consent page offers it, and a
+            token from Settings, Tokens can have it. A new repository is
+            <strong>private</strong> and <strong>empty</strong> unless you ask otherwise.
+          </p>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Way</th>
+                  <th>How</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>An agent (MCP)</td>
+                  <td>
+                    <code>repo_create({ name, owner?, visibility?, start?, description? })</code>.
+                    It answers <code>full_name</code>, <code>clone_url</code>, <code>web_url</code>,
+                    <code>stalk</code>, <code>visibility</code> and <code>next</code>, the commands
+                    to run next. Listed only for sessions with <code>create</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>A script</td>
+                  <td>
+                    The setup script's <code>create [OWNER/]NAME [--public]</code> (the plugin's
+                    <code>/gitstalk:new</code>), or <code>POST /api/repos</code> yourself with
+                    <code>Authorization: Bearer</code> and a personal token that has
+                    <code>create</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>A push</td>
+                  <td>
+                    <code>git push</code> to an address where no repository is, with a credential
+                    that has <code>create</code>. The <code>remote:</code> lines name the new
+                    repository and its web address.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cmd" data-copyable>
+            <header><span>Terminal</span></header>
+            <pre><code>curl -sS https://gitstalk.io/api/repos \
+  -H "Authorization: Bearer $GITSTALK_TOKEN" -H 'content-type: application/json' \
+  -d '{"name":"api","visibility":"private"}'</code></pre>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Answer</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>201</td>
+                  <td>Created; the same JSON as <code>repo_create</code></td>
+                </tr>
+                <tr>
+                  <td>401</td>
+                  <td>No token, or one that is expired or bound to one repository</td>
+                </tr>
+                <tr>
+                  <td>403</td>
+                  <td>
+                    The token has no <code>create</code> scope, or the owner is an organization
+                    where you may not create repositories
+                  </td>
+                </tr>
+                <tr>
+                  <td>409</td>
+                  <td><code>exists</code>: the name is taken in that namespace</td>
+                </tr>
+                <tr>
+                  <td>422</td>
+                  <td>An invalid name; the message says which rule</td>
+                </tr>
+                <tr>
+                  <td>429</td>
+                  <td>More than 20 repositories created in the last hour</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Every error body is <code>{"error": {"code", "message"}}</code>.</p>
+
+          <h3>Push to create</h3>
+          <p>
+            Pushing to a missing <code>owner/name.git</code> creates it when your credential has
+            <code>create</code> and the owner is you, or an organization whose members may create
+            repositories. Push one branch: <code>main</code>, <code>master</code>,
+            <code>stalk</code> or <code>bean/&lt;name&gt;</code>. That commit, with its history,
+            becomes the first commit of the stalk; no bean is opened, because there was nothing to
+            protect yet. From then on every push is an ordinary one: beans only, checked before they
+            land.
+          </p>
+          <div class="cmd" data-copyable>
+            <header><span>Terminal</span></header>
+            <pre><code>git remote add origin https://gitstalk.io/you/api.git
+git push origin HEAD:refs/heads/bean/start</code></pre>
+          </div>
+          <ul>
+            <li>
+              Without <code>create</code>, the push is refused with a hint: use
+              <code>repo_create</code>, <code>/new</code>, or a credential with the scope.
+            </li>
+            <li>
+              A name you renamed away from still leads to the renamed repository while its redirect
+              exists, so the push goes there and nothing is created.
+            </li>
+            <li>
+              A repository made empty by <code>repo_create</code> or the API holds a README until
+              its first push, which then becomes its stalk, so an existing project keeps its
+              history. Made empty on the web, the README stays and the first bean lands on it.
+            </li>
+          </ul>
+          <aside class="callout note">
+            <p class="callout-title">Audited and limited</p>
+            <p>
+              Each creation is recorded on the repository's People page with the client
+              (<code>web</code>, <code>repo_create</code>, <code>api</code> or <code>push</code>). A
+              person can create 20 repositories an hour, however they create them.
+            </p>
+          </aside>
+
           <h2 id="start">The start page</h2>
           <p>
             Until the first bean lands, the repository page has one job: show exactly how to begin.

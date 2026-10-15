@@ -27,7 +27,7 @@ export function registerSessionTools(server: McpServer, scope: ToolScope): void 
     {
       title: 'Who this session is',
       description:
-        "The Gitstalk account this agent session acts for: handle, the client the person approved, the scopes granted (read, collaborate, write, secrets) and the run tools read when they name no repository. With repo (owner/name): also the person's role there (owner, maintain, write, read, or none on a public repository) and whether this session may read, push beans, run workflows (maintain role and write scope) and set secrets (maintain role and secrets scope). A repository they may not see answers as not found, like one that does not exist.",
+        "The Gitstalk account this agent session acts for: handle, the client the person approved, the scopes granted (read, collaborate, write, secrets, create: create repositories with repo_create) and the run tools read when they name no repository. With repo (owner/name): also the person's role there (owner, maintain, write, read, or none on a public repository) and whether this session may read, push beans, run workflows (maintain role and write scope) and set secrets (maintain role and secrets scope). A repository they may not see answers as not found, like one that does not exist.",
       inputSchema: z.object({
         repo: z
           .string()
