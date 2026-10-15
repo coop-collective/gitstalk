@@ -1433,6 +1433,102 @@
   font-weight: 600;
 }
 
+/* The Code tab's file tree beside an open file. `.m-files` holds `.tree` (rows of
+   `.row` with `--d` for depth; `.on` is the open file, `.way` lights the stalk's guide)
+   and `.file` (`.head`, then numbered `.ln` lines). Under 640 px the file goes alone. */
+.m-files {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.m-files .tree,
+.m-files .file {
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--subtle);
+  min-width: 0;
+  overflow: hidden;
+}
+.m-files .tree {
+  padding: 6px 0;
+}
+.m-files .find {
+  margin: 0 8px 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: 12px var(--sans);
+  color: var(--fg-subtle);
+}
+.m-files .row {
+  position: relative;
+  padding: 2px 10px 2px calc(12px + var(--d, 0) * 13px);
+  font: 12.5px/1.6 var(--mono);
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-files .row::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  margin-right: 6px;
+  color: var(--fg-subtle);
+}
+.m-files .row.dir::before {
+  content: '▸';
+}
+.m-files .row.dir.open::before {
+  content: '▾';
+}
+.m-files .row.dir {
+  color: var(--leaf-ink);
+}
+/* The stalk: a green guide left of each row on the way to the open file. */
+.m-files .row.way,
+.m-files .row.on {
+  background: linear-gradient(var(--leaf), var(--leaf)) no-repeat calc(2px + var(--d, 0) * 13px) 0 /
+    2px 100%;
+}
+.m-files .row.on {
+  background-color: var(--leaf-bg);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--leaf);
+}
+.m-files .head {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-muted);
+  font-size: 12.5px;
+  color: var(--fg-subtle);
+}
+.m-files .ln {
+  display: block;
+  padding: 0 12px;
+  font: 12.5px/1.7 var(--mono);
+  color: var(--fg);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-files .ln::before {
+  content: attr(data-n);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 12px;
+  text-align: right;
+  color: var(--fg-subtle);
+}
+@media (max-width: 640px) {
+  .m-files {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .m-files .tree {
+    display: none;
+  }
+}
+
 /* ---------- Flow diagram: boxes and arrows ---------- */
 .flow {
   list-style: none;

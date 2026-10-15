@@ -280,6 +280,36 @@
             <figcaption>A bean moves from checking to landed; red and held need a look.</figcaption>
           </figure>
 
+          <h3>File tree beside an open file</h3>
+          <figure class="mock" aria-label="The Code tab's file tree beside an open file">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/blob/src/server/app.ts</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-files">
+                <div class="tree">
+                  <div class="find">Filter open folders</div>
+                  <div class="row dir open">src</div>
+                  <div class="row dir open way" style="--d: 1">server</div>
+                  <div class="row on" style="--d: 2">app.ts</div>
+                  <div class="row" style="--d: 1">index.ts</div>
+                  <div class="row">README.md</div>
+                </div>
+                <div class="file">
+                  <div class="head">12 lines, 340 B</div>
+                  <span class="ln" data-n="1">import { Hono } from 'hono';</span>
+                  <span class="ln" data-n="2">export const app = new Hono();</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              <code>.m-files</code>: <code>.row</code> with <code>--d</code> for depth,
+              <code>.dir</code>/<code>.open</code>, <code>.way</code> on the way, <code>.on</code>
+              the open file.
+            </figcaption>
+          </figure>
+
           <h3>Repository header with tabs</h3>
           <figure
             class="mock"

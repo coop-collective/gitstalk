@@ -58,6 +58,8 @@ Read path for a class A object: run the access check; `PublicEngine.of(record)` 
 
 `qk.repo(uid, owner, repo)` has `all`, `events()`, `pushed()`, `bean(name)`, `run(id)`, and now `jobLog(run, job)`, `runs(filter)`, `diff(base, head)`, `tree(sha)`, `file(sha, path)` and `tail(seq)` (the events after a seq, for the head watcher). `bean(name)` stays the bean's diff on day one.
 
+The Code tab's file tree adds `folder(sha, path)` (one folder's entries, read when the reader expands it) and `paths(sha)` (every path, for Go to file), both immutable (`staleTime: Infinity`, persisted for a public repository). Their routes, `/api/repos/<owner>/<repo>/code/folder` and `/code/paths`, read the tree at the sha through the same edge object cache as the pages and answer `immutable` for a public repository and `no-store` otherwise. The page itself sends the root and the folders on the way to the open path, cut from the tree it already read, so opening a file makes no extra request.
+
 ### 5.2 Freshness policy (`src/query/policy.ts`)
 
 | Class | `staleTime` | `gcTime` | `meta.persist` |

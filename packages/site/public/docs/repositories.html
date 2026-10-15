@@ -587,6 +587,110 @@ git push origin HEAD:refs/heads/bean/start</code></pre>
             </table>
           </div>
 
+          <h2 id="file-tree">The file tree</h2>
+          <p>
+            On the Code tab a folder tree sits beside whatever you open, as in an editor: the tree
+            on the left, the file (or the folder and its README) on the right, and the bar with the
+            line or bean you are browsing across both. The tree opens down to the open file and
+            highlights it, and a green line runs down the indent guides from the top folder to it.
+            Opening a file keeps the tree as it was: the folders you opened stay open and the tree
+            keeps its scroll. The address is always the file's own, so a link or a refresh opens the
+            same place. Switching to the sprout or a bean switches both sides.
+          </p>
+          <figure class="mock" aria-label="The Code tab with the file tree beside an open file">
+            <div class="mock-bar" aria-hidden="true">
+              <i></i><i></i><i></i
+              ><span class="mock-url">gitstalk.dev/acme/api/blob/src/server/routes/users.ts</span>
+            </div>
+            <div class="mock-body">
+              <div class="m-files">
+                <div class="tree">
+                  <div class="find">Filter open folders</div>
+                  <div class="row dir">docs</div>
+                  <div class="row dir open">src</div>
+                  <div class="row dir open way" style="--d: 1">server</div>
+                  <div class="row dir open way" style="--d: 2">routes</div>
+                  <div class="row" style="--d: 3">health.ts</div>
+                  <div class="row on" style="--d: 3">users.ts</div>
+                  <div class="row" style="--d: 2">app.ts</div>
+                  <div class="row" style="--d: 1">index.ts</div>
+                  <div class="row">package.json</div>
+                  <div class="row">README.md</div>
+                </div>
+                <div class="file">
+                  <div class="head">38 lines, 1.2 KB</div>
+                  <span class="ln" data-n="1">import { Hono } from 'hono';</span>
+                  <span class="ln" data-n="2"></span>
+                  <span class="ln" data-n="3">export const users = new Hono();</span>
+                  <span class="ln" data-n="4"></span>
+                  <span class="ln" data-n="5">users.get('/:id', async (c) =&gt; {</span>
+                  <span class="ln" data-n="6"> const id = c.req.param('id');</span>
+                  <span class="ln" data-n="7"> return c.json(await find(id));</span>
+                  <span class="ln" data-n="8">});</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>
+              The tree open down to users.ts, the file beside it. Line numbers link to the line.
+            </figcaption>
+          </figure>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>To</th>
+                  <th>Do this</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Open a folder in the tree</td>
+                  <td>
+                    Click it, or press the right arrow. A folder's files are read once for each
+                    commit and kept, so opening it again is instant. Ctrl-click (Cmd-click) opens
+                    the folder's own page.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Move with the keyboard</td>
+                  <td>
+                    Tab into the tree, then the up and down arrows to move, right and left to open
+                    and close a folder (or step into it and back out), Home and End for the first
+                    and last rows, Enter to open a file, <kbd>*</kbd> to open every folder beside
+                    the current one. Type the start of a name to jump to it.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Find a file by name</td>
+                  <td>
+                    Press <kbd>t</kbd> (or <strong>Go to file</strong>) and type a few letters of
+                    its path; the best matches come first, those in the file's name ahead of those
+                    in its folders. The arrows choose, Enter opens, Escape closes. The filter box at
+                    the top of the tree only narrows the folders you have opened.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Make room</td>
+                  <td>
+                    Drag the edge between the tree and the file, or focus it and use the arrow keys
+                    (Shift for bigger steps, Home and End for the narrowest and widest). Hide or
+                    show the tree with <strong>Files</strong> or <kbd>Ctrl</kbd>+<kbd>B</kbd>
+                    (<kbd>Cmd</kbd>+<kbd>B</kbd> on a Mac). Your browser remembers the width and
+                    whether the tree is hidden.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Use a phone</td>
+                  <td>
+                    Below 1024 pixels wide the file takes the page and the tree opens as a drawer
+                    from <strong>Files</strong>. Opening a file, Escape or a tap outside closes it.
+                    Long lines scroll inside the code, never the page.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <h2 id="tabs">A tour of the tabs</h2>
           <p>
             Every repository has the same seven tabs. Everyone who may see the repository sees the
@@ -652,8 +756,9 @@ git push origin HEAD:refs/heads/bean/start</code></pre>
                   <td>Code</td>
                   <td>
                     The front page. Folders and files at the stalk, the sprout, any pushed bean or
-                    any commit, with syntax highlighting and a rendered README. A side column shows
-                    the description and how many beans are on the stalk; the
+                    any commit, with syntax highlighting and a rendered README, and the
+                    <a href="/docs/repositories#file-tree">file tree</a> beside them. A side column
+                    shows the description and how many beans are on the stalk; the
                     <a href="/docs/repositories#code-button">Code button</a> clones it or connects
                     an agent. Before the first bean it is the start page above.
                   </td>
