@@ -74,18 +74,20 @@ objects by validated id, never refs) serves them from the index and fetches a mi
 a log line, when the engine cannot answer. Its counts are `cache.derived`, apart from the
 engine's own. In the offline replay of the fastify load test (`read-index-replay.test.ts`) this
 takes derivation's 638 Artifacts reads to 0 and the total from 1,418 to 780, in 169 calls
-([docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md) §12). The web app adds its own tiers in front of it for **public repositories only**
-(`packages/web` README, Caching; design in
-[docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
-the colo's Cache API and a global KV namespace, keyed by engine, the record's `updated_at` (so
-any registry update purges them) and commit sha, and the browser caches with TanStack Query.
+([docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md) §12).
+The web app adds its own tiers in front of it (`packages/web` README, Caching;
+design in [docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): for public
+repositories its isolate's memory, the colo's Cache API and a global KV namespace; for private
+and internal ones the KV namespace only, under separate `v1:priv:` keys (owner's decision
+2026-10-15). Keys hold the engine, the record's `updated_at` (so any registry update purges
+them) and commit shas; the browser caches with TanStack Query.
 The line-move event types the read index warms on (`LINE_MOVE_TYPES`,
 `@gitstalk/shared-race/events`) are the ones the web's head watcher refreshes on.
 
 The gateway does not authorise RPC calls (`repoTree`, `repoFile`, `repoLog`, `repoDiff` trust the
 engine id; the service binding is the trust boundary), so it never decides what may be cached
-across viewers: the web app checks access on every request and caches only objects of a record
-that check returned as public. Nothing in the gateway changes for this; a format change of what
+across viewers: the web app checks access on every request and reads a cache only with the grant
+that check made (shared tiers for a public record, the private KV keys otherwise). Nothing in the gateway changes for this; a format change of what
 the RPCs return means bumping the web's `EDGE_CACHE_VERSION`, since its copies outlive a deploy.
 
 The repository events queue (`repo-events`) is where a future signed-out heads snapshot in KV

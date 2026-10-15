@@ -98,9 +98,12 @@ every page in `app/layout.tsx` with one client per tab, given the viewer's id.
   router reuses a page it showed in the last 30 s (`experimental.staleTimes` in
   `next.config.ts`), and only those clear it.
 - **Persistence** is opt-in: `meta: { persist: true }` keeps a successful query in
-  sessionStorage (`gitstalk-query`) for an hour, for this build and viewer only. The freshness
-  policy sets it for a public repository's immutable data only. Signing in or out clears the
-  cache and the stored copy; signing out also sends `Clear-Site-Data: "cache"`.
+  sessionStorage (`gitstalk-query`, never localStorage) for an hour, for this build and viewer
+  only. The freshness policy sets it for a repository's immutable data, public or private: it
+  survives a reload in the same tab, never across tabs, sessions or accounts. Signing in or out
+  clears the cache and the stored copy (a sign-out form clears them as it posts); signing out
+  also sends `Clear-Site-Data: "cache"`. Per-viewer data (settings, sessions, tokens, CSRF,
+  secret values), the event log and moving state are never persisted.
 - **Server caching**: `cacheForRequest` (`vinext/cache`) memoises a factory per request;
   `keyedForRequest` (`src/server/request-memo.ts`) does the same per key (the access check,
   a tab's engine reads, Ask's data). The session (`currentSession`) carries the header's name
@@ -160,8 +163,11 @@ open bean), *per-viewer* (session, role, CSRF token, settings, page HTML) or a *
   `gcTime` and persistence: immutable `Infinity`; append-only `Infinity` while the live feed is
   open, 15 s otherwise; mutable and per-viewer 30 s. Cached data renders at once and is
   refetched in the background only when stale (on mount or window focus).
-- Only a **public** repository's immutable queries are persisted (sessionStorage, an hour).
-  The event log and private and internal data never leave memory.
+- A repository's immutable queries are persisted, public or private (sessionStorage, an hour,
+  this tab and viewer). The event log, moving state and per-viewer data never leave memory.
+- The repository's header and tabs are drawn once by `app/[owner]/[repo]/layout.tsx`
+  (`RepositoryFrame`), and a repository's settings nav by `settings/layout.tsx`, so moving
+  between tabs and settings sections keeps them mounted and swaps only the page.
 - `invalidation.ts` (`staleKeysFor`) maps a batch of new events to what it makes stale: the
   pushed beans, the diff of a bean on screen, and whether the page must be rendered again (a
   line head moved past what it rendered, or History's validation activity).
@@ -178,34 +184,44 @@ open bean), *per-viewer* (session, role, CSRF token, settings, page HTML) or a *
 **At the edge** (`src/edge/`): a Worker runs in front of Cloudflare's cache, so response
 headers never make the CDN keep anything; edge caching is explicit code.
 
+- Every edge read needs an engine key that only a `ReadGrant` makes (`read-grant.ts`), and only
+  the access checks (`lookupRepository`, `runAccess`) make grants: no code path reads a cache
+  before the viewer's access check on that request (`read-grant.test.ts` holds the rule).
 - `object-cache.ts` reads a **public** repository's trees, files and diffs at commit shas
   through this isolate's memory (an LRU of 4 MB of JSON; concurrent reads of a key share one
   read), the colo's Cache API (named cache
   `gitstalk-objects-v1`, 7-day copies; a no-op on `workers.dev`), the `OBJECTS` KV namespace
   (global, 30-day expiry, values up to 1 MiB) and then the gateway. Fills go through
   `waitUntil`, only after a successful read (never a not-found or an error). Each read logs
-  `edge.read` with `kind`, `layer` and `ms`.
-- Every edge function takes a `PublicEngine`, which only `PublicEngine.of(record)` makes, from
-  the record the viewer's access check returned on this request: private and internal
-  repositories never reach a shared cache, and a visibility flip needs no purge (the access
-  check refuses before any cache is read). Keys (`cache-keys.ts`) hold the engine, the
-  record's cache epoch (`updated_at`), the shas and the hashed path, never the viewer; any
-  change to the record (a takedown edit, a transfer, a visibility flip) makes every old copy
-  unreachable. `/__edge/*` is answered 404 by `worker/index.ts`.
+  `edge.read` with `kind`, `layer`, `result` and `ms`.
+- `private-object-cache.ts` reads a **private or internal** repository's trees, files and diffs
+  through the same `OBJECTS` namespace under its own keys (`v1:priv:<engine>:<epoch>:…`, 7-day
+  expiry, values up to 1 MiB), then the gateway: KV only, never the isolate memory or the Cache
+  API (shared, per colo, unpurgeable). It takes a `PrivateEngine`, which only a grant makes.
+  `edge.read` and `Server-Timing` count `kv-hit-private` and `kv-miss-private` apart from the
+  public `kv-hit` and `kv-miss`.
+- Keys (`cache-keys.ts`) hold the engine, the record's cache epoch (`updated_at`), the shas and
+  the hashed path, never the viewer; any change to the record (a settings save, a takedown
+  edit, a transfer, a visibility flip, an archive) makes every old copy unreachable. A deleted
+  repository's private entries are unreachable at once and gone from KV within 7 days.
+  `/__edge/*` is answered 404 by `worker/index.ts`.
 - `http-cache.ts` sets the browser headers: anything past the access check is `private`
   (never `s-maxage` or `Vary: Cookie`), errors and streams `no-store`, and a 304 only after
   the access check. A private or internal repository's answers are always `no-store`
   (`byVisibility`). For a public one: events `private, no-cache` with
   `W/"v1.<engine>.<last seq>.<last ts>"`; pushed `private, no-cache`; a bean's diff
   `private, no-cache` with its commit pair as ETag (a 304 before the diff is read) and
-  `Server-Timing: edge;desc="colo-hit"`; a finished, complete job log download `immutable`;
+  `Server-Timing: edge;desc="colo-hit"` (`kv-hit-private` for a private one, whose diff is
+  `no-store`); a finished, complete job log download `immutable`;
   a finished run an hour. A benchmark race's diff is `no-store`.
 - Bump `EDGE_CACHE_VERSION` when a stored payload changes shape.
 
 **Tests.** `pnpm -F @gitstalk/web test` runs the plain tests, then the edge tests on
 Miniflare (`vitest.workers.config.ts`, `*.workers.test.ts`, real KV and Cache API through
-`test/edge/wrangler.jsonc`): layer by layer hits, private repositories never stored or served,
-the visibility flip, the cache epoch, coalesced reads, and the headers.
+`test/edge/wrangler.jsonc`): layer by layer hits, private repositories cached in their own KV
+namespace only behind the real access check (signed out, non-members, revoked members and
+viewers of a repository made private never get an entry; nothing private touches the Cache
+API), the visibility flip, the cache epoch, coalesced reads, and the headers.
 
 ## Layout
 
