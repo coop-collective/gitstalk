@@ -102,16 +102,14 @@ function agentSession(
       session: agentKey,
     },
     async mintGitToken(repository) {
-      const gitScopes = scopes.filter(
-        (scope) => scope === 'read' || (scope === 'write' && repository.access === 'write'),
-      );
+      const gitScopes = gitScopesFor(scopes, repository.access);
       if (gitScopes.length === 0) return null;
       const { token, summary } = await mintSessionToken(env, {
         userId: props.userId,
         label: `${props.clientName} (MCP git)`,
         scopes: gitScopes,
         ttlSeconds: repository.ttlSeconds,
-        repository: repository.engineId,
+        repository: repository.binding,
         ...(clientId === null ? {} : { clientId }),
       });
       return {
@@ -121,6 +119,18 @@ function agentSession(
       };
     },
   };
+}
+
+/**
+ * A git credential's scopes, no wider than the session: read; write where the person may push;
+ * read, write and create for an address with no repository yet (only with all three).
+ */
+function gitScopesFor(scopes: readonly Scope[], access: 'read' | 'write' | 'create'): Scope[] {
+  if (access === 'create') {
+    const needed: readonly Scope[] = ['read', 'write', 'create'];
+    return needed.every((scope) => scopes.includes(scope)) ? [...needed] : [];
+  }
+  return scopes.filter((scope) => scope === 'read' || (scope === 'write' && access === 'write'));
 }
 
 /** DEMO_RUN when set, otherwise the newest run. */

@@ -14,3 +14,8 @@ export function sessionMayWrite(scope: ToolScope): boolean {
 export function sessionMaySetConfig(scope: ToolScope): boolean {
   return scope.session?.scopes.includes('secrets') === true;
 }
+
+/** A session with the create scope: `repo_create` (the namespace rule is checked per call). */
+export function sessionMayCreate(scope: ToolScope): boolean {
+  return scope.session?.scopes.includes('create') === true;
+}

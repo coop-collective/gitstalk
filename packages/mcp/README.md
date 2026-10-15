@@ -48,10 +48,12 @@ Without the plugin, add the server directly and sign in:
   and tokens are stored hashed in `OAUTH_KV`.
 - **Scopes:** `read` (required: every read, Actions logs and secret names included),
   `collaborate` (bean threads and inbox), `write` (push own beans and claim tasks; with the
-  maintain role, run, re-run and cancel workflows and automations) and `secrets` (with the
-  maintain role, set and delete Actions secrets and variables). The 401 challenge and the
-  protected-resource metadata advertise `read collaborate write`, so clients ask for those and
-  the consent page ticks them; the authorization server lists all four. `secrets` is never
+  maintain role, run, re-run and cancel workflows and automations), `secrets` (with the
+  maintain role, set and delete Actions secrets and variables) and `create` (create
+  repositories where the person may: `repo_create`, and push-to-create with a `git_credentials`
+  credential). The 401 challenge and the protected-resource metadata advertise
+  `read collaborate write`, so clients ask for those and the consent page ticks them; the
+  authorization server lists all five. `create` is ticked when a client asks for it. `secrets` is never
   ticked for the person: they opt in, warned that a value passes through the agent. `/mcp`
   enforces `read`; the gateway checks each tool's scope and the person's role.
 - **Personal access tokens** (`bsu_…`, made in the web app's Settings) also work as the bearer.
@@ -70,15 +72,16 @@ where useful.
 
 A tool is registered only when the caller's token can ever use it (`src/mcp/scope-gate.ts`): a
 read-only session sees no write tool, and only a session with the `secrets` scope sees
-`actions_config_set` and `actions_config_delete`. What depends on the repository (the person's
+`actions_config_set` and `actions_config_delete`, and only one with `create` sees `repo_create`. What depends on the repository (the person's
 role there) is checked when the tool is called.
 
 | Group | Tools | Who gets them |
 |---|---|---|
 | Read and status | `ask_repo`, `work_overlaps`, `why_lines`, `bean_status`, `repo_status`, `repo_read` | Everyone; sessions pass `repo: "owner/name"`, run tokens read their run |
 | Session | `whoami` (with `repo`: the person's role there and what this session may do) | Agent sessions |
-| Repositories and beans | `repo_list`, `bean_wait`, `task_list`, `git_credentials` | Agent sessions |
-| Bean and backlog writes | `bean_open`, `bean_commit`, `bean_approve`, `task_claim`, `task_release` | Sessions with `write` (the write role per call; `bean_approve`: the maintain role or owner per call) |
+| Repositories and beans | `repo_list`, `bean_wait`, `task_list`, `git_credentials` (with `write` and `create`, also for an `owner/name` where no repository is yet: a push with it creates one) | Agent sessions |
+| New repositories | `repo_create({ name, owner?, visibility?, start?, description? })`: private and empty unless asked; answers `full_name`, `clone_url`, `web_url`, `stalk`, `visibility`, `next` | Sessions with `create`; the namespace rule per call (docs/claude-opus/20-repositories.md §10) |
+| Bean and backlog writes | `bean_open`, `bean_commit`, `bean_approve`, `task_claim` (`release: true` gives a task back) | Sessions with `write` (the write role per call; `bean_approve`: the maintain role or owner per call) |
 | Bean collaboration | `bean_context`, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | `bean_context` for any caller with a run to read; the writes and inbox for contributor run tokens only |
 | Actions | `actions_workflow_list`, `actions_run_list`, `actions_run_get`, `actions_job_log`, `actions_wait_for_run`, `actions_config_list`, `automation_get` | Agent sessions, any role that reads the repository |
 | Actions changes | `actions_dispatch`, `actions_rerun`, `actions_cancel`, `automation_run` | Sessions with `write`; the maintain role per call |
@@ -92,8 +95,9 @@ session also gets `bean_context` when the deployment has a demo run):
 | Run view token | the six read and status tools, `bean_context` | 7 |
 | Run contributor token | the above, `bean_update`, `bean_commit`, `bean_thread_post`, `bean_inbox_read`, `bean_inbox_ack` | 12 |
 | Session, `read` | the seven above for a view token, `whoami`, `repo_list`, `bean_wait`, `task_list`, `git_credentials`, the seven Actions reads | 19 |
-| Session, `write` | the above, the five bean and backlog writes, the four Actions changes | 28 |
-| Session, `write` and `secrets` | the above, `actions_config_set`, `actions_config_delete` | 30 |
+| Session, `write` | the above, the four bean and backlog writes, the four Actions changes | 27 |
+| Session, `write` and `secrets` | the above, `actions_config_set`, `actions_config_delete` | 29 |
+| Session, every scope (`create` too) | the above, `repo_create` | 30 |
 
 No caller is offered more than 30 tools (the same test asserts it); a new tool for sessions
 replaces or merges one, or goes behind a scope.
