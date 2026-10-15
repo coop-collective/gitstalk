@@ -119,6 +119,8 @@ import { GatewayError, UpstreamError } from '../errors';
 import type { ObjectStore, ReadCache, RefMemo, RepoReader } from '../repo/object-cache';
 import { cacheReport } from '../repo/cache-stats';
 import { cachedReader, sqlObjectStore } from '../repo/object-cache';
+import type { ObjectTier } from '../repo/object-tier';
+import { objectTier, tieredReader } from '../repo/object-tier';
 import type { ReadPurpose } from '../repo/cache-stats';
 import { readThroughPort } from '../repo/read-through-port';
 import type { Logger } from '../log';
@@ -186,6 +188,7 @@ import {
   emptyMeter,
   infraReport,
   recordCacheRead,
+  recordTierRead,
   recordRunnerCall,
   recordWarmStart,
 } from './infra-meter';
@@ -325,6 +328,8 @@ export class RunDO extends DurableObject<Env> {
   #meter: InfraMeter;
   /** The read index: git objects by id (`repo/object-cache.ts`), and refs read moments ago. */
   #objects: ObjectStore;
+  /** The colo's object tier under the read index (opened on first use; null: none). */
+  #tier: ObjectTier | null | undefined;
   /** A sweep of a run this object never held deleted its storage; tables return on create. */
   #wiped = false;
   /** Fingerprint of the in-memory state for the quiet-step check (null: compute on demand). */
@@ -867,7 +872,9 @@ export class RunDO extends DurableObject<Env> {
     return {
       sql: this.ctx.storage.sql,
       read: (use) =>
-        withRepo(binding, repo.name, (handle) => use(cachedReader(handle, this.#readCache()))),
+        withRepo(binding, repo.name, (handle) =>
+          use(this.#throughCaches(handle, repo.name, 'demand')),
+        ),
       target: async () => ({
         remote: repo.remote,
         token: await this.#tokens.token(repo.name, 'write'),
@@ -1564,6 +1571,25 @@ export class RunDO extends DurableObject<Env> {
     this.#setMeter(countRequest(this.#meter, Date.now()));
   }
 
+  /**
+   * A handle of `repo` read through the read index, and the index's misses through the colo's
+   * object tier (`repo/object-tier.ts`); both count on the meter, apart.
+   */
+  #throughCaches(handle: RepoReader, repo: string, purpose: ReadPurpose): RepoReader {
+    const tier = this.#objectTier();
+    const below = tier === null ? handle : tieredReader(handle, repo, tier);
+    return cachedReader(below, this.#readCache(purpose));
+  }
+
+  #objectTier(): ObjectTier | null {
+    this.#tier ??= objectTier(this.env.PUBLIC_URL, {
+      defer: (write) => this.ctx.waitUntil(write),
+      count: (read) => this.#setMeter(recordTierRead(this.#meter, read)),
+      warn: (message, fields) => this.#log.warn(message, fields),
+    });
+    return this.#tier;
+  }
+
   /** The read index for a cached reader, its hits and misses counted on the meter. */
   #readCache(purpose: ReadPurpose = 'demand'): ReadCache {
     return {
@@ -1582,7 +1608,7 @@ export class RunDO extends DurableObject<Env> {
   #readIndexed<T>(repo: string, use: (reader: RepoReader) => Promise<T>): Promise<T> {
     this.#setMeter(countArtifactsOps(this.#meter, 1));
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return withRepo(binding, repo, (handle) => use(cachedReader(handle, this.#readCache())));
+    return withRepo(binding, repo, (handle) => use(this.#throughCaches(handle, repo, 'demand')));
   }
 
   #recordRunner(call: RunnerCall): void {
@@ -1704,7 +1730,7 @@ export class RunDO extends DurableObject<Env> {
   /** The run repo's explorer, reading through the read index. */
   #explorer(repo: string, purpose: ReadPurpose = 'demand'): RepoExplorer {
     const binding = this.#drivesRepository ? this.env.REPOS : this.env.ARTIFACTS;
-    return repoExplorer(binding, repo, (handle) => cachedReader(handle, this.#readCache(purpose)));
+    return repoExplorer(binding, repo, (handle) => this.#throughCaches(handle, repo, purpose));
   }
 
   /** A read of the run repo for the web app: expected failures become values. */

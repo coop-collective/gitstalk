@@ -5,21 +5,36 @@
  * directories), each judged by the approval gate's diff read before it lands, and each landing
  * warmed after. It measures the Artifacts reads and the read index's counts with the gate
  * reading straight from Artifacts (as the staging runs did) and through the index.
+ *
+ * The second case adds the derived-data `RepoDerivedDO`, which reads each landing's changes
+ * (`changesIn`, as derivation does) after the engine's warm-up, and measures the Artifacts
+ * reads without and with the gateway's object tier (`object-tier.ts`, the colo's Cache API)
+ * under both Durable Objects, both in one colo.
  */
+import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 import { Sha } from '@gitstalk/shared-race/ids';
 
 import landings from '../../test/fixtures/fastify-landings.json';
-import { changedFilesIn } from '../adapters/artifacts';
+import { changedFilesIn, changesIn } from '../adapters/artifacts';
 import { warmLine } from '../adapters/repo-explorer';
-import type { ReadPurpose } from './cache-stats';
-import { cacheReport, countCacheRead, emptyCacheStats } from './cache-stats';
+import type { ReadPurpose, TierRead } from './cache-stats';
+import { cacheReport, countCacheRead, countTierRead, emptyCacheStats } from './cache-stats';
 import type { RepoReader } from './object-cache';
 import { cachedReader, memoryObjectStore } from './object-cache';
+import { objectTier, tieredReader } from './object-tier';
 
 type Files = Readonly<Record<string, string>>;
 type Landing = { readonly task: string; readonly files: readonly string[] };
+type Calls = { commit: number; tree: number; blob: number; log: number };
+
+/** How the replay is set up: the gate's reads, whether derivation reads, the object tier. */
+type Setup = {
+  readonly gate: 'direct' | 'indexed';
+  readonly derivation: 'none' | 'after-warm-up';
+  readonly tier: 'absent' | 'present';
+};
 
 const PERSON = { name: 'replay', email: 'replay@gitstalk.invalid' };
 const LINE = 'stalk';
@@ -42,8 +57,8 @@ const FILLER: Readonly<Record<string, number>> = {
 
 describe('the read index over the fastify load test (offline replay)', () => {
   it('serves the gate’s diff reads from the warmed index and spares the warm-up their fetches', async () => {
-    const direct = await replay('direct');
-    const indexed = await replay('indexed');
+    const direct = await replay({ gate: 'direct', derivation: 'none', tier: 'absent' });
+    const indexed = await replay({ gate: 'indexed', derivation: 'none', tier: 'absent' });
 
     // The staging runs' shape: the warm-up alone fills the index, nobody else reads through
     // it, so there is no demand hit rate at all; the warm-up fetches each new object once.
@@ -64,48 +79,105 @@ describe('the read index over the fastify load test (offline replay)', () => {
       indexed: 780,
     });
   });
+
+  it('serves derivation’s reads from the object tier the engine filled', async () => {
+    const without = await replay({ gate: 'indexed', derivation: 'after-warm-up', tier: 'absent' });
+    const tiered = await replay({ gate: 'indexed', derivation: 'after-warm-up', tier: 'present' });
+
+    // Derivation reads each landing's two commits, the trees that differ and both sides of
+    // each changed file, all of them objects the gate or the warm-up fetched just before.
+    expect(without.derivedReads).toEqual({ commit: 76, tree: 256, blob: 306, log: 0 });
+    expect(tiered.derivedReads).toEqual({ commit: 0, tree: 0, blob: 0, log: 0 });
+    // The engine's own reads are unchanged: its index misses become tier misses.
+    expect(tiered.gateReads).toEqual(without.gateReads);
+    // The landed heads' commits come from the ref reads, kept by id; derivation then hits all.
+    expect(tiered.cache.edge?.objects).toEqual({ hits: 638, misses: 741, hit_rate: 0.4627 });
+    expect(tiered.cache.edge?.commit).toEqual({ hits: 76, misses: 38, hit_rate: 0.6667 });
+    expect(tiered.cache.edge?.blob).toEqual({ hits: 306, misses: 560, hit_rate: 0.3533 });
+    expect({ without: without.artifactsReads, with: tiered.artifactsReads }).toEqual({
+      without: 1418,
+      with: 780,
+    });
+  });
 });
 
-/** One pass over the 38 landings; `gate` says how the gate's diff reads reach Artifacts. */
-async function replay(gate: 'direct' | 'indexed') {
+/** One pass over the 38 landings, set up as `setup` says. */
+async function replay(setup: Setup) {
   const git = memoryGit();
   let head = git.commit(null, baseFiles(landings));
   let stats = emptyCacheStats();
   const store = memoryObjectStore();
   const refs = new Map();
+  const below =
+    setup.tier === 'present'
+      ? replayTier(
+          git.reader,
+          (read) => (stats = { ...stats, edge: countTierRead(stats.edge, read) }),
+        )
+      : { reader: git.reader, settled: () => Promise.resolve() };
   const reader = (purpose: ReadPurpose): RepoReader =>
-    cachedReader(git.reader, {
+    cachedReader(below.reader, {
       store,
       refs,
       now: () => 0,
       count: (read) => (stats = countCacheRead(stats, read)),
       purpose,
     });
-  await warmLine(reader('prefetch'), LINE);
+  const measure = async (into: Calls, work: () => Promise<unknown>): Promise<void> => {
+    const before = { ...git.calls };
+    await work();
+    // The tier's writes run past each read; the next reader comes after them.
+    await below.settled();
+    for (const kind of ['commit', 'tree', 'blob', 'log'] as const)
+      into[kind] += git.calls[kind] - before[kind];
+  };
   const gateReads = { commit: 0, tree: 0, blob: 0, log: 0 };
+  const derivedReads = { commit: 0, tree: 0, blob: 0, log: 0 };
+  const noReads = { commit: 0, tree: 0, blob: 0, log: 0 };
+  await measure(noReads, () => warmLine(reader('prefetch'), LINE));
   for (const landing of landings) {
     const onto = head;
     const merged = git.commit(onto, edited(git.files(onto), landing));
-    const before = { ...git.calls };
+    const range = { from: Sha.parse(onto), to: Sha.parse(merged) };
     // oxlint-disable-next-line no-await-in-loop -- each landing follows the last
-    await changedFilesIn(gate === 'indexed' ? reader('demand') : git.reader, {
-      from: Sha.parse(onto),
-      to: Sha.parse(merged),
-    });
-    for (const kind of ['commit', 'tree', 'blob', 'log'] as const)
-      gateReads[kind] += git.calls[kind] - before[kind];
+    await measure(gateReads, () =>
+      changedFilesIn(setup.gate === 'indexed' ? reader('demand') : git.reader, range),
+    );
     head = merged;
     git.moveLine(head);
     refs.clear();
     // oxlint-disable-next-line no-await-in-loop -- the warm-up follows its landing
-    await warmLine(reader('prefetch'), LINE);
+    await measure(noReads, () => warmLine(reader('prefetch'), LINE));
+    if (setup.derivation === 'after-warm-up')
+      // oxlint-disable-next-line no-await-in-loop -- derivation follows the warm-up
+      await measure(derivedReads, () => changesIn(below.reader, range));
   }
   const { calls } = git;
   return {
     cache: cacheReport(stats),
     gateReads,
+    derivedReads,
     artifactsReads: calls.commit + calls.tree + calls.blob + calls.log,
     blobsFetched: stats.prefetch.blob.misses + stats.blob.misses,
+  };
+}
+
+/** Artifacts under the object tier, over the test Worker's Cache API (one name per replay). */
+function replayTier(
+  artifacts: RepoReader,
+  count: (read: TierRead) => void,
+): { readonly reader: RepoReader; readonly settled: () => Promise<unknown> } {
+  const writes: Promise<void>[] = [];
+  const tier = objectTier(env.PUBLIC_URL, {
+    defer: (write) => writes.push(write),
+    count,
+    warn: () => undefined,
+  });
+  if (tier === null) throw new Error('the test config sets PUBLIC_URL');
+  const repo = `repo-replay${crypto.randomUUID().slice(0, 8)}`;
+  return {
+    reader: tieredReader(artifacts, repo, tier),
+    settled: () => Promise.all(writes.splice(0)),
   };
 }
 
@@ -135,7 +207,7 @@ function memoryGit() {
   const commits = new Map<string, ArtifactsCommitMetadata>();
   const snapshots = new Map<string, Files>();
   const line = { head: '' };
-  const calls = { commit: 0, tree: 0, blob: 0, log: 0 };
+  const calls: Calls = { commit: 0, tree: 0, blob: 0, log: 0 };
   const writeTree = (entries: readonly (readonly [string, string])[]): string => {
     const directories = new Map<string, [string, string][]>();
     const tree: ArtifactsTreeEntry[] = [];

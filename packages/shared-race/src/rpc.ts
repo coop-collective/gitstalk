@@ -260,7 +260,23 @@ export type CacheKindsView = {
  * reader and a hit one already held. Gateways before 2026-10-14 counted the warm-up as demand
  * and had no `prefetch`.
  */
-export type CacheView = CacheKindsView & { readonly prefetch?: CacheKindsView };
+/**
+ * `edge`: the gateway's object tier under the read index (per colo, shared by the engine's
+ * Durable Objects). It sees the index's misses only, and its misses are the reads Artifacts
+ * served.
+ */
+export type CacheView = CacheKindsView & {
+  readonly prefetch?: CacheKindsView;
+  readonly edge?: EdgeCacheView;
+};
+
+/** The object tier's hits and misses, commits, trees and blobs together and by kind. */
+export type EdgeCacheView = {
+  readonly objects: CacheCountView;
+  readonly commit: CacheCountView;
+  readonly tree: CacheCountView;
+  readonly blob: CacheCountView;
+};
 
 /** `runEvents`: one page of `events.jsonl` lines (parse each as a `RaceEvent`). */
 export type RunEventsPage = {

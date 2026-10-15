@@ -12,6 +12,7 @@ import {
   infraReport,
   recordCacheRead,
   recordRunnerCall,
+  recordTierRead,
   recordWarmStart,
 } from './infra-meter';
 import type { InfraMeter } from './infra-meter';
@@ -110,6 +111,21 @@ describe('the read index’s counts on the meter', () => {
     expect(cache.prefetch?.objects).toEqual({ hits: 1, misses: 1, hit_rate: 0.5 });
   });
 
+  it('counts the object tier apart from the read index', () => {
+    const indexed = withReads(emptyMeter(0), [MISS('blob'), MISS('tree'), HIT('blob')]);
+    const meter = recordTierRead(recordTierRead(indexed, { kind: 'blob', outcome: 'hit' }), {
+      kind: 'tree',
+      outcome: 'miss',
+    });
+
+    const { cache } = infraReport(meter, 0);
+
+    expect(cache.objects).toEqual({ hits: 1, misses: 2, hit_rate: 0.3333 });
+    expect(cache.edge?.objects).toEqual({ hits: 1, misses: 1, hit_rate: 0.5 });
+    expect(cache.edge?.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(cache.edge?.commit.hit_rate).toBeNull();
+  });
+
   it('reports no rate before anything was read', () => {
     expect(infraReport(emptyMeter(0), 0).cache.objects).toEqual({
       hits: 0,
@@ -145,6 +161,22 @@ describe('the read index’s counts on the meter', () => {
 
     expect(reloaded?.requests).toBe(7);
     expect(infraReport(reloaded ?? emptyMeter(0), 0).cache.objects.hit_rate).toBeNull();
+  });
+
+  it('starts the tier counts at zero for counts stored before the tier existed', async () => {
+    const { edge: _edge, ...olderCache } = withReads(emptyMeter(0), [HIT('blob')]).cache;
+
+    const reloaded = await runInDurableObject(
+      env.RUNS.getByName('meter-before-tier-test'),
+      (_, state) => {
+        state.storage.kv.put('infra-meter', { ...emptyMeter(0), cache: olderCache });
+        return loadMeter(state.storage, 1000);
+      },
+    );
+    const { cache } = infraReport(reloaded ?? emptyMeter(0), 0);
+
+    expect(cache.blob).toEqual({ hits: 1, misses: 0, hit_rate: 1 });
+    expect(cache.edge?.objects).toEqual({ hits: 0, misses: 0, hit_rate: null });
   });
 
   it('starts the prefetch counts at zero for counts stored before purposes existed', async () => {

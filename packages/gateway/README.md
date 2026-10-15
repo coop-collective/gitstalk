@@ -64,9 +64,24 @@ Measured:
 
 ## Caching
 
-The gateway's read index above is the last cache tier and the only one that holds every
-repository, private ones included: objects by id in each engine's SQLite, and the 5 s ref memo a
-landing clears. The web app adds its own tiers in front of it for **public repositories only**
+The gateway has two tiers that hold every repository, private ones included. The read index
+above keeps objects by id in each engine's SQLite, with the 5 s ref memo a landing clears. Under
+it, the **object tier** (`src/repo/object-tier.ts`) keeps commits, trees and blobs by id in the
+colo's Cache API (named cache `gitstalk-gateway-objects-v1`, key
+`<PUBLIC_URL origin>/__objects/v1/<Artifacts repo>/<kind>/<id>`, `max-age` 7 days, `immutable`,
+blobs up to the index's 1 MB cap). The engine's `RunDO` (under its index) and the
+`RepoDerivedDO` both read through it, so the second reader of an object in a colo does not go
+to Artifacts: in the offline replay of the fastify load test (`read-index-replay.test.ts`),
+derivation's 638 reads per run all hit and Artifacts reads fall from 1,418 to 780. Refs and the
+ref memo are never kept there (the commit a ref read returns is, by its id). Its hits and
+misses are `cache.edge` in the RunDO's infra meter, apart from the index's; the `RepoDerivedDO`
+logs them (`object tier`). Only those two Durable Objects build a tier reader, from the
+Artifacts repo name they hold; no route serves `/__objects/`. It needs the custom domain (on
+`*.workers.dev` every read is a miss) and `PUBLIC_URL` set to an http(s) origin. Privacy
+decision and deletion rule:
+[docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md) §12.
+
+The web app adds its own tiers in front of the gateway for **public repositories only**
 (`packages/web` README, Caching; design in
 [docs/claude-opus/35-caching.md](../../docs/claude-opus/35-caching.md)): its isolate's memory,
 the colo's Cache API and a global KV namespace, keyed by engine, the record's `updated_at` (so

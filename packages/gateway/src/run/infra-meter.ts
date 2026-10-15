@@ -17,13 +17,16 @@
  *   memo (`repo/cache-stats.ts`), demand reads apart from the warm-up's prefetch. Free in
  *   itself. Its misses are binding reads inside the port calls counted above (one per call),
  *   or the warm-up's, which the Artifacts count leaves out.
+ * - The object tier (`repo/object-tier.ts`): the index's misses that the colo's Cache API
+ *   answered (`cache.edge`), counted apart so the index's hit rates stay its own.
  */
 import type { CacheView } from '@gitstalk/shared-race/rpc';
 
 import { roundTo } from '../engine/numbers';
-import type { CacheRead, CacheStats } from '../repo/cache-stats';
+import type { CacheRead, CacheStats, TierRead } from '../repo/cache-stats';
 import {
   cacheReport,
+  countTierRead,
   countCacheRead,
   emptyCacheStats,
   restoredCacheStats,
@@ -118,6 +121,11 @@ export function countArtifactsOps(meter: InfraMeter, ops: number): InfraMeter {
 /** One read through the read index. */
 export function recordCacheRead(meter: InfraMeter, read: CacheRead): InfraMeter {
   return { ...meter, cache: countCacheRead(meter.cache, read) };
+}
+
+/** One read through the object tier (an index miss). */
+export function recordTierRead(meter: InfraMeter, read: TierRead): InfraMeter {
+  return { ...meter, cache: { ...meter.cache, edge: countTierRead(meter.cache.edge, read) } };
 }
 
 /** A runner call: its busy time, the instance's up time it adds, and its git fetch. */

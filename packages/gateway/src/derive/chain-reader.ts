@@ -5,6 +5,7 @@
  */
 import type { RangeChanges } from '../adapters/artifacts';
 import { call, changesIn } from '../adapters/artifacts';
+import type { RepoReader } from '../repo/object-cache';
 import { Sha } from '@gitstalk/shared-race/ids';
 
 /** A commit as the chain needs it. */
@@ -27,24 +28,31 @@ export type ChainReader = {
   head(branch: string): Promise<string | null>;
 };
 
+/** The repository a chain reader opens, and what each opened handle is read through. */
+export type ChainSource = {
+  readonly binding: Artifacts;
+  readonly repo: string;
+  /** Wraps the handle, for instance in the object tier; without it reads go to Artifacts. */
+  readonly through?: (handle: RepoReader) => RepoReader;
+};
+
 /**
- * Runs `use` with a reader over the repository `repo` of `binding`, releasing it after. Only
- * the reader's Artifacts calls become `UpstreamError`s; what `use` throws passes unchanged.
+ * Runs `use` with a reader over the repository `source.repo`, releasing it after. Only the
+ * reader's Artifacts calls become `UpstreamError`s; what `use` throws passes unchanged.
  */
 export async function withChainReader<T>(
-  binding: Artifacts,
-  repo: string,
+  source: ChainSource,
   use: (reader: ChainReader) => Promise<T>,
 ): Promise<T> {
-  const handle = await call(`open ${repo}`, () => binding.get(repo));
+  const handle = await call(`open ${source.repo}`, () => source.binding.get(source.repo));
   try {
-    return await use(chainReader(handle));
+    return await use(chainReader(source.through?.(handle) ?? handle));
   } finally {
     handle[Symbol.dispose]();
   }
 }
 
-function chainReader(handle: ArtifactsRepo): ChainReader {
+function chainReader(handle: RepoReader): ChainReader {
   return {
     readCommit: (sha) =>
       call('read commit', async () => {
