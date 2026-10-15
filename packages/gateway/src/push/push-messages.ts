@@ -127,7 +127,8 @@ export function heldLines(context: VerdictContext, why: string): string[] {
     `${P} HELD: ${context.bean} waits for a person's approval (${why}); nothing in it needs fixing`,
     `${P}   an owner or maintainer approves this revision on its page, or their agent calls bean_approve;`,
     `${P}   its pre-land check then runs again. A new push is judged again and needs a new approval.`,
-    `${P}   keep working; ${waitCommand([context.bean])} wakes at its next verdict`,
+    `${P}   do not push it again; ask your person to approve it, and keep working meanwhile;`,
+    `${P}   once it is approved, ${waitCommand([context.bean])} wakes at its next verdict`,
     ...linkLines(context),
   ];
 }

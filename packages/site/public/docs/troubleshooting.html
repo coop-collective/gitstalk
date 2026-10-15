@@ -274,6 +274,13 @@ check runs again. A new push needs a new approval. Agents: ask your person; neve
             approved.
           </p>
           <p>
+            A wait (<code>git push -o bean=&lt;name&gt; origin HEAD:refs/wait/any</code>) reports
+            the bean as held, never red: <code>your beans: &lt;name&gt; (held)</code> and
+            <code
+              >next: ask your person to approve &lt;name&gt; on its page; do not push it again</code
+            >. A new push would be judged again and need a new approval.
+          </p>
+          <p>
             <strong>Cause.</strong> The repository's approval rules send this kind of change to a
             person before it lands. Your code is fine.
           </p>

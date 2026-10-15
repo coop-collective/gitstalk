@@ -8,6 +8,7 @@ import type { PushedBeanStatus, RpcResult } from '@gitstalk/shared-race/rpc';
 import { PersonalTokenInput, createPersonalToken } from '@gitstalk/shared-identity/user-tokens';
 import { insertUser } from '@gitstalk/shared-identity/users';
 
+import { GitStream, push, pushBody } from './git-push-helpers';
 import { call, pkt, sha } from './helpers';
 
 /**
@@ -166,6 +167,32 @@ describe('a held bean', () => {
       client: { kind: 'web' },
     });
     expect(stale).toMatchObject({ ok: false, error: { code: 'stale_revision' } });
+  }, 30_000);
+});
+
+describe('a wait on a held bean', () => {
+  it('reports it held, asks the person, and never asks its author to fix or push it', async () => {
+    await pushFiles(erin, { branch: 'wallet', files: { 'src/auth/wallet.ts': '1\n' } });
+    await waitForPhase('wallet', ['red']);
+    const wait = await push(
+      `/git/${repo.owner.handle}/${repo.name}.git`,
+      erin.token,
+      pushBody({
+        ref: 'refs/wait/any',
+        newSha: await sha('wallet-wait'),
+        options: ['bean=wallet', 'wait=1'],
+      }),
+    );
+    const { remote, report } = await new GitStream(wait).rest();
+    expect(remote).toContain('waiting for the first verdict of wallet (held)');
+    expect(remote).toContain("wallet is held for a person's approval:");
+    expect(remote).toContain("HELD: wallet waits for a person's approval");
+    expect(remote).toContain('your beans: wallet (held)');
+    expect(remote).toContain(
+      'next: ask your person to approve wallet on its page; do not push it again',
+    );
+    expect(remote).not.toMatch(/\(red\)|waits for your push|next: fix|RED:/u);
+    expect(report).toContain('ok refs/wait/any');
   }, 30_000);
 });
 

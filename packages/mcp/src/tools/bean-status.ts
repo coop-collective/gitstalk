@@ -82,14 +82,17 @@ function sessionAnswer(input: {
   readonly detail: object;
 }): object {
   const { ctx, id, engine } = input;
-  const bean = { ...withNext(input.pushed.bean, id), ...heldLines(input.pushed.bean, ctx.webUrl) };
+  const held = heldLines(input.pushed.bean, ctx.webUrl);
+  const bean = { ...withNext(input.pushed.bean, id), ...held };
+  // A hold is red to git, but its next step says what it is; "red" would ask for a fix.
+  const standing = 'held' in held ? '' : ` ${bean.phase}.`;
   return {
     bean: id,
     ...bean,
     engine: engine === undefined ? null : engineView(engine),
     ...input.detail,
     preview_url: previewUrl(ctx.webUrl, ctx.run, { kind: 'bean', bean: id }),
-    summary: `${id} ${bean.phase}. ${bean.next}`,
+    summary: `${id}${standing} ${bean.next}`,
   };
 }
 

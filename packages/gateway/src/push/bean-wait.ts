@@ -15,7 +15,7 @@ export type WaitMode = 'any' | 'all';
 
 /** Phases a bean is still being checked in. */
 const CHECKING: ReadonlySet<BeanPhase> = new Set(['checking', 'waiting']);
-/** Phases that wait for the author's next push. */
+/** Phases that wait for the author's next push (or, for a held red, a person's approval). */
 const ACTIONABLE: ReadonlySet<BeanPhase> = new Set(['red', 'conflict']);
 
 /** The mode a pushed ref under `refs/wait/` asks for; null for a malformed wait ref. */
@@ -33,6 +33,11 @@ export type WatchedBean = {
   readonly verdict: readonly string[] | null;
   /** The phase that verdict gave (the bean may have moved on: landed, then green). */
   readonly verdictPhase: BeanPhase | null;
+  /**
+   * The approval rules hold it for a person (a red to git, `PushBean.held`): it waits for an
+   * approval, not for its author's push.
+   */
+  readonly held: boolean;
   /** Lines numbered below this were written; a new line changes it. */
   readonly nextNote: number;
 };
@@ -72,7 +77,7 @@ export function beanWatch(
   const beans = found.map(watched);
   const unknown = named === null ? [] : named.filter((name) => read.one(name) === null);
   const key = JSON.stringify(
-    beans.map((bean) => [bean.bean, bean.pushes, bean.phase, bean.nextNote]),
+    beans.map((bean) => [bean.bean, bean.pushes, bean.phase, bean.held, bean.nextNote]),
   );
   return { key, beans, unknown };
 }
@@ -85,6 +90,7 @@ function watched(bean: PushBean): WatchedBean {
     pushes: bean.pushes,
     verdict: verdict === null ? null : verdict.lines,
     verdictPhase: verdict === null ? null : verdict.phase,
+    held: bean.held !== null && bean.phase === 'red',
     nextNote: bean.nextNote,
   };
 }
@@ -95,6 +101,11 @@ export function isChecking(phase: BeanPhase): boolean {
 
 export function isActionable(phase: BeanPhase): boolean {
   return ACTIONABLE.has(phase);
+}
+
+/** A bean that waits for its author's next push: red or in conflict, and not held. */
+export function needsPush(bean: WatchedBean): boolean {
+  return isActionable(bean.phase) && !bean.held;
 }
 
 function isInFlight(phase: BeanPhase): boolean {
