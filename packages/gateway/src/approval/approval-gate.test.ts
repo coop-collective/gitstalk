@@ -312,6 +312,7 @@ describe('judgeLanding', () => {
     expect(judged.hold?.output).toContain('price-dollars: Price in dollars, not cents');
     expect(judged.hold?.output).toContain('Intent-checked: price-dollars');
     expect(judged.lines.join('\n')).toContain('back to its author: recheck against price-dollars');
+    expect(judged.lines.join('\n')).toContain('api -> recheck (clef, p=0.80)');
   });
 
   it('lets a bean whose author marked the landed beans checked through on its tests', async () => {

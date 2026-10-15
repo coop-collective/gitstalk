@@ -430,10 +430,15 @@ function awaitingRed(receipt: RouteReceipt): CheckResult {
   return { ...red, awaitsApproval: true, held };
 }
 
+/** A recheck is `auto` in the receipt, but the push line says what happened to the bean. */
+function shownRoute(receipt: RouteReceipt): string {
+  return receipt.recheck !== undefined && receipt.recheck.length > 0 ? 'recheck' : receipt.route;
+}
+
 function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly string[] {
   const classes = receipt.classes.length === 0 ? 'no class' : receipt.classes.join(', ');
   const lines = [
-    `${P} approval rules: ${classes} -> ${receipt.route} (${receipt.by}${receipt.probability === null ? '' : `, p=${receipt.probability.toFixed(2)}`})`,
+    `${P} approval rules: ${classes} -> ${shownRoute(receipt)} (${receipt.by}${receipt.probability === null ? '' : `, p=${receipt.probability.toFixed(2)}`})`,
   ];
   if (resolution.kind === 'invalid')
     lines.push(`${P} ${resolution.path} on the stalk is invalid; only the built-in rules apply`);
