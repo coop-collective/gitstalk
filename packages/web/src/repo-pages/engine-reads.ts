@@ -4,9 +4,9 @@
  * once), independent reads run together, and every answer is validated. Code, Changes and
  * History each make a fixed number of calls, never one per bean or per file.
  *
- * A public repository's reads may also be shared across requests (`SharedReads`, from
- * `cached-reads.ts`): its event log is appended to rather than read whole, and a tree or file
- * at a commit sha (which never changes) is read once per isolate.
+ * Reads may also be cached across requests (`CachedReads`, from `cached-reads.ts`): a tree, a
+ * file or a diff at commit shas (which never change) through the edge caches, and a public
+ * repository's event log, appended to rather than read whole.
  */
 import { z } from 'zod';
 
@@ -72,15 +72,20 @@ const LogAnswer = z.object({ commits: z.array(LogCommitSchema) });
 const FIRST_EVENTS_PAGE = 5000;
 
 /**
- * Reads of a public repository that outlive the request (`cached-reads.ts`). Only a record the
- * viewer's access check returned can produce them, and never for a private or internal one.
+ * Reads that outlive the request (`cached-reads.ts`): only the grant of the viewer's access
+ * check on this request produces them. Objects at commit shas go through the edge caches
+ * (shared layers for a public repository, the private KV namespace otherwise).
  */
-export type SharedReads = {
-  /** The whole event log, given a reader of the events after a sequence number. */
-  events(readTail: ReadTail): Promise<readonly RaceEvent[]>;
+export type CachedReads = {
+  /**
+   * The whole event log, given a reader of the events after a sequence number; null when the
+   * log is not cached (a private or internal repository), so it is read from the gateway.
+   */
+  readonly events: ((readTail: ReadTail) => Promise<readonly RaceEvent[]>) | null;
   tree(sha: ShaType): Promise<RepoTree>;
   /** Null when the commit has no such file; throws when the gateway failed. */
   file(sha: ShaType, path: string): Promise<FileBlob | null>;
+  diff(base: ShaType, head: ShaType): Promise<RepoDiff>;
 };
 
 /** Raw reads the forge source does not carry (a file's binary flag, commit authors and dates). */
@@ -92,7 +97,7 @@ type RawReads = {
 export function engineReads(
   binding: Fetcher,
   engine: RunId,
-  shared: SharedReads | null = null,
+  cached: CachedReads | null = null,
 ): EngineReads {
   const source = forgeForRun(binding, engine);
   const events = once<readonly RaceEvent[]>();
@@ -101,19 +106,20 @@ export function engineReads(
   const files = once<FileBlob | null>();
   const logs = once<readonly LogCommit[]>();
   const diffs = once<RepoDiff | null>();
+  const cachedLog = cached?.events ?? null;
   const readPushed = () => pushed('', () => readPushedBeans(binding, engine));
   const readEvents = () =>
     events('', async () =>
-      shared === null
+      cachedLog === null
         ? (await eventsAfter(source, engine, 0)).events
-        : shared.events((after) => eventsAfter(source, engine, after)),
+        : cachedLog((after) => eventsAfter(source, engine, after)),
     );
   return {
     engine,
     source,
     events: readEvents,
     eventsAfter: async (after) => {
-      if (shared !== null || after === 0)
+      if (cachedLog !== null || after === 0)
         return (await readEvents()).filter((event) => event.seq > after);
       return (await eventsAfter(source, engine, after)).events;
     },
@@ -127,14 +133,14 @@ export function engineReads(
     tree: (ref) =>
       trees(ref, () => {
         const sha = shaOf(ref);
-        return shared !== null && sha !== null ? shared.tree(sha) : source.repoTree(engine, ref);
+        return cached !== null && sha !== null ? cached.tree(sha) : source.repoTree(engine, ref);
       }),
     file: (ref, path) =>
       files(`${ref}:${path}`, () => {
         const sha = shaOf(ref);
         const read =
-          shared !== null && sha !== null
-            ? shared.file(sha, path)
+          cached !== null && sha !== null
+            ? cached.file(sha, path)
             : readFile(binding, { engine, ref, path });
         return read.catch((error: unknown) => {
           log.warn('file unreadable; the page shows it as missing', { engine, ref, path, error });
@@ -153,7 +159,9 @@ export function engineReads(
         const detail = id.success ? await source.beanDetail(engine, id.data) : undefined;
         if (detail === undefined || detail.diffBase === null || detail.diffHead === null)
           return null;
-        return source.repoDiff(engine, detail.diffBase, detail.diffHead);
+        return cached === null
+          ? source.repoDiff(engine, detail.diffBase, detail.diffHead)
+          : cached.diff(detail.diffBase, detail.diffHead);
       }),
   };
 }

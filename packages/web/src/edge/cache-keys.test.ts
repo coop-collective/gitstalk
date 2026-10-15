@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { RunId, Sha } from '@gitstalk/shared-race/ids';
 
 import { PublicEngine } from '../repo-pages/event-cache';
-import { EDGE_CACHE_NAME, coloKey, isEdgePath, kvKey } from './cache-keys';
+import { EDGE_CACHE_NAME, coloKey, isEdgePath, kvKey, privateKvKey } from './cache-keys';
+import type { EdgeObject } from './cache-keys';
+import { PrivateEngine, ReadGrant } from './read-grant';
 
 const ORIGIN = 'https://gitstalk.test';
 const SHA = Sha.parse('a'.repeat(40));
@@ -13,12 +15,26 @@ const EPOCH_AT = '2026-10-14T12:00:00.000Z';
 const EPOCH = '20261014T120000000Z';
 
 function publicEngine(id: string, updatedAt = EPOCH_AT): PublicEngine {
-  const engine = PublicEngine.of({ visibility: 'public', updated_at: updatedAt }, RunId.parse(id));
+  const engine = PublicEngine.of(
+    ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: updatedAt }),
+    RunId.parse(id),
+  );
   if (engine === null) throw new Error('a public record names a public engine');
   return engine;
 }
 
 const engine = publicEngine('engine01');
+
+function privateEngine(
+  id: string,
+  updatedAt = EPOCH_AT,
+  visibility: 'private' | 'internal' = 'private',
+): PrivateEngine {
+  const grant = ReadGrant.afterAccessCheck({ visibility, updated_at: updatedAt });
+  const owned = PrivateEngine.of(grant, RunId.parse(id));
+  if (owned === null) throw new Error('a private record names a private engine');
+  return owned;
+}
 
 describe('Cache API keys', () => {
   it('live under the reserved, versioned path on this deployment’s origin, with the epoch', async () => {
@@ -96,6 +112,50 @@ describe('KV keys', () => {
     expect(key).toMatch(new RegExp(`^v1:engine01:${EPOCH}:file:${SHA}:[0-9a-f]{64}$`));
     expect(new TextEncoder().encode(key).byteLength).toBeLessThanOrEqual(512);
     expect(await kvKey(engine, { kind: 'file', sha: SHA, path: 'a.ts' })).not.toBe(key);
+  });
+});
+
+describe('private KV keys', () => {
+  const objects: readonly EdgeObject[] = [
+    { kind: 'tree', sha: SHA },
+    { kind: 'file', sha: SHA, path: 'a.ts' },
+    { kind: 'diff', base: SHA, head: OTHER },
+  ];
+
+  it('live in their own namespace, with the engine and the epoch', async () => {
+    expect(await privateKvKey(privateEngine('engine01'), { kind: 'tree', sha: SHA })).toBe(
+      `v1:priv:engine01:${EPOCH}:tree:${SHA}`,
+    );
+    expect(
+      await privateKvKey(privateEngine('engine01'), { kind: 'diff', base: SHA, head: OTHER }),
+    ).toBe(`v1:priv:engine01:${EPOCH}:diff:${SHA}:${OTHER}`);
+    expect(
+      await privateKvKey(privateEngine('engine01'), { kind: 'file', sha: SHA, path: 'a.ts' }),
+    ).toMatch(new RegExp(`^v1:priv:engine01:${EPOCH}:file:${SHA}:[0-9a-f]{64}$`));
+  });
+
+  it('never collide across repositories, epochs or with a public key', async () => {
+    const keys = await Promise.all(
+      objects.flatMap((object) => [
+        privateKvKey(privateEngine('engine01'), object),
+        privateKvKey(privateEngine('engine02'), object),
+        privateKvKey(privateEngine('engine01', '2026-10-15T00:00:00.000Z'), object),
+        kvKey(publicEngine('engine01'), object),
+        kvKey(publicEngine('engine02'), object),
+      ]),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('cannot be named by a public engine (`priv` is not an engine id)', () => {
+    expect(RunId.safeParse('priv').success).toBe(false);
+    expect(
+      PrivateEngine.of(
+        ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: EPOCH_AT }),
+        RunId.parse('engine01'),
+      ),
+    ).toBeNull();
+    expect(privateEngine('engine01', EPOCH_AT, 'internal').engine).toBe('engine01');
   });
 });
 

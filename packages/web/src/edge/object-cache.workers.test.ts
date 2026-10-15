@@ -11,6 +11,7 @@ import { RunId, Sha } from '@gitstalk/shared-race/ids';
 import type { RepoTree } from '@gitstalk/shared-ask/repo/repo-types';
 import type { FileBlob } from '../repo-pages/engine-reads';
 import { PublicEngine } from '../repo-pages/event-cache';
+import { ReadGrant } from './read-grant';
 import type { EdgeObject } from './cache-keys';
 import { EDGE_CACHE_NAME, coloKey, kvKey } from './cache-keys';
 import type { EdgeObjectCacheDeps } from './object-cache';
@@ -26,7 +27,7 @@ let engines = 0;
 function publicEngine(): PublicEngine {
   engines += 1;
   const engine = PublicEngine.of(
-    { visibility: 'public', updated_at: UPDATED_AT },
+    ReadGrant.afterAccessCheck({ visibility: 'public', updated_at: UPDATED_AT }),
     RunId.parse(`edgecache${engines}`),
   );
   if (engine === null) throw new Error('a public record names a public engine');

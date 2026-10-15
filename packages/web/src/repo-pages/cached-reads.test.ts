@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RunId, Sha } from '@gitstalk/shared-race/ids';
 
-import { sharedReadsFor } from './cached-reads';
+import { ReadGrant } from '../edge/read-grant';
+import { cachedReadsFor } from './cached-reads';
 
 /**
  * The Workers runtime exists only inside the built Worker; under plain vitest it is stood in
  * for: the GATEWAY binding answers any RPC method through `answer`, KV is a map and there is no
  * Cache API (the colo layer reads as absent). The edge cache's own layers are tested on
- * Miniflare (src/edge/object-cache.workers.test.ts).
+ * Miniflare (src/edge/object-cache.workers.test.ts, private-object-cache.workers.test.ts).
  */
 const platform = vi.hoisted(() => {
   const calls: { readonly method: string; readonly args: readonly unknown[] }[] = [];
@@ -53,9 +54,14 @@ vi.mock('cloudflare:workers', () => ({
 
 const SHA = Sha.parse('c'.repeat(40));
 const UPDATED_AT = '2026-10-14T12:00:00.000Z';
+const EPOCH = '20261014T120000000Z';
 let engines = 0;
 /** A fresh engine per test: the isolate layer is module state, shared across tests. */
-const freshEngine = () => RunId.parse(`enginepublic${(engines += 1)}`);
+const freshEngine = () => RunId.parse(`enginecached${(engines += 1)}`);
+
+/** A grant, as the access check makes one on each request. */
+const grant = (visibility: 'public' | 'private' | 'internal', updatedAt = UPDATED_AT) =>
+  ReadGrant.afterAccessCheck({ visibility, updated_at: updatedAt });
 
 beforeEach(() => {
   platform.calls.length = 0;
@@ -66,40 +72,28 @@ beforeEach(() => {
   });
 });
 
-describe('which repositories share reads', () => {
-  it('shares nothing for a private or an internal repository', () => {
-    expect(
-      sharedReadsFor({ visibility: 'private', updated_at: UPDATED_AT }, freshEngine()),
-    ).toBeNull();
-    expect(
-      sharedReadsFor({ visibility: 'internal', updated_at: UPDATED_AT }, freshEngine()),
-    ).toBeNull();
+describe('which reads are cached', () => {
+  it('caches no event log for a private or an internal repository', () => {
+    expect(cachedReadsFor(grant('private'), freshEngine()).events).toBeNull();
+    expect(cachedReadsFor(grant('internal'), freshEngine()).events).toBeNull();
   });
 
-  it('shares a public repository’s reads', () => {
-    expect(
-      sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine()),
-    ).not.toBeNull();
+  it('caches a public repository’s event log', () => {
+    expect(cachedReadsFor(grant('public'), freshEngine()).events).not.toBeNull();
   });
 });
 
-describe('reads at a commit', () => {
+describe('a public repository’s reads at a commit', () => {
   it('reads a tree from the gateway once, then from this isolate on a later request', async () => {
     const engine = freshEngine();
-    // Two requests: each builds its shared reads from the record, as `repositoryTab` does.
-    const first = await sharedReadsFor(
-      { visibility: 'public', updated_at: UPDATED_AT },
-      engine,
-    )?.tree(SHA);
-    const second = await sharedReadsFor(
-      { visibility: 'public', updated_at: UPDATED_AT },
-      engine,
-    )?.tree(SHA);
+    // Two requests: each builds its cached reads from its own grant, as `repositoryTab` does.
+    const first = await cachedReadsFor(grant('public'), engine).tree(SHA);
+    const second = await cachedReadsFor(grant('public'), engine).tree(SHA);
     expect(first).toEqual({ ref: SHA, sha: SHA, files: [{ path: 'a.ts', size: 0 }] });
     expect(second).toEqual(first);
     expect(platform.calls).toEqual([{ method: 'repoTree', args: [engine, SHA, '', true] }]);
     await Promise.all(platform.pending);
-    expect([...platform.stored.keys()]).toEqual([`v1:${engine}:20261014T120000000Z:tree:${SHA}`]);
+    expect([...platform.stored.keys()]).toEqual([`v1:${engine}:${EPOCH}:tree:${SHA}`]);
   });
 
   it('answers a file the commit does not have as null, and does not keep it', async () => {
@@ -107,9 +101,9 @@ describe('reads at a commit', () => {
       ok: false,
       error: { code: 'not_found', status: 404, message: 'missing' },
     });
-    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
-    expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
-    expect(await shared?.file(SHA, 'nope.ts')).toBeNull();
+    const cached = cachedReadsFor(grant('public'), freshEngine());
+    expect(await cached.file(SHA, 'nope.ts')).toBeNull();
+    expect(await cached.file(SHA, 'nope.ts')).toBeNull();
     expect(platform.calls.map((call) => call.method)).toEqual(['repoFile', 'repoFile']);
     await Promise.all(platform.pending);
     expect(platform.stored.size).toBe(0);
@@ -120,17 +114,60 @@ describe('reads at a commit', () => {
       ok: false,
       error: { code: 'unavailable', status: 503, message: 'busy' },
     });
-    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
-    await expect(shared?.file(SHA, 'a.ts')).rejects.toThrow(/busy/);
+    const cached = cachedReadsFor(grant('public'), freshEngine());
+    await expect(cached.file(SHA, 'a.ts')).rejects.toThrow(/busy/);
     await Promise.all(platform.pending);
     expect(platform.stored.size).toBe(0);
   });
 
   it('keeps a file a public repository has, by commit and path', async () => {
-    const shared = sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, freshEngine());
-    expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
-    expect(await shared?.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
+    const cached = cachedReadsFor(grant('public'), freshEngine());
+    expect(await cached.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
+    expect(await cached.file(SHA, 'a.ts')).toMatchObject({ path: 'a.ts', content: 'a' });
     expect(platform.calls).toHaveLength(1);
+  });
+});
+
+describe('a private repository’s reads at a commit', () => {
+  it.each(['private', 'internal'] as const)(
+    'go to KV under the private namespace only, and hit it on the next request (%s)',
+    async (visibility) => {
+      const engine = freshEngine();
+      await cachedReadsFor(grant(visibility), engine).tree(SHA);
+      await Promise.all(platform.pending.splice(0));
+      expect([...platform.stored.keys()]).toEqual([`v1:priv:${engine}:${EPOCH}:tree:${SHA}`]);
+      // The next request, its own access check passed: KV answers, the gateway is not asked.
+      expect(await cachedReadsFor(grant(visibility), engine).tree(SHA)).toEqual({
+        ref: SHA,
+        sha: SHA,
+        files: [{ path: 'a.ts', size: 0 }],
+      });
+      expect(platform.calls.filter((call) => call.method === 'repoTree')).toHaveLength(1);
+    },
+  );
+
+  it('are never kept in this isolate: with KV emptied, the gateway is asked again', async () => {
+    const engine = freshEngine();
+    const cached = cachedReadsFor(grant('private'), engine);
+    expect(await cached.file(SHA, 'a.ts')).toMatchObject({ content: 'a' });
+    await Promise.all(platform.pending.splice(0));
+    platform.stored.clear();
+    expect(await cached.file(SHA, 'a.ts')).toMatchObject({ content: 'a' });
+    expect(platform.calls.filter((call) => call.method === 'repoFile')).toHaveLength(2);
+  });
+
+  it('move to new keys when the record changes, so old entries are unreachable', async () => {
+    const engine = freshEngine();
+    await cachedReadsFor(grant('private'), engine).tree(SHA);
+    await Promise.all(platform.pending.splice(0));
+    // A settings save, a visibility flip, a transfer: `updated_at` moves.
+    await cachedReadsFor(grant('private', '2026-10-15T09:00:00.000Z'), engine).tree(SHA);
+    await Promise.all(platform.pending.splice(0));
+    expect(platform.calls.filter((call) => call.method === 'repoTree')).toHaveLength(2);
+    expect([...platform.stored.keys()].toSorted()).toEqual([
+      `v1:priv:${engine}:${EPOCH}:tree:${SHA}`,
+      `v1:priv:${engine}:20261015T090000000Z:tree:${SHA}`,
+    ]);
   });
 });
 
@@ -147,13 +184,9 @@ describe('a public repository’s event log', () => {
       const events = [setupEvent(1), setupEvent(2)].filter((candidate) => candidate.seq > after);
       return Promise.resolve({ events, last: 2 });
     };
-    // Two requests: each builds its shared reads from the record, as `repositoryTab` does.
-    await sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, engine)?.events(
-      readTail,
-    );
-    await sharedReadsFor({ visibility: 'public', updated_at: UPDATED_AT }, engine)?.events(
-      readTail,
-    );
+    // Two requests: each builds its cached reads from its own grant, as `repositoryTab` does.
+    await cachedReadsFor(grant('public'), engine).events?.(readTail);
+    await cachedReadsFor(grant('public'), engine).events?.(readTail);
     expect(afters).toEqual([0, 1]);
   });
 });

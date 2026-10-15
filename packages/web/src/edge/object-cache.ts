@@ -15,9 +15,10 @@
  * never kept, and a failed read throws. A layer that fails (a full KV, a broken cache) is
  * logged and read as a miss; the page never fails because of the cache.
  *
- * Only a `PublicEngine` can be named here: the caller holds the record the viewer's access
- * check returned on this request, and it is public. Private and internal repositories are
- * never cached, so a cache hit, on which no access check runs, can never leak one.
+ * Only a `PublicEngine` can be named here: the caller holds the grant the viewer's access
+ * check made on this request, and the repository is public. Private and internal repositories
+ * never reach these shared layers (they have their own KV namespace, private-object-cache.ts),
+ * so a shared hit can never leak one.
  */
 import { log } from '../log';
 import type { PublicEngine } from '../repo-pages/event-cache';
@@ -27,6 +28,24 @@ import type { EdgeCodec } from './stored-objects';
 
 /** Which layer answered a read. */
 export type EdgeLayer = 'isolate' | 'colo' | 'kv' | 'gateway';
+
+/**
+ * What a read came to, as `edge.read` logs it and `Server-Timing` names it: a public read hit
+ * a layer or missed KV (and went to the gateway); a private read hit or missed the private KV
+ * namespace, counted apart from the public one.
+ */
+export type EdgeOutcome =
+  | 'isolate-hit'
+  | 'colo-hit'
+  | 'kv-hit'
+  | 'kv-miss'
+  | 'kv-hit-private'
+  | 'kv-miss-private';
+
+/** A public read's outcome from the layer that answered it. */
+export function publicOutcome(layer: EdgeLayer): EdgeOutcome {
+  return layer === 'gateway' ? 'kv-miss' : `${layer}-hit`;
+}
 
 /** Stored copies in the Cache API live this long (per colo): immutable, so this only bounds storage. */
 export const COLO_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -103,6 +122,7 @@ export function createEdgeObjectCache(deps: EdgeObjectCacheDeps): EdgeObjectCach
       log.info('edge.read', {
         kind: object.kind,
         layer: answer.layer,
+        result: publicOutcome(answer.layer),
         public: true,
         engine: engine.engine,
         ms: now() - started,
@@ -177,7 +197,7 @@ async function readThrough<T>(input: {
 }
 
 /** A value read back from a stored layer, with its JSON (for the layers above). */
-type Stored<T> = { readonly value: T; readonly text: string };
+export type Stored<T> = { readonly value: T; readonly text: string };
 
 /** The Cache API and KV layers: keys, guarded reads and background fills. */
 function storedLayers(deps: EdgeObjectCacheDeps, wrote: () => void) {
@@ -230,7 +250,7 @@ function storedLayers(deps: EdgeObjectCacheDeps, wrote: () => void) {
 }
 
 /** A stored layer's read, with its failure logged and read as a miss. */
-async function guarded<T>(layer: 'colo' | 'kv', read: Promise<T | null>): Promise<T | null> {
+export async function guarded<T>(layer: 'colo' | 'kv', read: Promise<T | null>): Promise<T | null> {
   try {
     return await read;
   } catch (error: unknown) {
@@ -240,7 +260,7 @@ async function guarded<T>(layer: 'colo' | 'kv', read: Promise<T | null>): Promis
 }
 
 /** Stored JSON, when it parses and passes the codec; null otherwise (a miss). */
-function decode<T>(text: string, codec: EdgeCodec<T>): Stored<T> | null {
+export function decode<T>(text: string, codec: EdgeCodec<T>): Stored<T> | null {
   let json: unknown;
   try {
     json = JSON.parse(text);

@@ -13,6 +13,8 @@ import {
   problem,
   serverTiming,
 } from './http-cache';
+import { publicOutcome } from './object-cache';
+import { privateOutcome } from './private-object-cache';
 
 const get = (ifNoneMatch?: string) =>
   new Request('https://gitstalk.test/api/x', {
@@ -78,7 +80,7 @@ describe('JSON answers', () => {
     const response = jsonAnswer(
       get(),
       { ok: true },
-      { rule: IMMUTABLE, etag: '"a..b"', timing: { layer: 'colo', ms: 1.84 } },
+      { rule: IMMUTABLE, etag: '"a..b"', timing: { outcome: 'colo-hit', ms: 1.84 } },
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
@@ -107,9 +109,11 @@ describe('JSON answers', () => {
 });
 
 describe('Server-Timing', () => {
-  it('names the layer that served the object', () => {
-    expect(serverTiming('isolate', 0.04)).toBe('edge;desc="isolate-hit";dur=0.0');
-    expect(serverTiming('kv', 12)).toBe('edge;desc="kv-hit";dur=12.0');
-    expect(serverTiming('gateway', 80.26)).toBe('edge;desc="gateway-read";dur=80.3');
+  it('names what the read came to, public and private KV counted apart', () => {
+    expect(serverTiming(publicOutcome('isolate'), 0.04)).toBe('edge;desc="isolate-hit";dur=0.0');
+    expect(serverTiming(publicOutcome('kv'), 12)).toBe('edge;desc="kv-hit";dur=12.0');
+    expect(serverTiming(publicOutcome('gateway'), 80.26)).toBe('edge;desc="kv-miss";dur=80.3');
+    expect(serverTiming(privateOutcome('kv'), 3)).toBe('edge;desc="kv-hit-private";dur=3.0');
+    expect(serverTiming(privateOutcome('gateway'), 3)).toBe('edge;desc="kv-miss-private";dur=3.0');
   });
 });
