@@ -11,8 +11,8 @@
 //
 // Env: GITHUB_TOKEN, GITHUB_REPOSITORY (owner/name), PROPOSAL_MAINTAINERS (GitHub handles, comma
 // separated, mentioned in the notice), XINF_API_KEY (review only, a Xava Inference key; without it
-// the review step does nothing), XINF_BASE_URL (default https://zinf.ai; https://zinf.dev for
-// staging), PROPOSAL_REVIEW_MODEL (a Xava Inference catalog id), PROPOSAL_WINDOW_HOURS. Secrets
+// the review step does nothing), XINF_BASE_URL (default https://xavainf.com; https://zinf.dev
+// for staging), PROPOSAL_REVIEW_MODEL (a Xava Inference catalog id), PROPOSAL_WINDOW_HOURS. Secrets
 // are never printed.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -56,7 +56,7 @@ const REVIEW_MARKER = '<!-- gitstalk-proposal-review -->';
 const MAINTAINER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const RECOMMENDATIONS = ['accept', 'changes', 'maintainer'];
 const DEFAULT_MODEL = 'anthropic/claude-opus-5.5';
-const DEFAULT_XINF_BASE_URL = 'https://zinf.ai';
+const DEFAULT_XINF_BASE_URL = 'https://xavainf.com';
 const MAX_DIFF_CHARS = 120_000;
 
 /** A proposal document: a Markdown file in docs/proposals/, other than the folder's own pages. */
@@ -188,8 +188,30 @@ export function reviewPrompt({ pr, files, diff, context }) {
       ([path, text]) => `<document path="${path}">\n${text}\n</document>`,
     ),
     `<pull_request number="${pr.number}" author="${pr.user.login}">\n<title>${pr.title}</title>\n<body>\n${pr.body ?? ''}\n</body>\n<changed_files>\n${changed}\n</changed_files>\n<diff${truncated ? ' truncated="true"' : ''}>\n${diff.slice(0, MAX_DIFF_CHARS)}\n</diff>\n</pull_request>`,
-    'Call submit_review once with your review.',
+    'Call submit_review once with your review. Do not answer in text.',
   ].join('\n\n');
+}
+
+/** The review from the model's reply: the submit_review call, else a JSON object in its text. */
+export function reviewFrom(content) {
+  const call = content.find(
+    (block) => block.type === 'tool_use' && block.name === REVIEW_TOOL.name,
+  );
+  if (call !== undefined) return call.input;
+  const text = content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n');
+  const json = /\{[\s\S]*\}/.exec(text);
+  if (json !== null) {
+    try {
+      const parsed = JSON.parse(json[0]);
+      if (typeof parsed.summary === 'string' && typeof parsed.review === 'string') return parsed;
+    } catch {
+      // not JSON; fall through
+    }
+  }
+  throw new Error('the model returned no review');
 }
 
 class GitHub {
@@ -286,8 +308,27 @@ async function notify(github, number, settings) {
 }
 
 /** Xava Inference's Anthropic Messages endpoint (`POST /v1/messages`), with the account key as a bearer token. */
-async function callModel({ baseUrl, apiKey, model, prompt }) {
-  const response = await fetch(`${baseUrl}/v1/messages`, {
+export async function callModel({ baseUrl, apiKey, model, prompt }, attempts = 4) {
+  for (let attempt = 1; ; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop -- retries are sequential by design
+    const response = await sendMessage({ baseUrl, apiKey, model, prompt });
+    // 429 and 503 (no capacity) are temporary: wait as asked (at most a minute), then retry
+    if ((response.status === 429 || response.status === 503) && attempt < attempts) {
+      const wait = Math.min(60, Number(response.headers.get('retry-after')) || 10 * attempt);
+      log(`model busy (${response.status}), retrying in ${wait} s`);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+      continue;
+    }
+    if (!response.ok)
+      throw new Error(`Xava Inference: ${response.status} ${await response.text()}`);
+    // eslint-disable-next-line no-await-in-loop
+    return reviewFrom((await response.json()).content);
+  }
+}
+
+function sendMessage({ baseUrl, apiKey, model, prompt }) {
+  return fetch(`${baseUrl}/v1/messages`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${apiKey}`,
@@ -298,15 +339,11 @@ async function callModel({ baseUrl, apiKey, model, prompt }) {
       model,
       max_tokens: 8000,
       tools: [REVIEW_TOOL],
-      tool_choice: { type: 'tool', name: REVIEW_TOOL.name },
+      // Xava Inference accepts tool_choice auto or none only, so the prompt asks for the call.
+      tool_choice: { type: 'auto' },
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  if (!response.ok) throw new Error(`Xava Inference: ${response.status} ${await response.text()}`);
-  const message = await response.json();
-  const call = message.content.find((block) => block.type === 'tool_use');
-  if (call === undefined) throw new Error('the model returned no review');
-  return call.input;
 }
 
 function readContext() {

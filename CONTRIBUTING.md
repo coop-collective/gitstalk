@@ -72,7 +72,7 @@ Gitstalk is a git forge, but this repository itself is developed on plain GitHub
 2. Copy [`docs/proposals/TEMPLATE.md`](docs/proposals/TEMPLATE.md) to `docs/proposals/<slug>.md` and write the design, in the shape of the project's own design documents ([`docs/proposals/README.md`](docs/proposals/README.md) lists which to read).
 3. Open a pull request that adds only that document. The `proposals` workflow labels it `proposal`, and Coop and the maintainers are notified to review and comment.
 4. **Maintainers have 72 hours** to comment or review. If one does, the discussion continues as an ordinary review.
-5. **If no maintainer comments within 72 hours,** an automated AI review takes the proposal on the project's behalf, using Claude through [Xava Inference](https://zinf.ai) ([`.github/workflows/proposals.yml`](.github/workflows/proposals.yml), [`scripts/proposals.mjs`](scripts/proposals.mjs)). It reads the proposal against this guide, [`AGENTS.md`](AGENTS.md), the roadmap and the template, posts its review, and labels the outcome:
+5. **If no maintainer comments within 72 hours,** an automated AI review takes the proposal on the project's behalf, using Claude through [Xava Inference](https://xavainf.com) ([`.github/workflows/proposals.yml`](.github/workflows/proposals.yml), [`scripts/proposals.mjs`](scripts/proposals.mjs)). It reads the proposal against this guide, [`AGENTS.md`](AGENTS.md), the roadmap and the template, posts its review, and labels the outcome:
 
    | Label | What happens next |
    |---|---|

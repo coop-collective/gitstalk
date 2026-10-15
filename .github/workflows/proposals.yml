@@ -11,7 +11,7 @@
 # The review calls Xava Inference's Anthropic Messages endpoint (XINF_BASE_URL/v1/messages).
 # Repository settings: secret XINF_API_KEY, a Xava Inference API key (without it the review is off);
 # optional variables PROPOSAL_MAINTAINERS (comma-separated handles, default Disturbing),
-# XINF_BASE_URL (default https://zinf.ai; https://zinf.dev for staging) and PROPOSAL_REVIEW_MODEL
+# XINF_BASE_URL (default https://xavainf.com; https://zinf.dev for staging) and PROPOSAL_REVIEW_MODEL
 # (a Xava Inference catalog id, default anthropic/claude-opus-5.5); PROPOSAL_WINDOW_HOURS (default
 # 72; set to 0 briefly to test the review on a throwaway proposal).
 name: proposals

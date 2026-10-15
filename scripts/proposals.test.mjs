@@ -8,6 +8,7 @@ import {
   LABELS,
   maintainerResponded,
   noticeBody,
+  reviewFrom,
   reviewPrompt,
   windowStart,
 } from './proposals.mjs';
@@ -136,4 +137,15 @@ await test('reviewPrompt: fences the contributor text as untrusted data and trun
   assert.match(prompt, /<document path="AGENTS.md">\n# Gitstalk/);
   assert.match(prompt, /<diff truncated="true">/);
   assert.ok(prompt.length < 125_000);
+});
+
+await test('reviewFrom: takes the tool call, else JSON in the text, else fails', () => {
+  const input = { recommendation: 'accept', summary: 's', review: 'r' };
+  const call = { type: 'tool_use', name: 'submit_review', input };
+  assert.deepEqual(reviewFrom([{ type: 'text', text: 'Here.' }, call]), input);
+  assert.deepEqual(
+    reviewFrom([{ type: 'text', text: `Review:\n${JSON.stringify(input)}` }]),
+    input,
+  );
+  assert.throws(() => reviewFrom([{ type: 'text', text: 'Looks good to me.' }]), /no review/);
 });
