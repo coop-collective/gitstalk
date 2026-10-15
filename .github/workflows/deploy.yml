@@ -3,6 +3,8 @@
 # fork), production only on a manual run or a `production-*` tag, through the GitHub
 # environment `production` (add required reviewers there). Each run: pnpm check, then
 # env:provision (create missing resources, migrate D1), env:secrets, env:deploy and env:smoke.
+# A workflow can also call it (workflow_call with `environment` and the commit `ref` to check
+# out): the deploy repo's sync workflow does, because its own pushes start no workflow (§13.7).
 #
 # An environment is configured either committed (environments/<env>/env.jsonc + resources.json,
 # the deploy repo) or as GitHub environment variables (a soft fork: GITSTALK_ENV_CONFIG,
@@ -30,18 +32,28 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment to deploy (staging or production)
+        type: string
+        default: staging
+      ref:
+        description: Commit to check out and deploy (default, the caller's commit)
+        type: string
+        default: ''
 
 concurrency:
-  group: deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
+  group: deploy-${{ inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
+    environment: ${{ inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
     env:
-      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
+      TARGET: ${{ inputs.environment || (startsWith(github.ref, 'refs/tags/production-') && 'production' || 'staging') }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GITSTALK_SECRETS_JSON: ${{ secrets.GITSTALK_SECRETS_JSON }}
       GITSTALK_ENV_CONFIG: ${{ vars.GITSTALK_ENV_CONFIG }}
@@ -55,6 +67,7 @@ jobs:
       # Full history: the runner image's tag is the last commit that touched its sources.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
       - id: present
         run: |
