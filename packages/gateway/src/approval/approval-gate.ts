@@ -6,7 +6,9 @@
  *
  * - a writer limit the bean's principal breaks: the bean falls off, the way a protected path
  *   does (`guardRed`), naming the class and who may;
- * - `triage`: Clef picks `auto` or `card` within a time budget, else the rule does;
+ * - `triage`: Clef picks `auto` or `card` within a time budget, else the rule does; when beans
+ *   landed after this one forked, Clef also reads their intents and may pick `recheck`, which
+ *   sends the bean back to its author (a red naming those beans) instead of to a person;
  * - `card`: the bean is held until a person approves this revision; the hold is a red that
  *   says so, and an approval re-submits the bean (`RunDO.approveBean`);
  * - `auto`: the check goes on as before.
@@ -40,6 +42,8 @@ import type { LandingTree } from '../checks/check-store';
 import { guardRed } from '../checks/repository-checks';
 import { REMOTE_PREFIX as P } from '../push/push-messages';
 import type { Approval } from './approval-store';
+import type { LandedBean, LandedIntent } from './landed-since-fork';
+import { INTENT_CHECKED_TRAILER, withIntents } from './landed-since-fork';
 import type { TriageSubject } from './triage-question';
 import { changeSize, triageQuestion } from './triage-question';
 
@@ -70,6 +74,12 @@ export type ApprovalHost = {
   origin(task: string): ChangeOrigin;
   /** The bean revision an approval names: its pushed head, or null in a race. */
   revision(task: string): string | null;
+  /** A bean's intent (its first push's commit message); null when unknown (a race). */
+  intent(task: string): string | null;
+  /** Beans that landed on the sprout after `task` forked, newest first (`landed-since-fork.ts`). */
+  landedSinceFork(task: string): readonly LandedBean[];
+  /** The beans the `Intent-checked:` trailers of the bean's pushed head name. */
+  intentChecked(task: string): Promise<ReadonlySet<string>>;
   approval(task: string, revision: string | null): Approval | null;
   /** The bean's last receipt and the fingerprint of the change it judged. */
   previous(task: string): { readonly receipt: RouteReceipt; readonly fingerprint: string } | null;
@@ -111,10 +121,12 @@ export async function judgeLanding(
   const diffRead = await changedFilesOf(host, landing, policy);
   const classification = classifyChange(policy, diffRead.files, host.origin(landing.task));
   const broken = brokenWriterLimits(classification, subject.principal);
+  const unseen = classification.route === 'triage' ? await unseenBeans(host, landing) : [];
   const fingerprint = fingerprintOf(classification, {
     policy: read.file,
     revision: subject.revision,
     files: landing.files,
+    unseen: unseen.map((entry) => entry.bean),
   });
   if (broken.length > 0) {
     const refused = `${subject.principal} may not change class ${broken.map((limit) => limit.class).join(', ')}`;
@@ -137,8 +149,9 @@ export async function judgeLanding(
     classification,
     fingerprint,
     task: landing.task,
+    unseen,
     triage: () =>
-      triageSubject(host, { landing, policy, classification, changes: diffRead.changes }),
+      triageSubject(host, { landing, policy, classification, changes: diffRead.changes, unseen }),
   });
   const receipt = receiptOf(subject, classification, {
     ...routed,
@@ -146,8 +159,29 @@ export async function judgeLanding(
     approval: approvalOf(host, routed.route, subject),
   });
   host.save({ receipt, fingerprint });
-  const hold = receipt.approval.state === 'awaiting' ? awaitingRed(receipt) : null;
-  return { receipt, hold, lines: linesOf(receipt, resolution) };
+  return { receipt, hold: holdOf(receipt, unseen), lines: linesOf(receipt, resolution) };
+}
+
+/** A card awaiting a person holds the bean; a recheck sends it back to its author. */
+function holdOf(receipt: RouteReceipt, unseen: readonly LandedIntent[]): CheckResult | null {
+  if (receipt.approval.state === 'awaiting') return awaitingRed(receipt);
+  const named = new Set(receipt.recheck ?? []);
+  const recheck = unseen.filter((entry) => named.has(entry.bean));
+  return recheck.length === 0 ? null : recheckRed(receipt.bean, recheck);
+}
+
+/** The landed beans the bean never saw and its author has not marked as checked. */
+async function unseenBeans(
+  host: ApprovalHost,
+  landing: LandingTree,
+): Promise<readonly LandedIntent[]> {
+  const landed = host.landedSinceFork(landing.task);
+  if (landed.length === 0) return [];
+  const checked = await host.intentChecked(landing.task);
+  return withIntents(
+    landed.filter((entry) => !checked.has(entry.bean)),
+    { files: landing.files, intent: (bean) => host.intent(bean) },
+  );
 }
 
 type Subject = Pick<RouteReceipt, 'bean' | 'principal' | 'revision' | 'policy' | 'at'>;
@@ -160,7 +194,7 @@ function approvalOf(host: ApprovalHost, route: Route, subject: Subject): RouteRe
     ? { state: 'awaiting', actor: null }
     : { state: 'approved', actor: approval.actor };
 }
-type Routed = Pick<RouteReceipt, 'route' | 'by' | 'probability' | 'latencyMs'>;
+type Routed = Pick<RouteReceipt, 'route' | 'by' | 'probability' | 'latencyMs' | 'recheck'>;
 
 /** No policy on the stalk: every bean is `auto`, as before the rules existed. */
 function withoutPolicy(host: ApprovalHost, landing: LandingTree, subject: Subject): Judgement {
@@ -233,6 +267,7 @@ async function triageSubject(
     readonly policy: ApprovalPolicy;
     readonly classification: Classification;
     readonly changes: readonly FileChange[] | null;
+    readonly unseen: readonly LandedIntent[];
   },
 ): Promise<TriageSubject> {
   const { landing, classification } = input;
@@ -248,16 +283,23 @@ async function triageSubject(
     description: decided?.description ?? null,
     files: landing.files,
     size: changeSize(changes),
+    intent: host.intent(landing.task),
+    landedSinceFork: input.unseen,
   };
 }
 
-/** The route: the class's own, or triage's answer (reused while the change is the same). */
+/**
+ * The route: the class's own, or triage's answer (reused while the change and the unseen
+ * beans are the same). `recheck` is a route of its own only in the receipt's `recheck`: the
+ * bean is `auto` once its author re-pushes having checked (or fixed) it against those beans.
+ */
 async function routeOf(
   host: ApprovalHost,
   input: {
     readonly classification: Classification;
     readonly fingerprint: string;
     readonly task: string;
+    readonly unseen: readonly LandedIntent[];
     /** What Clef reads, gathered only when it is asked. */
     readonly triage: () => Promise<TriageSubject>;
   },
@@ -276,6 +318,7 @@ async function routeOf(
       by: previous.receipt.by,
       probability: previous.receipt.probability,
       latencyMs: null,
+      ...(previous.receipt.recheck === undefined ? {} : { recheck: previous.receipt.recheck }),
     };
   const fallback: Route = classification.classes.some((name) => LOW_RISK.has(name))
     ? 'auto'
@@ -285,16 +328,35 @@ async function routeOf(
     ...triageQuestion(await input.triage()),
     fallback,
   });
-  const chosen = answer.value.choice === 'auto' ? 'auto' : 'card';
+  const chosen = choiceOf(answer.value.choice, input.unseen);
   const latencyMs = host.model === null ? null : answer.ms;
   if (answer.kind === 'fell-back')
-    return { route: chosen, by: 'rules', probability: null, latencyMs };
+    return {
+      route: chosen === 'card' ? 'card' : 'auto',
+      by: 'rules',
+      probability: null,
+      latencyMs,
+    };
   const probability = answer.value.probabilities[chosen] ?? answer.confidence;
-  if (chosen === 'card' && probability !== null && probability < CARD_MIN_PROBABILITY) {
+  if (chosen !== 'auto' && probability !== null && probability < CARD_MIN_PROBABILITY) {
     const auto = answer.value.probabilities['auto'] ?? null;
     return { route: 'auto', by: 'clef', probability: auto, latencyMs };
   }
+  if (chosen === 'recheck')
+    return {
+      route: 'auto',
+      by: 'clef',
+      probability,
+      latencyMs,
+      recheck: input.unseen.map((entry) => entry.bean),
+    };
   return { route: chosen, by: 'clef', probability, latencyMs };
+}
+
+/** Clef's answer as a route; `recheck` counts only when there were beans to recheck against. */
+function choiceOf(choice: string, unseen: readonly LandedIntent[]): 'auto' | 'recheck' | 'card' {
+  if (choice === 'auto' || choice === 'card') return choice;
+  return choice === 'recheck' && unseen.length > 0 ? 'recheck' : 'card';
 }
 
 function receiptOf(
@@ -326,6 +388,29 @@ function writerRed(broken: ReturnType<typeof brokenWriterLimits>, principal: str
   });
 }
 
+function recheckRed(bean: string, landed: readonly LandedIntent[]): CheckResult {
+  const names = landed.map((entry) => entry.bean);
+  return guardRed({
+    file: POLICY_PATH,
+    name: 'recheck against beans that landed after it forked',
+    message: `its intent may disagree with ${names.join(', ')} (clef)`,
+    output: [
+      `Clef read this bean's intent beside beans that landed after it forked, which its tests never ran`,
+      'against, and thinks they may disagree (a unit, a format, a meaning or a value both rely on):',
+      ...landed.flatMap((entry) => [
+        `  ${entry.bean}: ${entry.intent ?? '(no intent recorded)'}`,
+        ...(entry.sharedFiles.length === 0
+          ? []
+          : [`    both change: ${entry.sharedFiles.join(', ')}`]),
+      ]),
+      'Rebase on origin/sprout and read them (git log origin/sprout). If they disagree, fix this bean so both',
+      `intents hold. Either way, push again with a trailer naming what you checked, which takes them out:`,
+      `  ${INTENT_CHECKED_TRAILER}: ${names.join(', ')}`,
+      `This is not a person's hold: the tests of ${bean} still decide once you push.`,
+    ],
+  });
+}
+
 function awaitingRed(receipt: RouteReceipt): CheckResult {
   const why = receipt.class === null ? 'its classes' : `class ${receipt.class}`;
   const reviewers =
@@ -353,6 +438,8 @@ function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly 
   if (resolution.kind === 'invalid')
     lines.push(`${P} ${resolution.path} on the stalk is invalid; only the built-in rules apply`);
   if (receipt.refused !== null) lines.push(`${P} refused: ${receipt.refused}`);
+  if (receipt.recheck !== undefined && receipt.recheck.length > 0)
+    lines.push(`${P} back to its author: recheck against ${receipt.recheck.join(', ')}`);
   if (receipt.approval.state === 'awaiting') lines.push(`${P} awaiting a person's approval`);
   if (receipt.approval.state === 'approved')
     lines.push(`${P} approved by ${receipt.approval.actor ?? 'a person'}`);
@@ -361,7 +448,8 @@ function linesOf(receipt: RouteReceipt, resolution: PolicyResolution): readonly 
 
 /**
  * What a triage depends on: the classes, the policy file's text and the bean's own change (its
- * pushed revision; in a race, which has no pushes, its files). Never the stalk commit the bean
+ * pushed revision; in a race, which has no pushes, its files), and the beans landed since its
+ * fork that it has not marked checked. Never the stalk commit the bean
  * merges onto: a re-check of the same change on a newer stalk reuses the answer instead of
  * asking Clef again. (The staging benchmark asked 60 to 66 times for 38 beans, and the same
  * push of one bean got auto, auto, auto and card as its merge base moved.)
@@ -372,12 +460,15 @@ function fingerprintOf(
     readonly policy: ConfigFile | null;
     readonly revision: string | null;
     readonly files: readonly string[];
+    /** Beans landed since the fork and not marked checked: a new one is a new question. */
+    readonly unseen: readonly string[];
   },
 ): string {
   const text = JSON.stringify([
     classification.classes,
     change.policy === null ? null : [change.policy.path, change.policy.text],
     change.revision ?? change.files.toSorted(),
+    ...(change.unseen.length === 0 ? [] : [change.unseen.toSorted()]),
   ]);
   let hash = 0x811c9dc5;
   for (let index = 0; index < text.length; index += 1) {

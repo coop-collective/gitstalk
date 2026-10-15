@@ -44,6 +44,11 @@ export const RouteReceipt = z.object({
   reviewers: z.array(z.string()),
   /** Why the bean fell off (a writer limit), or null. */
   refused: z.string().nullable(),
+  /**
+   * The landed beans Clef sent the bean back to its author to check its intent against
+   * (`recheck`, with route `auto`); absent when it did not. Absent before 2026-10-15.
+   */
+  recheck: z.array(z.string()).optional(),
   approval: z.object({
     state: z.enum(['not-needed', 'awaiting', 'approved']),
     actor: z.string().nullable(),

@@ -1887,6 +1887,7 @@ export class RunDO extends DurableObject<Env> {
                 artifacts: this.#indexedArtifacts,
                 repo: loaded.stored.repos.repo.name,
                 engine: config.continuous ? 'continuous' : 'race',
+                state: () => this.#requireLoaded().stored.state,
                 ai: optionalAi(this.env),
                 aiGateway: this.env.AUTOMATIONS_AI_GATEWAY,
                 now: () => Date.now(),
