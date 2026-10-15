@@ -31,3 +31,16 @@ node scripts/clef-triage-eval.mjs --live --model clef --variant current
 Per variant it prints how often the gate's route (a `card` counts only at p >= 0.65) matches the label, which cards it missed and which it added, the median probability of the choice and how many answers fall below 0.65, t013's answers, how many cases changed their answer across `--repeat` rounds, and the latency (p50, p90). `--out` keeps every answer for a closer look.
 
 What to look for: `current` should match more labels than `as-run` without adding cards to the small fixes, t013 should be `auto` above 0.65, and the share of answers below 0.65 should fall. If `current-described` beats `current`, recommend descriptions in policy files.
+
+## Clash evaluation
+
+The `clash.<n>` question (`../triage-question.ts`, `RECHECK_MIN_PROBABILITY` in `../approval-gate.ts`) has its own set.
+
+| File | What it is |
+|---|---|
+| `clash-cases.json` | 35 labelled bean pairs (17 clashes, 18 not) in six languages: the judged bean (`this`) and one that landed after it forked (`theirs`), each with its intent, message and before/after files. Clashes are units, formats, meanings, renamed fields and constants; the non-clashes touch the same names compatibly (refactors, docs, logging, tests, a defaulted parameter, two beans moving to dollars together). |
+| `clash-requests.jsonl` | The exact bodies, links computed by the real `beanLinks()`, for three variants: `current` (`this` judged), `intents-only` (no links) and `swapped` (`theirs` judged against a landed `this`; the bean that pushes second is judged, so both orders happen). `clash-cases.test.ts` keeps it equal to the code (`vitest run -u` rewrites it). |
+| `clash-answers.json`, `clash-answers-clef.json` | Clef Flash's and Clef's answers (2026-10-16; deterministic). |
+| `scripts/clef-clash-eval.mjs` | The live runner: `--live [--model clef]` asks and saves, `--score` re-scores the saved answers, per case and at thresholds 0.30 to 0.80. |
+
+Measured 2026-10-16. Clef Flash rates every pair of `current` and `intents-only` below 0.25, clashes and non-clashes alike: no threshold catches any clash. `swapped` catches only k01 (0.585, the original shipping pair in the order it was first measured). Clef (27B) separates them: `current` at 0.30 has precision 0.89 and recall 0.94 (at 0.50: 0.86 and 0.35); `swapped` at 0.50 has 0.88 and 0.82.
