@@ -143,6 +143,18 @@ describe('the Code tab’s reads', () => {
     expect(gateway.calls.get('pushedBeans')).toBe(1);
   });
 
+  it('sends the file tree’s folders on the way to the file from the one tree read', async () => {
+    const gateway = fakeGateway();
+    const data = await codeData(engineReads(gateway.binding, ENGINE), {
+      ref: { kind: 'bean', name: 'shout' },
+      path: 'src/shout.ts',
+      view: 'blob',
+    });
+    expect(data.folders.map((folder) => folder.path)).toEqual(['', 'src']);
+    expect(data.folders[1]?.entries.map((entry) => entry.path)).toContain('src/shout.ts');
+    expect(gateway.calls.get('repoTree')).toBe(1);
+  });
+
   it('says what is missing: an unknown bean, a folder or a file the ref does not have', async () => {
     const reads = engineReads(fakeGateway().binding, ENGINE);
     const bean = await codeData(reads, {

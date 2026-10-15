@@ -12,6 +12,10 @@
   padding: 20px 24px 64px;
 }
 
+.page[data-wide] {
+  max-width: 1760px;
+}
+
 .single {
   max-width: 100%;
 }

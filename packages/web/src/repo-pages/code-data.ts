@@ -14,6 +14,8 @@ import type { Change } from '../changes/changes';
 import { changesOf } from '../changes/changes';
 import type { CodeView, RefChoice, TreeEntry } from '../code/tree';
 import { listing, readmeOf } from '../code/tree';
+import type { FolderListing } from '../code/file-tree';
+import { foldersAlong } from '../code/file-tree';
 import type { RaceEvent } from '@gitstalk/shared-ask/race/race-events';
 import type { PushedBean } from '../changes/pushed-beans';
 import type { HistoryRow, LogCommit } from '../history/history';
@@ -43,6 +45,8 @@ export type CodeData = {
   readonly seq: number;
   readonly head: CodeHead;
   readonly body: CodeBody;
+  /** The file tree's folders sent with the page: the root and each one on the way to the path. */
+  readonly folders: readonly FolderListing[];
 };
 
 export type CodeInput = {
@@ -67,6 +71,7 @@ export async function codeData(reads: EngineReads, input: CodeInput): Promise<Co
       seq,
       head: null,
       body: missing(`There is no bean ${refText(input.ref)}.`),
+      folders: [],
     };
   const { tree, log } = located;
   const head =
@@ -74,7 +79,8 @@ export async function codeData(reads: EngineReads, input: CodeInput): Promise<Co
       ? beanHead(changes, input.ref.name)
       : lineHead({ line, newest: log[0], pushed, events });
   const body = await bodyOf(reads, tree.sha, tree.files, input);
-  return { changes, sha: tree.sha, seq, head, body };
+  const folders = foldersAlong(tree.files, input.path, input.view);
+  return { changes, sha: tree.sha, seq, head, body, folders };
 }
 
 /**
