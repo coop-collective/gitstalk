@@ -38,7 +38,7 @@ import { foldEvents } from './push-events';
 import type { PushIntent } from './push-intent';
 import type { ProtectedAccess } from '../checks/protected-access';
 import type { BeanRef, ReworkFacts } from './push-messages';
-import { conflictLines, heldLines, heldWhy, redLines } from './push-messages';
+import { conflictLines, heldLines, heldWhy, isGuardRed, redLines } from './push-messages';
 
 const INTERNAL_POLL = 'push:';
 /** Poll rounds per drain: a slot that keeps being answered `wait` is not polled forever. */
@@ -382,9 +382,16 @@ function reworkVerdict(input: {
     phase: isConflict ? 'conflict' : 'red',
     reason: isConflict
       ? `conflicts with the sprout in ${facts.conflicts.join(', ')}`
-      : `${facts.failing.length} failing test(s) on the merged tree`,
+      : redReason(facts.failing),
     lines: verdictLines(input),
   };
+}
+
+/** A red's one-line reason: a guard's own rule, or the count of failing tests. */
+function redReason(failing: readonly string[]): string {
+  const [first] = failing;
+  if (first !== undefined && isGuardRed(failing)) return `sent back before its tests ran: ${first}`;
+  return `${failing.length} failing test(s) on the merged tree`;
 }
 
 /** A hold: red to git (the push's wait ends), but nothing for the author to fix. */

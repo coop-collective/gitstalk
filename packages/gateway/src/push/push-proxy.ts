@@ -22,9 +22,9 @@ import { FLUSH_PKT, concatBytes, remoteLines } from '../git/pkt-line';
 import type { PushRequest } from '../git/push-request';
 import { readPushRequest } from '../git/push-request';
 import type { ReportMode } from '../git/receive-pack-report';
+import { forwardPush, refMoved } from '../git/push-forward';
 import {
   acceptedResponse,
-  parseReportStatus,
   reportMode,
   withRemoteLines,
   withoutFinalFlush,
@@ -47,6 +47,8 @@ import { bytesResponse, refused, resultHeaders, text } from './push-responses';
 
 const ADVERTISED = ['push-options'];
 const ZERO_SHA = '0'.repeat(40);
+/** What git prints when Artifacts stayed busy with other pushes through every retry. */
+const BUSY_MESSAGE = 'the repository is busy with other pushes; push again in a few seconds';
 
 export type RepoGitRequest = {
   readonly request: Request;
@@ -295,17 +297,20 @@ async function push(
   }
   const grant = await target.engine.repoGitGrant('write');
   if (!grant.ok) return text(grant.status, grant.message);
-  const upstream = await forwardGit(input.request, {
+  const forwarded = await forwardPush(input.request, {
     upstream: grant.upstream,
     path: input.path,
     token: grant.token,
     body: request.upstreamBody,
+    ref: checked.ref,
+    mode,
+    log: input.deps.log,
   });
-  const bytes = new Uint8Array(await upstream.arrayBuffer());
-  const report = upstream.ok ? parseReportStatus(bytes, mode) : null;
-  const moved =
-    report?.unpackOk === true && report.refs.some((ref) => ref.ok && ref.ref === checked.ref);
-  if (!moved) return bytesResponse(bytes, upstream.headers, upstream.status);
+  if (forwarded.kind === 'busy') return refused(request, mode, BUSY_MESSAGE);
+  const upstream = forwarded.answer;
+  const { bytes } = upstream;
+  if (!refMoved(upstream, checked.ref, mode))
+    return bytesResponse(bytes, upstream.headers, upstream.status);
   const submitted = await target.engine.submitPush({
     bean: checked.bean,
     head: checked.head,
@@ -365,17 +370,18 @@ async function memoryPush(
   }
   const grant = await target.engine.repoGitGrant('write');
   if (!grant.ok) return text(grant.status, grant.message);
-  const upstream = await forwardGit(input.request, {
+  const forwarded = await forwardPush(input.request, {
     upstream: grant.upstream,
     path: input.path,
     token: grant.token,
     body: request.upstreamBody,
+    ref: command.ref,
+    mode,
+    log: input.deps.log,
   });
-  return bytesResponse(
-    new Uint8Array(await upstream.arrayBuffer()),
-    upstream.headers,
-    upstream.status,
-  );
+  if (forwarded.kind === 'busy') return refused(request, mode, BUSY_MESSAGE);
+  const { answer } = forwarded;
+  return bytesResponse(answer.bytes, answer.headers, answer.status);
 }
 
 /**

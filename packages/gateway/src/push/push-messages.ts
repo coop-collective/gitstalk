@@ -99,7 +99,9 @@ export function redLines(context: VerdictContext, facts: ReworkFacts, prompt: st
   const failing =
     facts.failing.length === 0 ? ['(the suite failed; see the output)'] : facts.failing;
   const lines = [
-    `${P} RED: ${context.bean} was not landed. Merged onto the sprout, these tests failed:`,
+    isGuardRed(facts.failing)
+      ? `${P} RED: ${context.bean} was not landed. A rule in .gitstalk/ sent it back before its tests ran:`
+      : `${P} RED: ${context.bean} was not landed. Merged onto the sprout, these tests failed:`,
     ...failing.slice(0, 12).map((test) => `${P}   - ${test}`),
   ];
   if (facts.failing.length > 12) lines.push(`${P}   (${facts.failing.length - 12} more)`);
@@ -195,7 +197,7 @@ export function promptOutput(prompt: string, kind: 'suite' | 'guard' = 'suite'):
 }
 
 /** Every failing "test" is a guard's (a configuration file), so its output is the guard's own. */
-function isGuardRed(failing: readonly string[]): boolean {
+export function isGuardRed(failing: readonly string[]): boolean {
   return failing.length > 0 && failing.every((test) => GUARD_FAILURE.test(test));
 }
 
