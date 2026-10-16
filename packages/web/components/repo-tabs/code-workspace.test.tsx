@@ -188,6 +188,10 @@ describe('the Code tab’s workspace, server-rendered', () => {
     const panel = (html: string, pane: string) =>
       tag(html, new RegExp(`<div [^>]*id="code-files-${pane}"[^>]*>`));
     const folder = render('', 'tree');
+    const toggleLabel = (html: string) =>
+      /<a [^>]*role="button"[^>]*>.*?<span>(\w+)<\/span><\/a>/s.exec(html)?.[1];
+    expect(toggleLabel(folder)).toBe('Stalk');
+    expect(toggleLabel(render('README.md', 'blob'))).toBe('Files');
     expect(tabs(folder)).toEqual([
       { label: 'Stalk', selected: 'true' },
       { label: 'Files', selected: 'false' },
