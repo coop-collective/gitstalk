@@ -50,6 +50,16 @@ describe('beanLinks', () => {
     expect(beanLinks([mine], [theirs]).theyChangedThisUses).toEqual(['price']);
   });
 
+  it('never links by a generic name or a single letter', () => {
+    const theirs = change(
+      'src/a.ts',
+      'export function server() {}\nexport const x = 1;\n',
+      'export function server() { return 1; }\nexport const x = 2;\n',
+    );
+    const mine = change('src/b.ts', 'a;\n', 'server(); x;\n');
+    expect(beanLinks([mine], [theirs]).theyChangedThisUses).toEqual([]);
+  });
+
   it('finds no link between unrelated changes, or in docs', () => {
     const readme = change('README.md', 'price\n', 'price() in dollars\n');
     const other = change('src/log.ts', 'export const level = 1;\n', 'export const level = 2;\n');

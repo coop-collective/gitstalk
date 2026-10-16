@@ -11,6 +11,72 @@ import { lineHunks } from '../git/diff-text';
 import type { Language } from './imports/language';
 import { languageOf } from './imports/languages';
 
+/**
+ * Names too generic to link two beans: single letters and the parameter and variable names every
+ * module uses. A real-history replay (fastify, 2026-10-16) linked beans by `res`, `server` and
+ * `session`, and those false links pushed two compatible pairs over the recheck threshold.
+ */
+const GENERIC_NAMES: ReadonlySet<string> = new Set([
+  'cb',
+  'el',
+  'fn',
+  'id',
+  'ok',
+  'app',
+  'arg',
+  'ctx',
+  'err',
+  'msg',
+  'obj',
+  'opt',
+  'req',
+  'res',
+  'ret',
+  'tmp',
+  'val',
+  'args',
+  'body',
+  'callback',
+  'config',
+  'context',
+  'data',
+  'done',
+  'error',
+  'event',
+  'handler',
+  'headers',
+  'index',
+  'input',
+  'item',
+  'items',
+  'key',
+  'keys',
+  'list',
+  'main',
+  'name',
+  'next',
+  'opts',
+  'options',
+  'output',
+  'params',
+  'path',
+  'payload',
+  'reply',
+  'request',
+  'response',
+  'result',
+  'self',
+  'server',
+  'session',
+  'state',
+  'this',
+  'type',
+  'value',
+  'values',
+]);
+/** Single-letter names (`i`, `x`) never link; two-letter API names (`Price.of`) do. */
+const MIN_NAME_LENGTH = 2;
+
 /** Entries of each list Clef reads; past it, the link is plain enough. */
 const LINKS_LIMIT = 12;
 const IDENTIFIER = /[A-Za-z_$][\w$]*/gu;
@@ -42,6 +108,11 @@ export function beanLinks(mine: readonly FileChange[], theirs: readonly FileChan
   };
 }
 
+/** A name specific enough that one bean changing it and the other using it is a contract. */
+function isSpecificName(name: string): boolean {
+  return name.length >= MIN_NAME_LENGTH && !GENERIC_NAMES.has(name.toLowerCase());
+}
+
 /** How many links there are, to put the most connected landed beans first. */
 export function linkCount(links: BeanLinks): number {
   return Object.values(links).reduce((sum, list: readonly string[]) => sum + list.length, 0);
@@ -61,7 +132,7 @@ function importLinks(from: readonly FileChange[], to: readonly FileChange[]): st
 
 /** Names `changer` changed that appear in `user`'s new or changed lines. */
 function nameLinks(changer: readonly FileChange[], user: readonly FileChange[]): string[] {
-  const changed = new Set(codeFiles(changer).flatMap(changedNames));
+  const changed = new Set(codeFiles(changer).flatMap(changedNames).filter(isSpecificName));
   const used = new Set(codeFiles(user).flatMap(({ change }) => newIdentifiers(change)));
   return [...changed].filter((name) => used.has(name)).slice(0, LINKS_LIMIT);
 }

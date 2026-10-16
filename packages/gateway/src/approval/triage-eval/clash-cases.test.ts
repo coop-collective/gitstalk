@@ -87,7 +87,7 @@ describe('the clash evaluation set', () => {
     const unlinked = cases
       .filter((entry) => linkCount(linksOf(entry, 'current')) === 0)
       .map((entry) => entry.id);
-    expect(unlinked).toEqual(['k17', 'n09', 'n18']);
+    expect(unlinked).toEqual(['k11', 'k17', 'n09', 'n11', 'n18']);
   });
 
   it('asks one clash question beside the route for every case', () => {

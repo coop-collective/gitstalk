@@ -9,7 +9,7 @@ import type { EmittedEvent } from '../engine/model';
 import type { PushBean } from './push-bean';
 import { CheckHold, withNote, withPhase, withRework } from './push-bean';
 import type { VerdictContext } from './push-messages';
-import { decisionLines, heldWhy, landedLines, stoppedLines } from './push-messages';
+import { decisionLines, heldWhy, isGuardRed, landedLines, stoppedLines } from './push-messages';
 
 /** What folding needs from the engine's shell. */
 export type FoldContext = {
@@ -170,5 +170,7 @@ function checkNote(check: z.infer<typeof PrelandCheck>): string {
     return 'gitstalk: the sprout itself is red here; the bean waits for the sprout to be repaired';
   if (check.held !== undefined)
     return `gitstalk: pre-land check held for a person's approval (${heldWhy(check.held)})`;
+  if (isGuardRed(check.failing_tests))
+    return `gitstalk: pre-land check sent back by a rule in .gitstalk/ before its tests ran (${seconds} s)`;
   return `gitstalk: pre-land check red (${check.failing_tests.length} failing, ${seconds} s)`;
 }

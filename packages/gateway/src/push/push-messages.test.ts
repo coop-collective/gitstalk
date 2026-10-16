@@ -47,6 +47,8 @@ describe('a guard red', () => {
     };
     const lines = redLines({ bean: 'shipping', link: null }, facts, guardPrompt);
     expect(lines.join('\n')).toContain('guard line 1');
+    expect(lines[0]).toContain('A rule in .gitstalk/ sent it back before its tests ran');
+    expect(lines.join('\n')).not.toContain('these tests failed');
     const suite = redLines(
       { bean: 'shipping', link: null },
       { ...facts, failing: ['test/a.test.mjs > a'] },
