@@ -97,7 +97,7 @@ export function CodeWorkspace(props: {
         style={cssVars({ '--tree-width': `${layout.width}px` })}
       >
         <div className={styles.toolbar} inert={!wide && drawerOpen}>
-          <FilesToggle ref={toggleButton} expanded={expanded} onToggle={toggle} />
+          <FilesToggle ref={toggleButton} pane={pane} expanded={expanded} onToggle={toggle} />
           <div className={styles.barSlot}>{props.bar}</div>
         </div>
         <div className={styles.panes}>
@@ -220,11 +220,13 @@ function usePaneOfView(view: TreeAt['view']): readonly [Pane, (pane: Pane) => vo
 }
 
 /**
- * Shows or hides the side pane. A link to the sidebar, so without script it opens the drawer as the
+ * Shows or hides the side pane, named for the tab it shows (the stalk on a folder, the files on a
+ * file), as below 1024 px it is the only way to the pane. A link to the sidebar, so without script it opens the drawer as the
  * page's `:target`; with script, a button.
  */
 function FilesToggle(props: {
   readonly ref: Ref<HTMLAnchorElement>;
+  readonly pane: Pane;
   readonly expanded: boolean;
   readonly onToggle: () => void;
 }) {
@@ -237,7 +239,7 @@ function FilesToggle(props: {
       aria-controls={PANEL_ID}
       aria-expanded={props.expanded}
       aria-keyshortcuts="Control+B Meta+B"
-      title="Show or hide the file tree (Ctrl+B)"
+      title="Show or hide the stalk and the file tree (Ctrl+B)"
       onClick={(event) => {
         event.preventDefault();
         props.onToggle();
@@ -249,7 +251,7 @@ function FilesToggle(props: {
       }}
     >
       <PanelIcon />
-      <span>Files</span>
+      <span>{props.pane === 'stalk' ? 'Stalk' : 'Files'}</span>
     </a>
   );
 }
