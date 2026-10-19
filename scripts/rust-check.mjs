@@ -1,5 +1,5 @@
 // Runs the Rust checks when the workspace has a root Cargo.toml.
-// The first Rust package creates that file (see the clean-code-rust skill).
+// Crate membership and toolchain policy live in Cargo.toml and the package guidance.
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
