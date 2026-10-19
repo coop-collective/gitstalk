@@ -1,6 +1,6 @@
 # Rust container package
 
-A container is a Rust crate in `packages/<worker>/container/`, inside the TypeScript Worker package whose Container Durable Object class owns it (the gateway's runner, the SSH Worker's server, the Actions executor's job runner). The crate follows the `clean-code-rust` skill (`references/container-service.md` has the `main.rs` and Dockerfile). This file covers the Worker side and the build wiring.
+A container is a Rust crate in `packages/<worker>/container/`, inside the TypeScript Worker package whose Container Durable Object class owns it (the gateway's runner, the SSH Worker's server, the Actions executor's job runner). Use the existing root `Cargo.toml`, pinned toolchain and a comparable crate in `packages/gateway/container`, `packages/ssh/container` or `packages/actions-executor/container` for Rust/build wiring. `clean-code-rust` is an explicitly assigned maintenance review, not a bootstrap prerequisite. This file covers the Worker side and the build wiring.
 
 ## Contents
 - Directory layout

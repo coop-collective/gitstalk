@@ -1,0 +1,6 @@
+interface:
+  display_name: "Page delivery review"
+  short_description: "Review rendering and freshness for specific pages"
+  default_prompt: "Use $page-delivery to review the assigned routes after merge and verify any justified rendering or cache improvement."
+policy:
+  allow_implicit_invocation: false

@@ -53,7 +53,7 @@ Race, benchmark and load-generation tooling does not go under `packages/`: it li
 - [ ] compatibility_date = today; observability.enabled and observability.traces.enabled = true
 - [ ] pnpm install, then pnpm -F @gitstalk/<name> types (commit worker-configuration.d.ts)
 - [ ] One e2e test through SELF.fetch (or one Rust integration test) before any feature code
-- [ ] Rust crate added to root Cargo.toml members (create the root file from the clean-code-rust skill if absent)
+- [ ] Rust crate added to the existing root Cargo.toml members; inherit this workspace's dependencies/lints and follow the relevant existing container package
 - [ ] pnpm check passes from the repo root
 ```
 

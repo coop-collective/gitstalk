@@ -4,7 +4,7 @@
 
 Two models worked this brief in parallel on the same day. Files without a prefix (`01-` to `07-`, `canvas-concept.html`, `github-repository-map/`) are Codex's. Files prefixed `claude-` are this set. They overlap on purpose and disagree in places; the disagreements are listed at the bottom.
 
-Repo standards for agents live outside this folder: `AGENTS.md` (canonical; Claude Code reads it directly) and the skills in `.agents/skills/` (`clean-code-typescript`, `clean-code-rust`, `gitstalk-packages`, plus eight vendored Cloudflare skills). Load the matching skill before writing code.
+Repo standards for agents live outside this folder: `AGENTS.md` (canonical; Claude Code reads it directly) and the skills in `.agents/skills/` (`clean-code-typescript`, `clean-code-rust`, `gitstalk-packages`, plus eight vendored Cloudflare skills). Load platform/package skills for the task. Owner direction (2026-10-19): `clean-code-typescript`, `clean-code-rust` and `page-delivery` are explicit, bounded maintenance reviews, normally after merge; do not load them for every feature edit. They replace arbitrary style/size prescriptions with evidence-led diagnosis and verification.
 
 ## Read in this order
 
