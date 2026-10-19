@@ -29,6 +29,7 @@ pub(crate) struct FailingTest {
 /// `CIResult` without the fields the scheduler owns (`ci_id`, `purpose`, `slot`, `cancelled`).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CheckReport {
+    pub(crate) selection: Option<super::skipper::TestSelection>,
     pub(crate) sha: CommitSha,
     pub(crate) green: bool,
     pub(crate) tests: usize,
@@ -88,6 +89,7 @@ pub(crate) fn assess_summary(
             .as_ref()
             .is_some_and(|summary| summary.failing.is_empty());
     let mut report = CheckReport {
+        selection: None,
         sha,
         green,
         tests: 0,

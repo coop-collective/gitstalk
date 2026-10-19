@@ -383,6 +383,34 @@
             </p>
           </section>
 
+          <section class="finding" id="test-skipper">
+            <h3>Optional module-based test skipping</h3>
+            <dl>
+              <dt>Expected</dt>
+              <dd>Run fewer pre-land tests when a source change affects only a few modules.</dd>
+              <dt>Measured</dt>
+              <dd>
+                Five paired local replays measured about 1.1× faster on an eligible CPU fixture,
+                including cold caches, git operations, analysis and full validation. The existing
+                arena skipped no tests and showed no reliable gain. Tiny suites were mixed, and
+                keeping full-check reuse won every reuse pair. All injected regressions were caught.
+                This is not a hosted agent race or a Fastify speedup.
+              </dd>
+              <dt>Instead</dt>
+              <dd class="instead">
+                Keep the option off by default. Measure each workload: analysis costs time,
+                unsupported applications run everything, and an existing full green can already save
+                a duplicate validation. Selected results never count as full-suite evidence. The
+                feature is available in source and has not been deployed.
+              </dd>
+            </dl>
+            <p class="src">
+              <a href="https://github.com/coop-collective/gitstalk/tree/HEAD/research/test-skipper"
+                >Paired runner replay and results</a
+              >
+            </p>
+          </section>
+
           <section class="finding" id="debounce">
             <h3>Validation debounce</h3>
             <dl>

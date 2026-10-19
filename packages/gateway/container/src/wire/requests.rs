@@ -114,6 +114,8 @@ pub(crate) struct UpdateRefBody {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CheckBody {
+    #[serde(default)]
+    test_skipper: crate::check::skipper::SkipperMode,
     repo: String,
     token: Token,
     sha: String,
@@ -319,6 +321,7 @@ impl CheckBody {
             ));
         }
         Ok(CheckRequest {
+            test_skipper: self.test_skipper,
             trunk: Remote {
                 url: remote_url("repo", &self.repo, schemes)?,
                 token: self.token,

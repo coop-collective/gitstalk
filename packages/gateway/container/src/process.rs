@@ -65,7 +65,7 @@ impl ChildEnv {
         self
     }
 
-    #[cfg(test)]
+    /// Read a captured variable without consulting mutable process-global state.
     pub(crate) fn get(&self, key: &str) -> Option<&OsStr> {
         self.vars
             .iter()

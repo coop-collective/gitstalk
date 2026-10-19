@@ -1,0 +1,20 @@
+{
+  "name": "@gitstalk/test-skipper",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "pnpm build && vitest run"
+  },
+  "dependencies": {
+    "acorn": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "esbuild": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

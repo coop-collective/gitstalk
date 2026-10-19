@@ -189,6 +189,19 @@
             </p>
           </aside>
 
+          <aside class="callout">
+            <p class="callout-title">Experimental test selection</p>
+            <p>
+              An optional JS/TS test skipper is available in source for v2 run experiments, off by
+              default and not deployed on the hosted service. It selects test files from transitive
+              module dependencies and falls back when evidence is incomplete. It is not a
+              <code>.gitstalk/checks.yml</code> option. Selected results do not count as a
+              full-suite pass for check reuse or promotion. See the
+              <a href="/docs/research#test-skipper">measurement and limitations</a> before enabling
+              it.
+            </p>
+          </aside>
+
           <h2 id="quickstart">See which suite ran</h2>
           <p>
             Every push says which suite its check used. With no file, the default runs:

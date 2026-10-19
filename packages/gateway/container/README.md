@@ -72,3 +72,9 @@ The suite tests need Node 25 on `PATH` and the structural tests need `mergiraf`;
 ## Contributing
 
 See [CONTRIBUTING.md](../../../CONTRIBUTING.md), and run `pnpm check` at the root before you open a pull request.
+
+## Experimental pre-land test skipper
+
+Run configuration `test_skipper: true` opts ordinary v2 pre-land checks into restricted JS/TS module-based selection; the default is false. API **5** adds the request field and `selection` evidence. Full-check reuse and promotion never treat a selected result as a full green. Custom commands, dependencies, tracing, extra files and custom environments keep their original scope.
+
+The image bundles `packages/test-skipper` at `/opt/gitstalk/skipper.mjs` (override with `GITSTALK_SKIPPER_PATH` locally). Build it with `pnpm -F @gitstalk/test-skipper build` before standalone Cargo checks; `pnpm check` does this in the package test step. The image stamp includes the analyzer and pnpm manifests. See the [contract](../../../docs/09l-optional-test-skipper.md) and [paired benchmark](../../../research/test-skipper/README.md) for eligibility, safety boundaries and performance limits. This option has not been deployed to the hosted service.

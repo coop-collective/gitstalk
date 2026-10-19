@@ -41,6 +41,16 @@ RUN cargo chef cook --release --target x86_64-unknown-linux-gnu -p runner --reci
 COPY . .
 RUN cargo build --release --locked --target x86_64-unknown-linux-gnu -p runner
 
+# Pure JS analyzer, bundled with its pinned parser; never resolves packages in a checked repo.
+FROM --platform=$BUILDPLATFORM node:24.22.0-trixie-slim AS skipper
+WORKDIR /app
+RUN npm install --global pnpm@11.13.0
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/test-skipper/package.json packages/test-skipper/package.json
+RUN pnpm install --frozen-lockfile --filter @gitstalk/test-skipper
+COPY packages/test-skipper/src packages/test-skipper/src
+RUN pnpm --filter @gitstalk/test-skipper build
+
 # Release binaries, downloaded and verified natively. Node runs the arena's .ts files directly (the
 # official build needs libatomic1 at run time); Mergiraf (GPL-3.0) ships only as this separate
 # binary and runs only when a request asks for it.
@@ -86,12 +96,15 @@ COPY --from=tools /tools/node /tools/mergiraf /usr/local/bin/
 COPY --from=tools /tools/MERGIRAF-NOTICE /usr/local/share/doc/mergiraf/NOTICE
 COPY --from=deps /opt/arena-deps /opt/arena-deps
 COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/runner /usr/local/bin/runner
+COPY --from=skipper /app/packages/test-skipper/dist/cli.mjs /opt/gitstalk/skipper.mjs
+COPY --from=skipper /app/packages/test-skipper/node_modules/acorn/LICENSE /usr/local/share/doc/gitstalk-skipper/ACORN-LICENSE
 USER runner
 # The commit the image was built from, reported by /version. Set last and read at run time, so a
 # new value only changes this layer (the binary is not rebuilt). The gateway's deploy passes it
 # (packages/gateway/container/README.md, "Image version").
 ARG GIT_SHA=unknown
 ENV PORT=8080 \
+    GITSTALK_SKIPPER_PATH=/opt/gitstalk/skipper.mjs \
     WORK_DIR=/work \
     DEPS_DIR=/opt/arena-deps \
     RUST_LOG=info \

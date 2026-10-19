@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::check::SuiteNetwork;
+use crate::check::skipper::SkipperCache;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::git::{Git, Remote, RepoCaches, TrunkCache};
@@ -16,6 +17,7 @@ const SUITE_ENV_DROP: [&str; 3] = ["GIT_", "NODE_OPTIONS", "NODE_TEST"];
 /// Shared state of every request: git, the caches, scratch space and the suite's environment.
 #[derive(Debug)]
 pub(crate) struct Workspace {
+    pub(crate) skipper: SkipperCache,
     git: Git,
     caches: RepoCaches,
     jobs_root: PathBuf,
@@ -49,6 +51,7 @@ impl Workspace {
         let suite_env = inherited.without_prefixes(&SUITE_ENV_DROP).with("CI", "1");
         let suite_network = SuiteNetwork::resolve(config.suite_network(), &suite_env).await;
         Ok(Self {
+            skipper: SkipperCache::default(),
             git: Git::new(&inherited, config.identity()),
             caches: RepoCaches::new(root.to_path_buf()),
             jobs_root,

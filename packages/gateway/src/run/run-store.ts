@@ -36,9 +36,10 @@ const SPEND_GUARD_DEFAULTS = {
   keep_repo: false,
   stream_diffs: false,
   continuous: false,
+  test_skipper: false,
 } as const satisfies Pick<
   RunConfig,
-  'preset' | 'max_usd' | 'keep_repo' | 'stream_diffs' | 'continuous'
+  'preset' | 'max_usd' | 'keep_repo' | 'stream_diffs' | 'continuous' | 'test_skipper'
 >;
 type StoredConfig = Omit<RunConfig, keyof typeof SPEND_GUARD_DEFAULTS> &
   Partial<Pick<RunConfig, keyof typeof SPEND_GUARD_DEFAULTS>>;

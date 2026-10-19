@@ -30,10 +30,13 @@ catalog:
   '@tanstack/react-query-persist-client': 5.104.1
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+  '@types/node': 26.6.4
   '@vitejs/plugin-react': 6.1.1
   '@vitejs/plugin-rsc': 0.5.35
   agents: 0.26.0
+  acorn: 8.18.0
   diff: 9.0.0
+  esbuild: 0.28.1
   fast-check: 4.10.2
   hono: 4.13.12
   jose: 6.2.12
