@@ -50,7 +50,7 @@ export const beans = new Hono<AppEnv>()
 
 ## Errors
 
-- `throw new HTTPException(404, { message })` from `hono/http-exception` only for plain HTTP conditions in middleware; domain code returns `Result` or throws `GitstalkError` (clean-code-typescript skill).
+- `throw new HTTPException(404, { message })` from `hono/http-exception` only for plain HTTP conditions in middleware; preserve the domain API's existing `Result` or `GitstalkError` contract rather than converting its error representation as incidental cleanup.
 - One `app.onError` maps `HTTPException`, `GitstalkError` and unknown errors; handlers never build error responses by hand beyond the `Result` mapping above.
 - `app.notFound` returns the same `{ error: { code: 'not_found' } }` shape.
 

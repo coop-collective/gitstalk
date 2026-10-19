@@ -1,50 +1,34 @@
 ---
 name: clean-code-rust
-description: Clean Code (Robert C. Martin) translated into idiomatic Rust for Gitstalk's container apps and crates. Covers naming, small functions, Result and thiserror error handling, newtypes over bool and String, module layout, tests, tokio concurrency, the workspace clippy profile and the container Dockerfile. Use when writing, reviewing or refactoring any Rust code, Cargo.toml, clippy settings or Dockerfile under packages/.
+description: Use when explicitly assigned a post-merge Rust maintenance review or a specific agent-debugging, correctness, or performance improvement. Investigate ownership, task lifecycle and measured costs without enforcing cosmetic Clean Code rules. Not a default instruction for ordinary Rust edits.
+disable-model-invocation: true
 ---
 
-# Clean Code, in Rust
+# Rust maintenance for agents
 
-Rust already enforces much of Clean Code: ownership replaces most null and side-effect rules. These rules cover what the compiler does not. The workspace lints in [lints-and-workspace.md](references/lints-and-workspace.md) are the mechanical half; this file is the judgement half.
+Optimize for locating, changing and verifying the relevant behavior. A successful review may leave the code unchanged.
 
-## Rules that apply every time
+## Establish the task
 
-1. **Names say what, not how.** `pending_beans`, not `list`, `data` or `tmp`. Types are nouns (`WorldPlan`), functions are verbs (`compose_world`), predicates read as questions (`is_ready`, `has_conflicts`). Follow the Rust API Guidelines: `as_`/`to_`/`into_` conversions, `iter`/`iter_mut`/`into_iter`, getters without `get_`.
-2. **Functions do one thing at one level of abstraction** and fit on a screen: about 25 lines, 50 is the ceiling. Extract until each body reads as a sentence. Public entry points first in the file, helpers below (the stepdown rule).
-3. **At most three parameters.** A fourth means a request struct or a builder. No `bool` parameters: use a two-variant enum (`Mode::DryRun`). No out-parameters: return a value or a small named struct.
-4. **Borrow at the boundary.** Take `&str`, `&[T]`, `&Path` or `impl AsRef<Path>`; return owned values only when the caller must own them. A `.clone()` added to satisfy the borrow checker is a design smell: restructure instead.
-5. **Errors are values.** Library and service code returns `Result<T, Error>` with a `thiserror` enum; `anyhow` only in `main` and tests. `unwrap`, `expect` and `panic!` are denied outside tests. Add context when crossing a boundary. Never return `Box<dyn Error>` from a public API.
-6. **Make illegal states unrepresentable.** Newtypes for every identifier (`BeanId`, `TrunkSha`), enums for states, `TryFrom` for validation at construction, `#[non_exhaustive]` on public enums, `#[must_use]` on pure functions.
-7. **Comments explain why, never what.** Rustdoc on public items with `# Errors` and `# Panics` sections. No commented-out code, no banners, no journal comments. `unsafe` is forbidden in this workspace.
-8. **Modules by domain, not by kind.** `world/`, `bean/`, `git/`; never `models/`, `utils/`, `helpers/`. Private until something outside needs it; `pub(crate)` before `pub`. Files under about 400 lines.
-9. **Tests are production code.** Colocated unit tests for logic, `tests/` for the HTTP surface, property tests for anything that parses or merges, one behaviour per test, names that state the behaviour (`rejects_duplicate_bean_ids`). No sleeps, no network.
-10. **Async discipline.** Never block inside async (`tokio::process`, `spawn_blocking`). Every external call has a timeout. Channels and `JoinSet` before shared locks; never hold a `std::sync::Mutex` guard across `.await`.
-11. **A container is a twelve-factor process.** Config from env, fail fast on bad config, JSON logs on stdout via `tracing`, bind `0.0.0.0:$PORT`, graceful shutdown on SIGTERM, disk treated as scratch.
+Read the finding, merged revision, crate/target/features, permitted changes and budget. Assessment means inspect and report; an authorized repair belongs on a separate branch/worktree. Preserve existing work and the pinned toolchain. Use repository commands and constraints rather than installing a new lint profile.
 
-## Workflow
+Stop once the finding is resolved and verified, the budget is reached, or needed evidence is unavailable. Reserve time for verification. Invocation does not authorize unrelated cleanup, merges, deployments or recurring runs.
 
-1. Creating a crate or touching `Cargo.toml`: follow [lints-and-workspace.md](references/lints-and-workspace.md). The workspace lints are the contract.
-2. Write the type and error shapes first ([errors-and-types.md](references/errors-and-types.md)), then the functions ([naming-and-functions.md](references/naming-and-functions.md)).
-3. A service that runs in a Cloudflare Container follows [container-service.md](references/container-service.md).
-4. Before finishing, run the checklist in [smells-checklist.md](references/smells-checklist.md) and the commands below.
+## Diagnose before refactoring
 
-## Verify
+- Search the failing behavior, symbol and call sites; inspect feature flags, macro expansion or generated sources when they obscure the implementation. Read ownership and error propagation across the affected boundary.
+- Start from a reproduction, profiler, diagnostic or repeated agent error. Fix misleading search results, missing test setup or noisy output before rearranging source to fit an agent's read window.
+- Function length, file length, parameter count, helper order and directory names are not acceptance criteria. Split only where an evidenced boundary reduces missed changes or makes behavior independently verifiable. Do not scatter one coherent algorithm across helpers to satisfy a threshold.
+- Keep working types and APIs. Newtypes, traits, builders, enums and error libraries are tools for an actual invariant or extension need, not mandatory wrappers. Preserve valid bool parameters, mutation, `Option<Result<...>>` and straightforward clones when they fit the operation.
+- A clone is not inherently a defect; avoiding it can introduce more complicated lifetimes or locking. Measure allocation/copy cost before optimizing it. Do not change release profiles, concurrency or ownership on aesthetic grounds.
 
-```bash
-cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace
-```
+## Verify the improvement
 
-`pnpm rust:check` from the repo root runs all three. Never add `#[allow(...)]` without a one-line reason beside it.
+Read [diagnosis.md](references/diagnosis.md) for relevant runtime signals and [evidence.md](references/evidence.md) for the research limits.
 
-## References
+1. Record a baseline and a useful success criterion. A bug reproduction must fail for the intended reason; a performance target needs representative inputs and comparable release builds.
+2. Make the smallest justified change, preserving public behavior, persisted formats, cancellation and resource ownership. Comments should capture non-obvious units, lifetimes, ordering and contracts that prevent mistaken edits.
+3. Run focused tests and the repository's format/lint/build checks with the relevant target/feature combinations, then required full gates. Do not assume `--all-features` is valid for mutually exclusive features. Avoid new tests that merely duplicate an implementation.
+4. Compare correctness and performance separately. Green tests are scoped evidence, not proof of every race or performance gain. Check error and shutdown paths when the change affects them.
 
-| File | Load when |
-|------|-----------|
-| [naming-and-functions.md](references/naming-and-functions.md) | Naming, function size and shape, parameters, comments, formatting |
-| [errors-and-types.md](references/errors-and-types.md) | Error enums, `anyhow` vs `thiserror`, HTTP mapping, newtypes, enums, builders, serde boundaries |
-| [modules-tests-concurrency.md](references/modules-tests-concurrency.md) | Crate layout, visibility, tests, tokio and cancellation |
-| [container-service.md](references/container-service.md) | axum skeleton, config, logging, shutdown, Dockerfile |
-| [lints-and-workspace.md](references/lints-and-workspace.md) | Root `Cargo.toml` template, clippy profile, release profile |
-| [smells-checklist.md](references/smells-checklist.md) | Review checklist mapping Clean Code smells to Rust |
+Report evidence, changed paths, commands/results and their limits, before/after measurements, and unresolved risks. Preserve no-change/deferred decisions so later maintenance does not reopen them without new evidence.

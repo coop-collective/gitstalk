@@ -1,0 +1,6 @@
+interface:
+  display_name: "Rust agent maintenance"
+  short_description: "Explicit Rust diagnosis and measured improvements"
+  default_prompt: "Use $clean-code-rust for the assigned post-merge maintenance task and verify any justified change."
+policy:
+  allow_implicit_invocation: false

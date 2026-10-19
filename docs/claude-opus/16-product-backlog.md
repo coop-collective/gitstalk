@@ -589,7 +589,7 @@ Phase 6 items each depend only on Phase 2, except previews (needs Phase 5's Sand
 
 ## 6. The first three build tasks
 
-Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `clean-code-typescript`, `gitstalk-packages`, and the Cloudflare skills named), work on their own branch, run `pnpm check`, and do not commit or deploy unless Coop asks.
+Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `gitstalk-packages` and the Cloudflare skills named; language maintenance skills are explicit post-merge tasks), work on their own branch, run `pnpm check`, and do not commit or deploy unless Coop asks.
 
 ### Task 1 (Phase 0, lane A): submission readiness pack
 
@@ -603,7 +603,7 @@ Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `
 >
 > **Don't:** touch the web UI, the site copy, or the licence (Coop's D1).
 > **Done when:** `pnpm check` passes; a replay race run with the README commands reaps itself and reports its cost; the deploy script works from a clean clone; the doc numbers are updated.
-> **Skills:** `clean-code-typescript`, `gitstalk-packages`, `durable-objects`, `wrangler`, `workers-best-practices`. **Size:** M (2 days).
+> **Skills:** `gitstalk-packages`, `durable-objects`, `wrangler`, `workers-best-practices`. **Size:** M (2 days).
 
 ### Task 2 (Phase 0 → 1): `packages/identity` with the waitlist and magic links
 
@@ -618,7 +618,7 @@ Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `
 >
 > **Don't:** add any non-Cloudflare service; store raw tokens; log emails in clear (hash them in logs).
 > **Done when:** vitest with real D1, KV and a mocked Email binding covers token expiry, reuse, wrong browser, rate limits and Turnstile failure; a real email arrives from the onboarded domain in a manual check (needs D3); `pnpm check` passes.
-> **Skills:** `clean-code-typescript`, `gitstalk-packages`, `cloudflare-email-service`, `turnstile-spin`, `workers-best-practices`, `wrangler`. **Size:** M (3 days). **Blocked by:** D3 (domain) for the live email only.
+> **Skills:** `gitstalk-packages`, `cloudflare-email-service`, `turnstile-spin`, `workers-best-practices`, `wrangler`. **Size:** M (3 days). **Blocked by:** D3 (domain) for the live email only.
 
 ### Task 3 (Phase 1): MCP OAuth sign-up through the agent
 
@@ -633,7 +633,7 @@ Each is written to hand to one agent as-is. All three follow `AGENTS.md` (load `
 >
 > **Don't:** deploy over the current `beanstalk-mcp` before 10-15 (use `beanstalk-mcp-next`); grant any write scope (Phase 2).
 > **Done when:** on a clean machine, the site's command → browser → consent → `ask_repo` on the demo repo works in Claude Code and in Codex; `pnpm check` passes.
-> **Skills:** `clean-code-typescript`, `agents-sdk`, `gitstalk-packages`, `workers-best-practices`. **Size:** M–L (3–4 days). **Depends on:** Task 2's RPC contract (step 4), not its completion.
+> **Skills:** `agents-sdk`, `gitstalk-packages`, `workers-best-practices`. **Size:** M–L (3–4 days). **Depends on:** Task 2's RPC contract (step 4), not its completion.
 
 ---
 

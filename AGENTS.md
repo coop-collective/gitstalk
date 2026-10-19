@@ -28,15 +28,15 @@ pnpm env:deploy <env>              # check secrets, deploy every package in orde
 
 `pnpm check` must pass before work is reported as done. Run it; do not describe it.
 
-## Skills: load before writing code
+## Skills: load for the assigned task
 
 | Working on | Skill |
 |---|---|
-| Any `.ts` / `.tsx` | `clean-code-typescript` |
-| Any Rust, `Cargo.toml`, Dockerfile | `clean-code-rust` |
 | Creating or structuring a package, Hono routes, wrangler config, containers, the web app | `gitstalk-packages` |
 | Public docs (`packages/site/public/docs/`) | `public-docs` |
 | Cloudflare platform questions (product choice, Workers, DOs, Wrangler, Sandbox, Agents SDK, vinext, web perf) | `cloudflare`, `workers-best-practices`, `durable-objects`, `wrangler`, `sandbox-next`, `agents-sdk`, `nextjs-on-cloudflare`, `web-perf` (vendored from `cloudflare/skills`; never edit by hand) |
+
+The `clean-code-typescript`, `clean-code-rust` and `page-delivery` skills are explicit maintenance tasks, normally after merge or at a requested readiness checkpoint. Do not load them for ordinary feature edits or preload them into feature agents. They require a concrete finding and bounded scope; no-change is a valid outcome. Their Claude/Codex invocation policies disable automatic selection. Existing correctness checks still apply during development.
 
 Skills live in `.agents/skills/` (read natively by Codex); `.claude/skills/` holds symlinks for Claude Code, which reads skills only from `.claude/skills/` and follows symlinked skill folders (checked 2026-10-15), so the symlinks are the one copy, not a duplicate. A new skill goes in `.agents/skills/<name>/` plus `ln -s ../../.agents/skills/<name> .claude/skills/<name>`. Follow the Agent Skills size rules: `SKILL.md` under 150 lines, description under 1,024 characters, references one level deep with a contents list when over 100 lines.
 
