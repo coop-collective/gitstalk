@@ -14,7 +14,7 @@ fi
 shift
 here="$(cd "$(dirname "$0")" && pwd)"
 if [ -z "${GIT_SHA:-}" ]; then
-  sources=". ../../../Cargo.toml ../../../Cargo.lock ../../../research/real-arena/*/deps ../../../.dockerignore"
+  sources=". ../../test-skipper ../../../pnpm-workspace.yaml ../../../pnpm-lock.yaml ../../../package.json ../../../Cargo.toml ../../../Cargo.lock ../../../research/real-arena/*/deps ../../../.dockerignore"
   # shellcheck disable=SC2086 # the pathspecs are meant to split
   GIT_SHA="$(git -C "$here" log -1 --format=%H -- $sources 2>/dev/null || true)"
   # shellcheck disable=SC2086

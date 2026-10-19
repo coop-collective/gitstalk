@@ -24,6 +24,15 @@ const task = (id: string) => ({
 });
 
 describe('RunConfig', () => {
+  it('keeps the test skipper off by default and permits opting into v2 only', () => {
+    const base = { policy: 'beanstalk-v2', tasks: [task('t001')] };
+    expect(RunConfig.parse(base).test_skipper).toBe(false);
+    expect(RunConfig.parse({ ...base, test_skipper: true }).test_skipper).toBe(true);
+    expect(RunConfig.safeParse({ ...base, policy: 'queue', test_skipper: true }).success).toBe(
+      false,
+    );
+    expect(RunConfig.safeParse({ ...base, test_skipper: 'true' }).success).toBe(false);
+  });
   it('applies the harness RaceConfig defaults', () => {
     const config = RunConfig.parse({ policy: 'queue', tasks: [task('t001')] });
 

@@ -412,6 +412,7 @@ function startCheck(
       extraFiles: null,
       instance: { kind: 'sandbox', slot: flow.slot },
       ...(check.targets === null ? {} : { only: check.targets }),
+      ...(step.ctx.env.config.test_skipper && check.targets === null ? { testSkipper: true } : {}),
       ...(step.ctx.env.config.targeted_landing_check || isEvidenceOn(step.state)
         ? { allReadSets: true }
         : {}),
@@ -447,9 +448,11 @@ function onChecked(step: V2Step, flow: LandingFlow, check: CheckStep, result: Jo
 function finishCheck(step: V2Step, flow: LandingFlow, check: CheckStep): void {
   const result = check.result;
   if (result === null) throw new EngineInvariantError('a check finished without a result');
+  if (result.selection?.mode === 'selected') delete flow.voucher;
   if (check.isRecheck) recordRecheck(step.state, result.green);
   if (check.targets !== null) countTargeted(step.state, result.green);
-  else if (result.green) rememberGreenFull(step, flow, check);
+  else if (result.green && result.selection?.mode !== 'selected')
+    rememberGreenFull(step, flow, check);
   learnReadSets(step, result);
   const red = { head: check.head0, result, mine: check.mine };
   const isDiscarded = !result.green && isOnDiscardedTree(step.state, check.head0);
@@ -464,7 +467,9 @@ function finishCheck(step: V2Step, flow: LandingFlow, check: CheckStep): void {
         head: check.head0,
         sha: check.candidate,
         files: check.files,
-        ...(isRepairLanding(step, check.head0) ? { repair: true } : {}),
+        ...(result.selection?.mode !== 'selected' && isRepairLanding(step, check.head0)
+          ? { repair: true }
+          : {}),
       });
       return;
     }
@@ -503,7 +508,7 @@ function finishCheck(step: V2Step, flow: LandingFlow, check: CheckStep): void {
     return;
   }
   const { head0, candidate, files, mine } = check;
-  const isRepair = isRepairLanding(step, head0);
+  const isRepair = result.selection?.mode !== 'selected' && isRepairLanding(step, head0);
   if (!isRepair && isWindowFull(step, false)) {
     waitForWindow(step, flow, { head0, candidate, files, mine });
     return;
@@ -602,6 +607,7 @@ function logCheck(
     ...(outcome.isInherited ? { inherited: true } : {}),
     ...(check.targets === null ? {} : { targets: [...check.targets] }),
     ...(result.held === undefined ? {} : { held: result.held }),
+    ...(result.selection === undefined ? {} : { selection: result.selection }),
   });
 }
 

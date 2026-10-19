@@ -9,6 +9,8 @@
  * omitted, wherever the harness writes `None`.
  */
 
+import type { TestSelection } from './test-selection';
+
 /** JSON value as stored in an event. */
 export type Json =
   | string
@@ -390,6 +392,7 @@ export type RaceEventFields = {
   };
   'race.stuck': { readonly trunk_idx: number; readonly green_idx: number };
   'preland.check': TaskRef & {
+    readonly selection?: TestSelection;
     readonly sha: string;
     readonly green: boolean;
     readonly failing_files: readonly string[] | null;

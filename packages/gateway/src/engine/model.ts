@@ -17,6 +17,7 @@ import type {
 import type { InvocationId, Sha, SlotId, TaskId } from '@gitstalk/shared-race/ids';
 import type { CheckReadMaps, CheckedTree } from '@gitstalk/shared-race/read-maps';
 import type { AgentKind, PolicyName } from '@gitstalk/shared-race/run-config';
+import type { TestSelection } from '@gitstalk/shared-race/test-selection';
 
 /** Seconds since the run was created (the harness's `t`, unrounded). */
 export type Seconds = number;
@@ -189,6 +190,7 @@ export type LineRanges = Readonly<Record<string, readonly (readonly [number, num
 
 /** A suite run's outcome (the runner's `/v1/check`, the harness's `CIResult`). */
 export type CheckResult = {
+  readonly selection?: TestSelection;
   readonly green: boolean;
   readonly tests: number;
   readonly failures: number;
@@ -311,6 +313,8 @@ export type JobSpec =
       readonly trace?: boolean;
       /** Report the tree's manifest; absent, the run's `read_maps` setting decides. */
       readonly treeManifest?: boolean;
+      /** Optional pre-land optimization; full CI never sets this. */
+      readonly testSkipper?: true;
     }
   | {
       /** A commit on `onto` that undoes `commit` (published as a candidate, no ref moved). */

@@ -27,14 +27,15 @@ use crate::workspace::Workspace;
 
 /// The version of the wire contract (request and response bodies, plan §3). Bump it with every
 /// change a caller must know about (a new request field above all: bodies refuse unknown fields),
-/// together with `RUNNER_API_VERSION` in `packages/gateway/src/runner/runner-client.ts`.
+/// together with `RUNNER_API_VERSION` in `packages/gateway/src/runner/runner-transport.ts`.
 ///
 /// 1: the contract until 2026-10-05 (no version reported). 2: squash and compose
 /// `structural_merge`, revert `to`, check `all_read_sets` and `passing_read_sets`. 3: check
 /// `env` and `deps` (a run's own suite: real-task arenas), and `network` on checks and `/healthz`.
 /// 4: check `trace`, `only_files` and `tree_manifest`, answered with `read_maps` and `tree`, and
 /// `tracing` on `/healthz`.
-pub const API_VERSION: u32 = 4;
+/// 5: optional pre-land `test_skipper` and explicit `selection` evidence.
+pub const API_VERSION: u32 = 5;
 /// Response header carrying [`API_VERSION`] on every response, so a caller can tell which
 /// contract refused its request.
 pub const API_VERSION_HEADER: &str = "x-gitstalk-runner-api";

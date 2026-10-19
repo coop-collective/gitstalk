@@ -12,6 +12,7 @@ mod per_file;
 mod read_maps;
 mod report;
 mod sandbox;
+pub(crate) mod skipper;
 mod stack;
 mod suite;
 mod trace;
@@ -124,6 +125,7 @@ pub(crate) struct CheckRequest {
     pub(crate) scope: TestScope,
     pub(crate) trace: TraceMode,
     pub(crate) manifest: ManifestMode,
+    pub(crate) test_skipper: skipper::SkipperMode,
 }
 
 /// Which test files get their read set reported.
@@ -224,6 +226,9 @@ pub(crate) async fn check(
         }
         (TraceMode::Off, _) => run_untraced(&context).await?,
     };
+    if request.test_skipper == skipper::SkipperMode::On && request.trace != TraceMode::Off {
+        report.selection = Some(skipper::TestSelection::traced());
+    }
     report.tree = manifest;
     tokio::time::sleep(request.latency).await;
     report.ci_seconds = started.elapsed().as_secs_f64();
@@ -243,9 +248,16 @@ struct RunContext<'a> {
 
 /// One process for the whole selection, as the harness runs its suite.
 async fn run_untraced(context: &RunContext<'_>) -> Result<CheckReport> {
+    if context.request.test_skipper == skipper::SkipperMode::On {
+        return skipper::run(context).await;
+    }
+    run_command(context, &context.request.command).await
+}
+
+async fn run_command(context: &RunContext<'_>, original: &SuiteCommand) -> Result<CheckReport> {
     let request = context.request;
     let command = match &request.scope {
-        TestScope::Suite => request.command.clone(),
+        TestScope::Suite => original.clone(),
         TestScope::Only(files) => {
             let present = present_files(context.checkout, files);
             if present.is_empty() {

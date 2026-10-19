@@ -181,6 +181,8 @@ impl From<FailingTest> for FailingTestBody {
 /// The harness's `CIResult` fields, named as there (`output` is `output_excerpt`, per §3).
 #[derive(Debug, Serialize)]
 pub(crate) struct CheckResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selection: Option<crate::check::skipper::TestSelection>,
     sha: CommitSha,
     green: bool,
     tests: usize,
@@ -297,6 +299,7 @@ impl From<TreeManifest> for TreeBody {
 impl From<CheckReport> for CheckResponse {
     fn from(report: CheckReport) -> Self {
         Self {
+            selection: report.selection,
             sha: report.sha,
             green: report.green,
             tests: report.tests,

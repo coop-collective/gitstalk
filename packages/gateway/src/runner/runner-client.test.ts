@@ -29,7 +29,7 @@ const CHECK_GREEN = {
   suite_seconds: 0.1,
 };
 
-type Answer = (path: string) => Response;
+type Answer = (path: string, request: Request) => Response | Promise<Response>;
 
 /** A fake runner: answers each request with `answer`, recording paths per instance. */
 function fakeRunner(answer: Answer): {
@@ -46,7 +46,7 @@ function fakeRunner(answer: Answer): {
       fetch: async (request) => {
         const path = new URL(request.url).pathname;
         calls.push(`${instance}${path}`);
-        return answer(path);
+        return answer(path, request);
       },
     }),
     {
@@ -75,11 +75,14 @@ function recordingLogger(warnings: string[]): Logger {
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return Response.json(body, { status, headers: { [RUNNER_API_HEADER]: '4', ...headers } });
+  return Response.json(body, {
+    status,
+    headers: { [RUNNER_API_HEADER]: String(RUNNER_API_VERSION), ...headers },
+  });
 }
 
 function versionThen(answer: Answer): Answer {
-  return (path) => (path === '/version' ? json(VERSION_OK) : answer(path));
+  return (path, request) => (path === '/version' ? json(VERSION_OK) : answer(path, request));
 }
 
 const check = (port: RunnerPort, instance = 'ci-0') =>
@@ -119,7 +122,7 @@ describe('the runner version check', () => {
 
     expect(failure).toBeInstanceOf(RunnerVersionMismatchError);
     expect(failure).toMatchObject({ code: 'runner_version_mismatch', retryable: false });
-    expect(String(failure)).toMatch(/^.*runner_version_mismatch: .*runner API 1, .*speaks 4/);
+    expect(String(failure)).toMatch(/^.*runner_version_mismatch: .*runner API 1, .*speaks 5/);
     expect(runner.calls).toEqual(['ci-0/version']);
   });
 
@@ -134,7 +137,7 @@ describe('the runner version check', () => {
       code: 'invalid_request',
       message: 'invalid request: unknown field `to`, expected one of `repo`, `token`',
     };
-    const runner = fakeRunner(versionThen(() => json(refusal, 400, { [RUNNER_API_HEADER]: '5' })));
+    const runner = fakeRunner(versionThen(() => json(refusal, 400, { [RUNNER_API_HEADER]: '4' })));
 
     const failure = await runner.port
       .revert('committer', {
@@ -149,7 +152,7 @@ describe('the runner version check', () => {
 
     expect(failure).toBeInstanceOf(RunnerVersionMismatchError);
     expect(failure).toMatchObject({ retryable: false });
-    expect(String(failure)).toMatch(/runner API 5, this gateway speaks 4 .*unknown field `to`/);
+    expect(String(failure)).toMatch(/runner API 4, this gateway speaks 5 .*unknown field `to`/);
   });
 });
 
@@ -367,5 +370,40 @@ describe('traced and selective checks', () => {
 
     expect(result.readMaps?.files[0]?.reads).toEqual(['src/a.test.ts', 'src/a.ts']);
     expect(result.tree?.blobs).toEqual(TREE.blobs);
+  });
+});
+
+describe('test skipper wire contract', () => {
+  const selection = {
+    mode: 'selected',
+    reason: 'unchanged-transitive-dependencies',
+    baseline_sha: SHA,
+    selected_files: ['a.test.ts'],
+    skipped_files: ['b.test.ts'],
+  };
+  it('only sends the opt-in when enabled and carries execution evidence back', async () => {
+    const bodies: unknown[] = [];
+    const runner = fakeRunner(
+      versionThen(async (_, request) => {
+        bodies.push(await request.json());
+        return json({ ...CHECK_GREEN, ...(bodies.length === 2 ? { selection } : {}) });
+      }),
+    );
+    await check(runner.port);
+    const result = await runner.port.check('ci-0', {
+      trunk: TRUNK,
+      sha: SHA,
+      extraFiles: null,
+      testSkipper: true,
+      suite: DEFAULT_SUITE,
+    });
+    expect(bodies[0]).not.toHaveProperty('test_skipper');
+    expect(bodies[1]).toHaveProperty('test_skipper', true);
+    expect(result.selection).toEqual(selection);
+  });
+
+  it('refuses a selected result when the caller required a full check', async () => {
+    const runner = fakeRunner(versionThen(() => json({ ...CHECK_GREEN, selection })));
+    await expect(check(runner.port)).rejects.toThrow('required full check');
   });
 });

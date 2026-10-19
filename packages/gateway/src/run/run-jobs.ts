@@ -266,6 +266,7 @@ async function runCheck(
     only: spec.only ?? null,
     allReadSets: spec.allReadSets === true,
     ...readMapOptions(spec, context.readMaps ?? 'off'),
+    ...(spec.testSkipper === true ? { testSkipper: true } : {}),
   });
   context.log.info('suite checked', {
     sha: spec.sha,

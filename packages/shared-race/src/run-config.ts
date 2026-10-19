@@ -72,6 +72,12 @@ const CheckedFields = z
      * nothing reaches the event log. `false`: as before.
      */
     stream_diffs: z.boolean().default(false),
+    /**
+     * Experimental Node JS/TS pre-land skipper. Reuses unchanged module dependencies from
+     * a full green run in the same runner; unsupported inputs fall back to the full suite.
+     * Never applies to validation/final checks or grants full-check reuse. Off by default.
+     */
+    test_skipper: z.boolean().default(false),
     max_turns: z.number().int().min(1).max(1000).default(40),
     agent_timeout: z.number().positive().max(86_400).default(900),
     seed: z.number().int().default(0),
@@ -416,6 +422,13 @@ const CheckedFields = z
     tasks: z.array(ArenaTask).max(200),
   })
   .superRefine((config, issues) => {
+    if (config.test_skipper && config.policy !== 'beanstalk-v2') {
+      issues.addIssue({
+        code: 'custom',
+        path: ['test_skipper'],
+        message: 'test skipper requires beanstalk-v2',
+      });
+    }
     const ids = config.tasks.map((task) => task.id);
     if (ids.length === 0 && !config.continuous) {
       issues.addIssue({

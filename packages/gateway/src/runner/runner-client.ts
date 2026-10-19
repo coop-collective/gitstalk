@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { Sha } from '@gitstalk/shared-race/ids';
 import { CheckReadMaps, CheckedTree } from '@gitstalk/shared-race/read-maps';
 import type { RunSuite } from '@gitstalk/shared-race/suite';
+import { TestSelection } from '@gitstalk/shared-race/test-selection';
 
 import type { CheckResult, ConflictHunk, Resolution } from '../engine/model';
 import { UpstreamError } from '../errors';
@@ -79,6 +80,7 @@ export type CheckCall = {
   readonly trace?: boolean;
   /** Report the checked tree's blob ids (`tree`); implied by `trace`. */
   readonly treeManifest?: boolean;
+  readonly testSkipper?: boolean;
 };
 
 export type UpdateRefCall = {
@@ -148,6 +150,7 @@ const CheckResponse = z.object({
   network: z.string().max(20).optional(),
   read_maps: CheckReadMaps.optional(),
   tree: CheckedTree.optional(),
+  selection: TestSelection.optional(),
 });
 
 const UpdateRefResponse = z.object({ ok: z.boolean(), actual: Sha.nullable().optional() });
@@ -215,7 +218,10 @@ export function runnerPort(
         : { result: 'conflict', files: response.files };
     },
     async check(instance, call) {
-      return toCheckResult(await post(instance, '/v1/check', checkBody(call), CheckResponse));
+      const response = await post(instance, '/v1/check', checkBody(call), CheckResponse);
+      if (response.selection?.mode === 'selected' && call.testSkipper !== true)
+        throw new UpstreamError('runner skipped tests on a required full check', false);
+      return toCheckResult(response);
     },
     async updateRef(instance, call) {
       const body = {
@@ -277,11 +283,13 @@ export function checkBody(call: CheckCall): Readonly<Record<string, unknown>> {
     ...(call.allReadSets === true ? { all_read_sets: true } : {}),
     ...(call.trace === true ? { trace: true } : {}),
     ...(call.treeManifest === true ? { tree_manifest: true } : {}),
+    ...(call.testSkipper === true ? { test_skipper: true } : {}),
   };
 }
 
 function toCheckResult(response: z.infer<typeof CheckResponse>): RunnerCheck {
   return {
+    ...(response.selection === undefined ? {} : { selection: response.selection }),
     network: response.network ?? null,
     ciSeconds: response.ci_seconds ?? null,
     green: response.green,

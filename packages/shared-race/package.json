@@ -4,6 +4,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
+    "./test-selection": "./src/test-selection.ts",
     "./task": "./src/task.ts",
     "./run-config": "./src/run-config.ts",
     "./suite": "./src/suite.ts",
