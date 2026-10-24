@@ -30,3 +30,8 @@ environments/*
 environments/**/secrets/
 packages/*/wrangler.*.jsonc
 research/swarm/wrangler.*.jsonc
+.pnpm/
+
+# pnpm cargo support writes a .cargo include into every Cargo project it finds, including the
+# test-impact fixture (which is not a pnpm workspace member); keep it out of the fixture's tree.
+research/test-impact/projects/rust/.cargo/

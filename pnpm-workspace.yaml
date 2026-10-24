@@ -1,7 +1,11 @@
+cargo:
+  enabled: true
+
 packages:
   - 'packages/*'
   # Race tooling with its own tests (the swarm Worker); research/ is otherwise outside the build.
   - 'research/swarm'
+  - 'research/promo/beanstalk-swarm-film'
 
 allowBuilds:
   # core-js-pure's postinstall only prints a message (agents → mimetext → @babel/runtime-corejs3).
