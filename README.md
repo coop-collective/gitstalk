@@ -64,7 +64,7 @@ The gateway is the only component that holds Artifacts tokens; every repository 
 
 ## Contributing quick start
 
-Prerequisites: Node 24 or later, pnpm 11 (the version is pinned in `package.json`'s `packageManager`), the Rust toolchain named in [`rust-toolchain.toml`](rust-toolchain.toml) (`rustup toolchain install` in the repository root installs it, with clippy and rustfmt), and Docker for building the container images. Wrangler is a workspace dev dependency, so `pnpm install` brings it.
+Prerequisites: Node 24 or later, pnpm 12 (the version is pinned in `package.json`'s `packageManager`), the Rust toolchain named in [`rust-toolchain.toml`](rust-toolchain.toml) (`rustup toolchain install` in the repository root installs it, with clippy and rustfmt), and Docker for building the container images. Wrangler is a workspace dev dependency, so `pnpm install` brings it.
 
 ```bash
 pnpm install

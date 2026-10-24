@@ -44,7 +44,7 @@ RUN cargo build --release --locked --target x86_64-unknown-linux-gnu -p runner
 # Pure JS analyzer, bundled with its pinned parser; never resolves packages in a checked repo.
 FROM --platform=$BUILDPLATFORM node:24.22.0-trixie-slim AS skipper
 WORKDIR /app
-RUN npm install --global pnpm@11.13.0
+RUN npm install --global pnpm@12.15.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/test-skipper/package.json packages/test-skipper/package.json
 RUN pnpm install --frozen-lockfile --filter @gitstalk/test-skipper
