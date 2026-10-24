@@ -1,3 +1,6 @@
+cargo:
+  enabled: true
+
 packages:
   - 'packages/*'
   # Race tooling with its own tests (the swarm Worker); research/ is otherwise outside the build.

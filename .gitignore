@@ -30,3 +30,4 @@ environments/*
 environments/**/secrets/
 packages/*/wrangler.*.jsonc
 research/swarm/wrangler.*.jsonc
+.pnpm/
