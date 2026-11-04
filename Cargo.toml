@@ -28,7 +28,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "str
 roxmltree = "0.21"
 # The SSH server (packages/ssh/container): ring instead of aws-lc-rs, so the amd64 image
 # cross-compiles with the runner's toolchain; rsa accepts people's RSA keys.
-russh = { version = "0.64", default-features = false, features = ["ring", "rsa"] }
+russh = { version = "0.65", default-features = false, features = ["ring", "rsa"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
