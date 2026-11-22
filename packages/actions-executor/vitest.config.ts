@@ -52,6 +52,9 @@ export default defineConfig({
   ],
   test: {
     include: ['test/**/*.test.ts'],
+    // The purge test writes 1,205 real R2 objects (Miniflare): the same result on every run, but
+    // on a busy machine the writes alone passed the default 5 s, as in the gateway and mcp configs.
+    testTimeout: 30_000,
   },
 });
 

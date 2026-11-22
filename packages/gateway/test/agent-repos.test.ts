@@ -293,8 +293,11 @@ describe('agent repositories: beans', () => {
     expect(
       value(await gateway.agentWaitBean(as(coop), repo, 'later', { until: 'verdict', seconds: 5 })),
     ).toMatchObject({
+      // Not `waited_s: 0`: that is wall-clock time rounded to a second, and read 1 on a busy
+      // machine. Nothing changes this bean, so the wait either answers at once or runs out its
+      // 5 s; `timed_out` tells the two apart on every run.
       phase: 'open',
-      waited_s: 0,
+      timed_out: false,
     });
     expect(
       await gateway.agentWaitBean(as(coop), repo, 'quick', { until: 'verdict', seconds: 0 }),

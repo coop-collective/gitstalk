@@ -46,6 +46,9 @@ export default defineConfig({
   ],
   test: {
     include: ['test/**/*.test.ts'],
+    // A file's first request starts the Worker and its Durable Objects; on a busy machine that
+    // start alone passed the default 5 s, as in the gateway and mcp configs.
+    testTimeout: 30_000,
   },
 });
 

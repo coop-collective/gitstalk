@@ -126,7 +126,7 @@ describe('dependency-aware starts on dependency chains', () => {
   // A deterministic but CPU-heavy simulation: about 2 s quiet, more under load, so it gets room.
   it(
     'keeps every chained bean that fifo drops under v2.4, at about fifo’s pace',
-    { timeout: 30_000 },
+    { timeout: 120_000 },
     () => {
       const v24 = { ...V25_RULES_OFF, ...HALF_AGENTS };
       const fifo = chainNumbers(runRace(chainScenario(v24, HALF)));
@@ -144,7 +144,7 @@ describe('dependency-aware starts on dependency chains', () => {
   // Two 100-task simulations: CPU-heavy, so it gets the same room as the chain test above.
   it(
     'under the v2.5 defaults (rescue keeps fifo’s beans) still cuts the conflicts',
-    { timeout: 30_000 },
+    { timeout: 120_000 },
     () => {
       const fifo = chainNumbers(runRace(chainScenario(HALF_AGENTS, HALF)));
       const dependency = chainNumbers(
