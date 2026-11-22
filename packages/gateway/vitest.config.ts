@@ -82,6 +82,9 @@ export default defineConfig({
     // Many tests run whole simulated races: deterministic but CPU-heavy, and several agents
     // share this machine's cores, so 5 s timed out under load. Simulations still finish in ~2 s quiet.
     testTimeout: 20_000,
+    // Hooks here push real commits and wait for a run on the stub executor, more work than most
+    // tests, yet they had only the default 10 s and timed out on a busy machine.
+    hookTimeout: 60_000,
   },
 });
 
